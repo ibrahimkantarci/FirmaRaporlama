@@ -143,15 +143,25 @@ def _fill_one(grp_el, c):
     })
 
 def _fill_banner(slide, venue):
-    # "Her zaman göster, boş alanlar": madde yoksa şablonun ön-yazılı metni TEMİZLENİR.
-    bullets = list(venue.get("bannerBullets") or [])
-    left, right = bullets[:3], bullets[3:6]
-    for name, items in ((BANNER_L, left), (BANNER_R, right)):
+    # Banner kapalıysa (bannerOn=False) ya da boşsa: şablonun ön-yazılı metni TEMİZLENİR.
+    # Dolu maddeler SİMETRİK dağıtılır: sol = ceil(n/2), sağ = floor(n/2);
+    # her sütunda dikey olarak ORTALANIR.
+    on = venue.get("bannerOn", True)
+    bullets = (
+        [str(b) for b in (venue.get("bannerBullets") or []) if str(b).strip()] if on else []
+    )
+    n = len(bullets)
+    ln = (n + 1) // 2  # sol sütun (ceil)
+    for name, items in ((BANNER_L, bullets[:ln]), (BANNER_R, bullets[ln:])):
         sh = _find_shape(slide, name)
         if sh is None or not sh.has_text_frame:
             continue
-        for i, p in enumerate(sh.text_frame.paragraphs):
-            new = str(items[i]) if i < len(items) else ""
+        paras = sh.text_frame.paragraphs
+        slots = len(paras)
+        start = max(0, (slots - len(items)) // 2)  # dikey ortala
+        slot_text = {start + i: it for i, it in enumerate(items) if start + i < slots}
+        for i, p in enumerate(paras):
+            new = slot_text.get(i, "")
             runs = p.runs
             if runs:
                 runs[0].text = new

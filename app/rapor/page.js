@@ -132,12 +132,23 @@ export default function RaporPage() {
       return { ...d, venues };
     });
   }
-  function setBanner(vi, text) {
+  function setBannerItem(vi, idx, value) {
     setData((d) => {
-      const bullets = text.split("\n");
-      const venues = d.venues.map((ven, i) => (i === vi ? { ...ven, bannerBullets: bullets } : ven));
+      const venues = d.venues.map((ven, i) => {
+        if (i !== vi) return ven;
+        const bb = [...(ven.bannerBullets || [])];
+        while (bb.length < 6) bb.push("");
+        bb[idx] = value;
+        return { ...ven, bannerBullets: bb };
+      });
       return { ...d, venues };
     });
+  }
+  function setBannerOn(vi, on) {
+    setData((d) => ({
+      ...d,
+      venues: d.venues.map((ven, i) => (i === vi ? { ...ven, bannerOn: on } : ven)),
+    }));
   }
 
   // --- sıralama / silme ---
@@ -250,6 +261,15 @@ export default function RaporPage() {
     border: "1px solid #f0c4c0",
     background: "#fff",
     color: "#c0392b",
+    fontSize: 12,
+    padding: "3px 8px",
+    borderRadius: 6,
+    cursor: "pointer",
+  };
+  const addBtn = {
+    border: "1px solid #cfe3d4",
+    background: "#fff",
+    color: "#1f7a3d",
     fontSize: 12,
     padding: "3px 8px",
     borderRadius: 6,
@@ -426,14 +446,33 @@ export default function RaporPage() {
                 Dönüş sütunları saat cinsinden ({venueMetric === "median" ? "medyan" : "ortalama"}); sunumda &quot;X saat Y dakika&quot; gösterilir.
               </p>
 
-              <div style={{ marginTop: 8 }}>
-                <label style={{ fontSize: 13, opacity: 0.75 }}>Slayt 3 alt banner maddeleri (her satır bir madde — boş bırakılabilir):</label>
-                <textarea
-                  value={(ven.bannerBullets || []).join("\n")}
-                  onChange={(e) => setBanner(vi, e.target.value)}
-                  rows={3}
-                  style={{ width: "100%", padding: 8, marginTop: 4 }}
-                />
+              <div style={{ marginTop: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <label style={{ fontSize: 13, opacity: 0.75 }}>
+                    Banner maddeleri (en çok 6 — yalnızca dolu olanlar simetrik yerleşir):
+                  </label>
+                  {ven.bannerOn === false ? (
+                    <button type="button" style={addBtn} onClick={() => setBannerOn(vi, true)}>
+                      Banner ekle
+                    </button>
+                  ) : (
+                    <button type="button" style={delBtn} onClick={() => setBannerOn(vi, false)}>
+                      Banner&apos;ı sil
+                    </button>
+                  )}
+                </div>
+                {ven.bannerOn !== false && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
+                    {Array.from({ length: 6 }).map((_, bi) => (
+                      <input
+                        key={bi}
+                        value={(ven.bannerBullets || [])[bi] || ""}
+                        onChange={(e) => setBannerItem(vi, bi, e.target.value)}
+                        style={{ height: 34, padding: "0 8px" }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}

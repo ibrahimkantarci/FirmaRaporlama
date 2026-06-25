@@ -127,7 +127,8 @@ export async function POST(request) {
     const venues = order.map((v) => ({
       rci: v,
       categories: map.get(v),
-      bannerBullets: ["", "", ""], // statik nitelik maddeleri — kullanıcı doldurur
+      bannerBullets: ["", "", "", "", "", ""], // 6 madde — boş; dolu olanlar simetrik yerleşir
+      bannerOn: true, // banner bölümü açık (kullanıcı silebilir)
     }));
 
     // Dönem bilgisi meta satırından gelir.

@@ -111,8 +111,13 @@ export default function ExportTool() {
               <div className="cap">Provider</div>
             </div>
             <div className="stat">
-              <div className="num">{result.lastYearMatchedCount}</div>
-              <div className="cap">Önceki dönemde eşleşen</div>
+              <div className="num">
+                {result.lastYearMatchedCount}
+                {typeof result.lastYearFetchedRows === "number" && (
+                  <span style={{ fontSize: 13, opacity: 0.55 }}> / {result.lastYearFetchedRows}</span>
+                )}
+              </div>
+              <div className="cap">Önceki dönem eşleşen / çekilen satır</div>
             </div>
             <div className="stat">
               <div className="num">{result.columnsCount}</div>
