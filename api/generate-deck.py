@@ -213,10 +213,18 @@ def _aggregate(venues):
     def a(key):
         xs = [_num(c.get(key)) for c in cats if _num(c.get(key)) > 0]
         return (sum(xs) / len(xs)) if xs else 0.0
+    # Dönüş süresi: "Teklif" (Çift) ağırlıklı ortalama.
+    def w(valkey, wkey):
+        nu = de = 0.0
+        for c in cats:
+            v = _num(c.get(valkey)); wt = _num(c.get(wkey))
+            if v > 0 and wt > 0:
+                nu += v * wt; de += wt
+        return (nu / de) if de else 0.0
     return {
         "sayfa": (s("sayfa"), s("sayfaGy")),
         "teklif": (s("teklif"), s("teklifGy")),
-        "donus": (a("donus"), a("donusGy")),
+        "donus": (w("donus", "teklif"), w("donusGy", "teklifGy")),
         "profil": (a("profil"), a("profilGy")),
     }
 

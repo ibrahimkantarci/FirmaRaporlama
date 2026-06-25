@@ -18,8 +18,8 @@ function hm(v) {
   return `${m} dakika`;
 }
 
-// Toplam (slayt 4): sayfa/teklif TOPLANIR; dönüş/profil DÜZ ORTALAMA (>0 değerler).
-// Dönüş için seçilen ölçü (medyan/ortalama) kullanılır.
+// Toplam (slayt 4): sayfa/teklif TOPLANIR; profil DÜZ ORTALAMA (>0).
+// Dönüş süresi: "Teklif" (Çift) ile AĞIRLIKLI ORTALAMA — her dönem kendi teklifiyle.
 function computeTotals(venues, metric) {
   const cats = venues.flatMap((v) => v.categories);
   const sum = (key) => cats.reduce((a, c) => a + (Number(c[key]) || 0), 0);
@@ -27,12 +27,22 @@ function computeTotals(venues, metric) {
     const xs = cats.map((c) => Number(c[key]) || 0).filter((x) => x > 0);
     return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
   };
+  // Ağırlıklı ortalama: sum(değer*ağırlık)/sum(ağırlık), yalnız değer>0 & ağırlık>0.
+  const wavg = (valKey, wKey) => {
+    let nu = 0, de = 0;
+    for (const c of cats) {
+      const v = Number(c[valKey]) || 0;
+      const w = Number(c[wKey]) || 0;
+      if (v > 0 && w > 0) { nu += v * w; de += w; }
+    }
+    return de ? nu / de : 0;
+  };
   const dk = metric === "median" ? "donusMedian" : "donusAvg";
   const dkGy = metric === "median" ? "donusMedianGy" : "donusAvgGy";
   return {
     sayfa: [sum("sayfa"), sum("sayfaGy")],
     teklif: [sum("teklif"), sum("teklifGy")],
-    donus: [avgPos(dk), avgPos(dkGy)],
+    donus: [wavg(dk, "teklif"), wavg(dkGy, "teklifGy")],
     profil: [avgPos("profil"), avgPos("profilGy")],
   };
 }

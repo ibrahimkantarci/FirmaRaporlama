@@ -61,10 +61,10 @@ export async function GET(request) {
     const sozMatrix = [sozMeta, eng.table.columns, ...eng.table.rows];
     const sozSheet = await writeMatrixToSheet(sozMatrix, { tab: "Sozlesme" });
 
-    // 2) Ana uygulama → YoY. Geçen yıl = (önceki sözleşme bitişi - 3 gün)'e en yakın.
+    // 2) Ana uygulama → YoY. Geçen yıl = (önceki sözleşme bitişi - 7 gün)'e en yakın.
     const opts =
       eng.previousContractEndMs != null
-        ? { lastYearTargetMs: eng.previousContractEndMs - 3 * DAY_MS }
+        ? { lastYearTargetMs: eng.previousContractEndMs - 7 * DAY_MS }
         : { skipLastYear: true };
 
     const data = await withQlikDoc(({ doc }) =>
