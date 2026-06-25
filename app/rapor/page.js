@@ -48,7 +48,7 @@ export default function RaporPage() {
     }
     setLoading(true);
     try {
-      const r = await fetch("/api/qlik/preview", {
+      const r = await fetch("/api/sheet/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customerId: customerId.trim() }),
@@ -131,9 +131,12 @@ export default function RaporPage() {
 
   return (
     <main className="wrap" style={{ maxWidth: 920, margin: "0 auto", padding: 16 }}>
-      <p className="eyebrow">Qlik → PowerPoint</p>
+      <p className="eyebrow">Google Sheets → PowerPoint</p>
       <h1 className="title">Sunum Önizleme &amp; Düzenleme</h1>
-      <p className="lede">Müşteri verisini çek, alanları düzelt, sonra sunumu üret.</p>
+      <p className="lede">
+        Müşteri verisini Google Sheet&apos;ten çek, alanları düzelt, sonra sunumu üret.
+        (Veri önce &quot;Provider Aktarımı&quot; ekranından Sheet&apos;e aktarılmış olmalı.)
+      </p>
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={fieldRow}>

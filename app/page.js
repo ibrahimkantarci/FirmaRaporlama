@@ -1,5 +1,6 @@
 import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import ExportTool from "./export-tool";
 
 export const runtime = "nodejs";
@@ -31,23 +32,39 @@ export default async function Page() {
         <span style={{ fontFamily: "ui-monospace, Menlo, Consolas, monospace" }}>
           {session.user.email}
         </span>
-        <form action={doSignOut}>
-          <button
-            type="submit"
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Link
+            href="/rapor"
             style={{
-              border: "1px solid #e3e7ec",
-              background: "#fff",
-              color: "#5b6675",
-              font: "inherit",
+              border: "1px solid #d7dce3",
+              background: "#1f6feb",
+              color: "#fff",
+              textDecoration: "none",
               fontSize: 12.5,
               padding: "6px 12px",
               borderRadius: 8,
-              cursor: "pointer",
             }}
           >
-            Çıkış
-          </button>
-        </form>
+            Sunum oluştur &rarr;
+          </Link>
+          <form action={doSignOut}>
+            <button
+              type="submit"
+              style={{
+                border: "1px solid #e3e7ec",
+                background: "#fff",
+                color: "#5b6675",
+                font: "inherit",
+                fontSize: 12.5,
+                padding: "6px 12px",
+                borderRadius: 8,
+                cursor: "pointer",
+              }}
+            >
+              Çıkış
+            </button>
+          </form>
+        </div>
       </header>
       <ExportTool />
     </>
