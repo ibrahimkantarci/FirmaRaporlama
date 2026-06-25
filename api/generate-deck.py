@@ -47,6 +47,16 @@ def tr_int(v):
 def tr_dec1(v):
     return f"{v:.1f}".replace(".", ",")
 
+# Dönüş süresi: saat cinsinden değer -> "X saat Y dakika" (sıfır parça atılır).
+def hm(v):
+    total = int(round(_num(v) * 60))
+    h, m = divmod(total, 60)
+    if h and m:
+        return f"{h} saat {m} dakika"
+    if h:
+        return f"{h} saat"
+    return f"{m} dakika"
+
 def pct(cur, prev):
     if prev == 0:
         return "▲ 0.0%"
@@ -128,21 +138,20 @@ def _fill_one(grp_el, c):
         ORIG["dash"]: "",
         ORIG["sayfa"]: tr_int(_num(c.get("sayfa"))),
         ORIG["cift"]: tr_int(_num(c.get("teklif"))),
-        ORIG["donus"]: f' {tr_dec1(_num(c.get("donus")))} Saat',
+        ORIG["donus"]: f' {hm(c.get("donus"))}',
         ORIG["profil"]: tr_int(_num(c.get("profil"))),
     })
 
 def _fill_banner(slide, venue):
-    bullets = [b for b in (venue.get("bannerBullets") or []) if str(b).strip()]
-    if not bullets:
-        return
+    # "Her zaman göster, boş alanlar": madde yoksa şablonun ön-yazılı metni TEMİZLENİR.
+    bullets = list(venue.get("bannerBullets") or [])
     left, right = bullets[:3], bullets[3:6]
     for name, items in ((BANNER_L, left), (BANNER_R, right)):
         sh = _find_shape(slide, name)
         if sh is None or not sh.has_text_frame:
             continue
         for i, p in enumerate(sh.text_frame.paragraphs):
-            new = items[i] if i < len(items) else ""
+            new = str(items[i]) if i < len(items) else ""
             runs = p.runs
             if runs:
                 runs[0].text = new
@@ -206,7 +215,7 @@ def _fill_totals(slide, agg):
     t_repl = {
         "▼ 2.0%": pct(*sayfa), "19.658": tr_int(sayfa[1]), "19.263": tr_int(sayfa[0]),
         "▲ 11.6%": pct(*teklif), "1.187": tr_int(teklif[1]), "1.325": tr_int(teklif[0]),
-        "▲ 30.8%": pct(*donus), "6,5 saat": tr_dec1(donus[1]) + " saat", "8,5 saat": tr_dec1(donus[0]) + " saat",
+        "▲ 30.8%": pct(*donus), "6,5 saat": hm(donus[1]), "8,5 saat": hm(donus[0]),
         "▲ 22.5%": pct(*profil), "80": tr_int(profil[1]), "98": tr_int(profil[0]),
     }
     done = {k: False for k in t_repl}

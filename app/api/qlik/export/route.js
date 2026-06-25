@@ -1,4 +1,9 @@
-import { withQlikDoc, getCustomerYoYFull } from "../../../../lib/qlik";
+import {
+  withQlikDoc,
+  getEngagementData,
+  getCustomerYoYFull,
+  injectResponseTimes,
+} from "../../../../lib/qlik";
 import { writeMatrixToSheet } from "../../../../lib/sheets";
 import { auth } from "@/auth";
 
@@ -6,8 +11,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Vercel: uzun Qlik okumalari icin
 
+const DAY_MS = 86400000;
+
 // /api/qlik/export?id=58367
-// Seçili müşteri için bu yıl + geçen yıl tüm sütunları çeker ve Google Sheet'e yazar.
+// 1) Engagement uygulamasından sözleşme verisini çek → "Sozlesme" sekmesine yaz,
+//    önceki sözleşme bitişini ve provider dönüş sürelerini (ort/medyan) türet.
+// 2) Ana uygulamadan bu yıl + (bitiş - 3 gün) geçen yıl tüm sütunları çek,
+//    dönüş sürelerini engagement'tan bas, ana sekmeye yaz.
 export async function GET(request) {
   const session = await auth();
   if (!session?.user) {
@@ -17,6 +27,8 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   const objectId = process.env.QLIK_OBJECT_ID;
+  const engAppId = process.env.ENGAGEMENT_APP_ID;
+  const engObjectId = process.env.ENGAGEMENT_OBJECT_ID;
 
   if (!id) {
     return Response.json(
@@ -27,12 +39,52 @@ export async function GET(request) {
   if (!objectId) {
     return Response.json({ ok: false, error: "QLIK_OBJECT_ID tanımlı değil." }, { status: 400 });
   }
+  if (!engAppId || !engObjectId) {
+    return Response.json(
+      { ok: false, error: "ENGAGEMENT_APP_ID / ENGAGEMENT_OBJECT_ID tanımlı değil." },
+      { status: 400 }
+    );
+  }
 
   try {
-    const data = await withQlikDoc(({ doc }) => getCustomerYoYFull(doc, objectId, id));
+    // 1) Engagement (ikinci uygulama) → sözleşme verisi
+    const eng = await withQlikDoc(engAppId, ({ doc }) =>
+      getEngagementData(doc, engObjectId, id)
+    );
+
+    // "Sozlesme" sekmesine blok olarak ekle (üzerine yazmaz; manuel silinir).
+    const sozMeta = [
+      `Müşteri: ${id}`,
+      `Önceki sözleşme bitiş: ${eng.previousContractEnd ?? "-"}`,
+      `Aktif provider sayısı: ${eng.activeProviderIds.length}`,
+    ];
+    const sozMatrix = [sozMeta, eng.table.columns, ...eng.table.rows];
+    const sozSheet = await writeMatrixToSheet(sozMatrix, { tab: "Sozlesme" });
+
+    // 2) Ana uygulama → YoY. Geçen yıl = (önceki sözleşme bitişi - 3 gün)'e en yakın.
+    const opts =
+      eng.previousContractEndMs != null
+        ? { lastYearTargetMs: eng.previousContractEndMs - 3 * DAY_MS }
+        : { skipLastYear: true };
+
+    const data = await withQlikDoc(({ doc }) =>
+      getCustomerYoYFull(doc, objectId, id, opts)
+    );
+    injectResponseTimes(data, eng.responseByProvider);
+
     const sheet = await writeMatrixToSheet(data.matrix);
+
     const { matrix, ...summary } = data; // büyük matris'i cevaba koymuyoruz
-    return Response.json({ ok: true, stage: "export", ...summary, sheet });
+    return Response.json({
+      ok: true,
+      stage: "export",
+      ...summary,
+      previousContractEnd: eng.previousContractEnd,
+      activeProviderCount: eng.activeProviderIds.length,
+      engagementMissingColumns: eng.missingColumns,
+      sheet,
+      sozlesme: sozSheet,
+    });
   } catch (err) {
     return Response.json(
       { ok: false, stage: "export", error: String(err?.message ?? err) },
