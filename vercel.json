@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/generate-deck.py": {
+      "memory": 1024,
+      "maxDuration": 30,
+      "includeFiles": "api/template.pptx"
+    }
+  }
+}
