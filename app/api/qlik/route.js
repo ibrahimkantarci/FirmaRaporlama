@@ -1,23 +1,46 @@
-import { withQlikDoc, getFieldList, getFieldValues } from "../../../../lib/qlik";
+import { withQlikDoc, fetchObjectData } from "../../../lib/qlik";
 
+// Node.js runtime şart: enigma.js + ws (header'lı WebSocket) Edge'de çalışmaz.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// /api/qlik/fields            -> uygulamadaki alan adları
-// /api/qlik/fields?name=Şehir -> o alanın ayrık değerleri
 export async function GET(request) {
+  const objectId = process.env.QLIK_OBJECT_ID;
+  if (!objectId) {
+    return Response.json(
+      {
+        ok: false,
+        stage: "object-data",
+        error: "QLIK_OBJECT_ID tanımlı değil. .env.local dosyasına ekleyin.",
+      },
+      { status: 400 }
+    );
+  }
+
+  // Önizleme limiti: /api/qlik?limit=10  veya  /api/qlik?limit=all
   const { searchParams } = new URL(request.url);
-  const name = searchParams.get("name");
+  const limitParam = searchParams.get("limit");
+  const maxRows =
+    limitParam === "all" ? Infinity : Number(limitParam) > 0 ? Number(limitParam) : 50;
+
   try {
-    if (name) {
-      const data = await withQlikDoc(({ doc }) => getFieldValues(doc, name, 200));
-      return Response.json({ ok: true, stage: "field-values", ...data });
-    }
-    const fields = await withQlikDoc(({ doc }) => getFieldList(doc));
-    return Response.json({ ok: true, stage: "field-list", count: fields.length, fields });
+    const data = await withQlikDoc(({ doc }) =>
+      fetchObjectData(doc, objectId, { maxRows })
+    );
+
+    return Response.json({
+      ok: true,
+      stage: "object-data",
+      objectId,
+      ...data,
+    });
   } catch (err) {
     return Response.json(
-      { ok: false, error: String(err?.message ?? err) },
+      {
+        ok: false,
+        stage: "object-data",
+        error: String(err?.message ?? err),
+      },
       { status: 500 }
     );
   }
