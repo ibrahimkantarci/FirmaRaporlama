@@ -8,11 +8,12 @@
     "start": "next start"
   },
   "dependencies": {
+    "enigma.js": "^2.14.0",
+    "googleapis": "^144.0.0",
     "next": "^14.2.5",
+    "next-auth": "^5.0.0-beta.31",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "enigma.js": "^2.14.0",
-    "ws": "^8.18.0",
-    "googleapis": "^144.0.0"
+    "ws": "^8.18.0"
   }
 }

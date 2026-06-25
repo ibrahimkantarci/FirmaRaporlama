@@ -1,5 +1,6 @@
 import { withQlikDoc, getCustomerYoYFull } from "../../../../lib/qlik";
 import { writeMatrixToSheet } from "../../../../lib/sheets";
+import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +9,11 @@ export const maxDuration = 60; // Vercel: uzun Qlik okumalari icin
 // /api/qlik/export?id=58367
 // Seçili müşteri için bu yıl + geçen yıl tüm sütunları çeker ve Google Sheet'e yazar.
 export async function GET(request) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ ok: false, error: "Yetkisiz." }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   const objectId = process.env.QLIK_OBJECT_ID;
