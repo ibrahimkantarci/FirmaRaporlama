@@ -251,7 +251,13 @@ def build_deck(data, template_path=TEMPLATE):
         venue_slides.append(clone_slide(prs, venue_tpl))
     for slide, venue in zip(venue_slides, venues):
         _fill_venue(slide, venue)
-    _fill_totals(totals, _aggregate(venues))
+    # Toplam slaytı, kullanıcı seçimine göre ayrı bir dönüş ölçüsü kullanabilir
+    # (venue'lerden bağımsız medyan/ortalama). Sağlanmışsa onu kullan.
+    agg = _aggregate(venues)
+    td = data.get("totalsDonus")
+    if isinstance(td, (list, tuple)) and len(td) == 2:
+        agg["donus"] = (_num(td[0]), _num(td[1]))
+    _fill_totals(totals, agg)
     reorder_slides(prs, [cover, intro] + venue_slides + [totals, advice, closing])
     buf = io.BytesIO()
     prs.save(buf)

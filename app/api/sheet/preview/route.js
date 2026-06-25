@@ -17,7 +17,8 @@ const NEED = {
   urun: "Ürün Adı",
   sayfa: "Sayfa Ziyareti",
   teklif: "Teklif",
-  donus: "Ortalama Dönüş Süresi (Saat)",
+  donus: "Ortalama Dönüş Süresi (Saat)", // engagement ORTALAMA
+  medyan: "Medyan Dönüş Süresi (Saat)",  // engagement MEDYAN
   profil: "Profil Puanı",
 };
 
@@ -71,10 +72,12 @@ export async function POST(request) {
       sayfa: idx(NEED.sayfa),
       teklif: idx(NEED.teklif),
       donus: idx(NEED.donus),
+      medyan: idx(NEED.medyan),
       profil: idx(NEED.profil),
       sayfaGy: idx(`${NEED.sayfa} (GY)`),
       teklifGy: idx(`${NEED.teklif} (GY)`),
       donusGy: idx(`${NEED.donus} (GY)`),
+      medyanGy: idx(`${NEED.medyan} (GY)`),
       profilGy: idx(`${NEED.profil} (GY)`),
     };
 
@@ -109,12 +112,15 @@ export async function POST(request) {
         kategori: String(r[C.kat] ?? ""),
         sayfa: num(r[C.sayfa]),
         teklif: num(r[C.teklif]),
-        donus: num(r[C.donus]),
         profil: num(r[C.profil]),
+        // Dönüş süresi iki ölçü: ortalama + medyan (bu yıl / geçen yıl).
+        donusAvg: num(r[C.donus]),
+        donusMedian: num(r[C.medyan]),
         sayfaGy: num(r[C.sayfaGy]),
         teklifGy: num(r[C.teklifGy]),
-        donusGy: num(r[C.donusGy]),
         profilGy: num(r[C.profilGy]),
+        donusAvgGy: num(r[C.donusGy]),
+        donusMedianGy: num(r[C.medyanGy]),
       });
     }
 
