@@ -11,7 +11,7 @@ export default async function ProviderPage() {
 
   async function doSignOut() {
     "use server";
-    await signOut({ redirectTo: "/login" });
+    await signOut({ redirectTo: "/" });
   }
 
   return (

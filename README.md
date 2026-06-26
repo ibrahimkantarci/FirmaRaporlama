@@ -1,46 +1,65 @@
-# Qlik -> Vercel -> Google Sheets
+# Performans Yönetimi
 
-Seçilen `customer_id` için Qlik'teki tek tablodan, bu yıl + geçen yıl tüm sütunları
-çekip yan yana (YoY) bir Google Sheet'e yazan uygulama.
+Qlik Cloud verisini Google Sheets'e aktaran, PowerPoint sunum üreten ve fiyat
+tutarlılığını denetleyen iç araç (Next.js 14 App Router, Vercel).
+
+Tüm sayfalar Google girişi (izinli e-posta listesi) arkasındadır. Giriş ana
+sayfadadır; giriş yapılmadan hiçbir araca/endpoint'e erişilemez.
+
+## Araçlar
+
+Ana sayfa (`/`) = giriş + "Performans Yönetimi" hub'ı. Hub iki araca bağlanır:
+
+### 1) Provider Aktarımı & Sunum
+- `/provider` — müşteri ID gir → `GET /api/qlik/export`.
+  Engagement uygulamasından sözleşme verisini çeker ("Sozlesme" sekmesi),
+  önceki sözleşme bitişinden 7 gün öncesini geçen-yıl tarihi seçer, ana
+  uygulamadan bu yıl + geçen yıl tüm sütunları çekip YoY olarak ana sekmeye yazar.
+  Dönüş süreleri (ortalama + medyan) engagement objesinden gelir.
+- `/rapor` — `POST /api/sheet/preview` ile Sheet'ten okur, düzenlenir
+  (sürükle-bırak sıralama, medyan/ortalama seçici), `POST /api/generate-deck`
+  (Python, `api/generate-deck.py`) ile `template.pptx` üstüne basıp `.pptx` indirir.
+
+### 2) Fiyat Tutarlılık
+- `/fiyat-tutarlilik` — açılışta son veriyi `GET /api/fiyat/data` ile gösterir;
+  "Çalıştır" `GET /api/fiyat/run` ile pipeline'ı tetikler.
+  Katalog + kampanya objelerini (aktif provider filtreli) okur, üç sekmeye yazar
+  (`Fiyat_Tutarlılık_Catalog/Campaign/Kıyas`). Kampanya birimi metinden
+  (Kişi Başı/Paket) belirlenir; `provider_id` + birim + para birimi ile eşleşip
+  kampanya fiyatı katalog referansından düşükse Tutarlı, değilse Tutarsız sayılır.
+  Referans (Max/Min/Medyan/Ana) ve boyut filtresi sayfada canlı değişir.
 
 ## Mimari
-    Tarayıcı -> /api/qlik/export?id=... (sunucu) -> Qlik Engine (seçim+okuma) -> Google Sheets
+
+    Tarayıcı → /api/* (sunucu) → Qlik Engine (enigma.js/ws) + Google Sheets API
 
 API key ve Google kimlik bilgileri yalnızca sunucu tarafında (env) tutulur.
-
-## Uç noktalar
-- `GET /api/qlik`                      -> tablo verisi (önizleme; ?limit=all)
-- `GET /api/qlik/fields`               -> alan adları
-- `GET /api/qlik/fields?name=<alan>`   -> bir alanın değerleri
-- `GET /api/qlik/select-test?field=&value=` -> izole seçim testi (kalan satır)
-- `GET /api/qlik/customer?id=<id>`     -> 7 kolon, bu yıl/geçen yıl (özet)
-- `GET /api/qlik/export?id=<id>`       -> tüm sütunlar YoY, Google Sheet'e yazar
+Qlik bağlantısı `lib/qlik.js`, Sheets `lib/sheets.js`, fiyat mantığı `lib/fiyat.js`.
 
 ## Kurulum
+
 1. `npm install`
-2. `cp .env.local.example .env.local` ve doldur (aşağıdaki Google adımları dahil)
-3. `npm run dev`
+2. `.env.local` doldur (aşağıdaki değişkenler) ve `npm run dev`
 
-## Google Sheets kurulumu (bir kerelik)
-1. Google Cloud Console'da bir proje seç/oluştur.
-2. "Google Sheets API"yi etkinleştir.
-3. IAM -> Service Accounts -> yeni Service Account oluştur.
-4. O Service Account için "Keys" -> "Add key" -> JSON indir.
-5. JSON'dan `client_email` ve `private_key` değerlerini `.env.local`'a koy
-   (private_key'i tek satır, "\n" kaçışlı, çift tırnak içinde).
-6. Hedef Google Sheet'i aç -> "Paylaş" -> Service Account e-postasını
-   **Editör** olarak ekle. (Bu adım atlanırsa "permission" hatası alırsın.)
-7. Sheet ID'sini (URL'deki /d/<ID>/edit) `GOOGLE_SHEET_ID`'ye yaz.
+### Ortam değişkenleri
 
-## Vercel'e deploy
-Repo'yu Vercel'e bağla, tüm env değişkenlerini (Qlik 4 + Google 4) Vercel
-proje ayarlarındaki Environment Variables'a ekle. `.env.local` deploy edilmez.
+    # Qlik (ana uygulama)
+    QLIK_TENANT_HOST, QLIK_APP_ID, QLIK_OBJECT_ID, QLIK_API_KEY
+    # Engagement (sözleşme/dönüş süresi) — aynı tenant + API key
+    ENGAGEMENT_APP_ID, ENGAGEMENT_OBJECT_ID
+    # Fiyat Tutarlılık (FIYAT_APP_ID yoksa ENGAGEMENT_APP_ID kullanılır)
+    FIYAT_CATALOG_OBJECT_ID, FIYAT_CAMPAIGN_OBJECT_ID  (ops: FIYAT_APP_ID)
+    # Google Sheets (Service Account)
+    GOOGLE_SHEET_ID, GOOGLE_SHEET_TAB,
+    GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+    # Auth (NextAuth v5)
+    AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, AUTH_TRUST_HOST
 
-## Aşamalar
-- [x] 1. İskelet
-- [x] 2. Qlik bağlantı testi
-- [x] 3. Tablo okuma
-- [x] 4. Filtre/selection (customer_id + load_date)
-- [x] 5. YoY tam döküm -> Google Sheets
-- [ ] 6. Frontend (customer_id giriş + "Aktar" butonu) + Vercel deploy
-- [ ] 7. Sunum template'i
+İzinli e-postalar `izinli-mailler.js` dosyasında. Google Sheet, Service
+Account e-postasına **Editör** olarak paylaşılmalıdır.
+
+## Vercel
+
+Repo'yu bağla, tüm env değişkenlerini ekle. Python fonksiyonu (`api/generate-deck.py`,
+`template.pptx` dahil) `vercel.json` ile yapılandırılmıştır; `requirements.txt`
+`python-pptx` kurar. `.env.local` deploy edilmez.
