@@ -72,6 +72,15 @@ export async function GET(request) {
     );
     injectResponseTimes(data, eng.responseByProvider);
 
+    // Dönem toplamlarını (gerçek Qlik grand total) meta satırına göm — rapor okur.
+    const fmt = (v) => (v == null ? "" : String(v));
+    data.matrix[0].push(
+      `EngMedyanBu: ${fmt(eng.totals?.current?.median)}`,
+      `EngMedyanGy: ${fmt(eng.totals?.previous?.median)}`,
+      `EngOrtBu: ${fmt(eng.totals?.current?.avg)}`,
+      `EngOrtGy: ${fmt(eng.totals?.previous?.avg)}`
+    );
+
     const sheet = await writeMatrixToSheet(data.matrix);
 
     const { matrix, ...summary } = data; // büyük matris'i cevaba koymuyoruz
@@ -80,7 +89,9 @@ export async function GET(request) {
       stage: "export",
       ...summary,
       previousContractEnd: eng.previousContractEnd,
+      currentContractEnd: eng.currentContractEnd,
       activeProviderCount: eng.activeProviderIds.length,
+      engagementTotals: eng.totals,
       engagementMissingColumns: eng.missingColumns,
       sheet,
       sozlesme: sozSheet,

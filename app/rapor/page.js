@@ -91,10 +91,20 @@ export default function RaporPage() {
   // Sürükle-bırak için geçici durum (render tetiklemesin diye ref).
   const dragRef = useRef(null);
 
-  const totals = useMemo(
-    () => (data ? computeTotals(data.venues, totalsMetric) : null),
-    [data, totalsMetric]
-  );
+  const totals = useMemo(() => {
+    if (!data) return null;
+    const t = computeTotals(data.venues, totalsMetric);
+    // Toplam dönüş: varsa GERÇEK Qlik grand total kullan (ağırlıklı ortalama yedek).
+    const et = data.engTotals;
+    const arr = et && (totalsMetric === "median" ? et.median : et.avg);
+    if (arr && (arr[0] != null || arr[1] != null)) {
+      t.donus = [Number(arr[0]) || 0, Number(arr[1]) || 0];
+      t.donusSource = "qlik";
+    } else {
+      t.donusSource = "weighted";
+    }
+    return t;
+  }, [data, totalsMetric]);
 
   async function loadPreview() {
     setError("");
@@ -231,9 +241,8 @@ export default function RaporPage() {
           donusGy: Number(c[vkGy]) || 0,
         })),
       }));
-      // toplam slaytı: kendi ölçüsüne göre ayrı dönüş değeri.
-      const tt = computeTotals(data.venues, totalsMetric);
-      const payload = { ...data, venues: venuesOut, totalsDonus: tt.donus };
+      // toplam slaytı: gerçek Qlik grand total (yoksa ağırlıklı ortalama) — memo'dan.
+      const payload = { ...data, venues: venuesOut, totalsDonus: totals ? totals.donus : undefined };
 
       const r = await fetch("/api/generate-deck", {
         method: "POST",
@@ -346,7 +355,12 @@ export default function RaporPage() {
           {totals && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                <h3 style={{ margin: 0 }}>Slayt 4 — Toplam karşılaştırma (canlı)</h3>
+                <h3 style={{ margin: 0 }}>
+                  Slayt 4 — Toplam karşılaştırma (canlı)
+                  <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.6, marginLeft: 8 }}>
+                    dönüş: {totals.donusSource === "qlik" ? "Qlik Totals" : "ağırlıklı ort. (yedek)"}
+                  </span>
+                </h3>
                 <MetricToggle label="Toplam dönüş" value={totalsMetric} onChange={setTotalsMetric} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginTop: 10 }}>

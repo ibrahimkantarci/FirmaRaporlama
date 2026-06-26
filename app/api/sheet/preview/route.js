@@ -134,6 +134,17 @@ export async function POST(request) {
     // Dönem bilgisi meta satırından gelir.
     const gapRaw = metaVal(meta, "Gün farkı:");
 
+    // Dönem TOPLAM dönüş süreleri (gerçek Qlik grand total) — toplam slaytı için.
+    const pn = (s) => {
+      if (s == null || s === "") return null;
+      const f = Number(s);
+      return Number.isFinite(f) ? f : null;
+    };
+    const engTotals = {
+      median: [pn(metaVal(meta, "EngMedyanBu:")), pn(metaVal(meta, "EngMedyanGy:"))],
+      avg: [pn(metaVal(meta, "EngOrtBu:")), pn(metaVal(meta, "EngOrtGy:"))],
+    };
+
     return Response.json({
       ok: true,
       source: "sheet",
@@ -145,6 +156,7 @@ export async function POST(request) {
       venueCount: venues.length,
       missing,
       venues,
+      engTotals,
     });
   } catch (err) {
     return Response.json(
