@@ -1,8 +1,8 @@
 "use client";
 // app/fiyat-tutarlilik/page.js
-// Katalog vs kampanya fiyat tutarlılık denetimi. Butonla pipeline tetiklenir;
-// referans stratejisi (Max/Min/Medyan/Ana) sayfada canlı değiştirilir.
-import { useMemo, useState } from "react";
+// Açılışta mevcut (son çalıştırılmış) Kıyas verisini + güncelleme tarihini gösterir.
+// "Çalıştır" pipeline'ı yeniden tetikler. Referans stratejisi ve boyut(kolon)+değer filtresi canlı.
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { verdictFor, summarize } from "../../lib/fiyat";
 
@@ -14,18 +14,53 @@ const STRATS = [
   { key: "isMain", label: "Ana Katalog" },
 ];
 const VCOLOR = { Tutarlı: "#1f7a3d", Tutarsız: "#c0392b", Karşılaştırılamaz: "#8a93a0" };
-const CAP = 400; // tabloda gösterilecek azami satır
+// Filtrelenebilir boyutlar (kolonlar). get(row, verdict) → değer.
+const DIMS = [
+  { key: "category", label: "Kategori", get: (r) => r.category },
+  { key: "city", label: "Şehir", get: (r) => r.city },
+  { key: "type", label: "Tür", get: (r) => r.type },
+  { key: "unit", label: "Birim", get: (r) => (r.unit === "kisi" ? "Kişi Başı" : "Paket") },
+  { key: "currency", label: "Para", get: (r) => r.currency },
+  { key: "label", label: "Etiket", get: (r) => r.label },
+  { key: "providerName", label: "Provider", get: (r) => r.providerName || r.providerId },
+  { key: "verdict", label: "Sonuç", get: (_r, v) => v.verdict },
+];
+const CAP = 400;
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString("tr-TR");
+}
 
 export default function FiyatPage() {
-  const [loading, setLoading] = useState(false);
+  const [initLoading, setInitLoading] = useState(true);
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [data, setData] = useState(null);
   const [strategy, setStrategy] = useState("max");
   const [filter, setFilter] = useState("Tutarsız");
+  const [dimKey, setDimKey] = useState("");
+  const [dimVal, setDimVal] = useState("");
+
+  // Açılışta mevcut veriyi yükle.
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/fiyat/data");
+        const j = await r.json();
+        if (j.ok && !j.empty) setData(j);
+      } catch {
+        /* sessiz */
+      } finally {
+        setInitLoading(false);
+      }
+    })();
+  }, []);
 
   async function run() {
     setError("");
-    setLoading(true);
+    setRunning(true);
     try {
       const r = await fetch("/api/fiyat/run");
       const j = await r.json();
@@ -34,7 +69,7 @@ export default function FiyatPage() {
     } catch (e) {
       setError(String(e.message || e));
     } finally {
-      setLoading(false);
+      setRunning(false);
     }
   }
 
@@ -44,13 +79,30 @@ export default function FiyatPage() {
     [rows, strategy]
   );
   const counts = useMemo(() => summarize(rows, strategy), [rows, strategy]);
+
+  const dimDef = DIMS.find((d) => d.key === dimKey);
+  const dimValues = useMemo(() => {
+    if (!dimDef) return [];
+    const set = new Set();
+    computed.forEach(({ row, v }) => set.add(dimDef.get(row, v)));
+    return [...set]
+      .filter((x) => x !== "" && x != null)
+      .sort((a, b) => String(a).localeCompare(String(b), "tr"));
+  }, [computed, dimKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const shown = useMemo(
-    () => (filter === "Tümü" ? computed : computed.filter((x) => x.v.verdict === filter)),
-    [computed, filter]
+    () =>
+      computed.filter(({ row, v }) => {
+        if (filter !== "Tümü" && v.verdict !== filter) return false;
+        if (dimDef && dimVal !== "" && String(dimDef.get(row, v)) !== String(dimVal)) return false;
+        return true;
+      }),
+    [computed, filter, dimKey, dimVal] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const th = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid #e3e7ec", position: "sticky", top: 0, background: "#fff" };
   const td = { padding: "5px 8px", borderBottom: "1px solid #f0f2f5", whiteSpace: "nowrap" };
+  const sel = { height: 34, padding: "0 8px", borderRadius: 8, border: "1px solid #d7dce3" };
 
   return (
     <main className="wrap" style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
@@ -67,16 +119,20 @@ export default function FiyatPage() {
       <h1 className="title">Fiyat Tutarlılık</h1>
       <p className="lede">
         Aktif provider&apos;ların katalog ve kampanya fiyatlarını eşleştirir; kampanya fiyatı
-        (Fiyat Sonra) eşleşen birimdeki katalog referansından düşükse <b>Tutarlı</b>, değilse
-        <b> Tutarsız</b> sayılır. Birim, kampanya metnindeki &quot;Kişi Başı&quot; ifadesinden belirlenir.
+        eşleşen birimdeki katalog referansından düşükse <b>Tutarlı</b>, değilse <b>Tutarsız</b>.
+        Birim, kampanya metnindeki &quot;Kişi Başı&quot; ifadesinden belirlenir.
       </p>
 
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <button className="btn" onClick={run} disabled={loading} style={{ height: 44, padding: "0 22px" }}>
-          {loading ? "Çalışıyor… (Qlik okunuyor + Sheet yazılıyor)" : "Çalıştır"}
+        <button className="btn" onClick={run} disabled={running} style={{ height: 44, padding: "0 22px" }}>
+          {running ? "Çalışıyor… (Qlik + Sheet)" : "Çalıştır (verileri yenile)"}
         </button>
-        <span style={{ fontSize: 13, opacity: 0.7 }}>
-          Katalog + Kampanya çekilir, 3 sekmeye yazılır (Catalog / Campaign / Kıyas).
+        <span style={{ fontSize: 13, opacity: 0.75 }}>
+          {initLoading
+            ? "Mevcut veri yükleniyor…"
+            : data
+            ? <>Son güncelleme: <b>{fmtDate(data.updatedAt)}</b></>
+            : "Henüz çalıştırılmadı."}
         </span>
       </div>
 
@@ -84,7 +140,7 @@ export default function FiyatPage() {
         <div className="card" style={{ borderColor: "#c0392b", color: "#c0392b", marginBottom: 16 }}>{error}</div>
       )}
 
-      {data && (
+      {data && rows.length > 0 && (
         <>
           {(data.catMissing?.length > 0 || data.campMissing?.length > 0) && (
             <div className="card" style={{ borderColor: "#e67e22", marginBottom: 16, fontSize: 13 }}>
@@ -116,7 +172,7 @@ export default function FiyatPage() {
                 ))}
               </div>
               <div style={{ fontSize: 13, opacity: 0.7 }}>
-                {data.catalogRows} katalog · {data.campaignRows} kampanya satırı
+                {data.catalogRows ?? "—"} katalog · {data.campaignRows ?? "—"} kampanya satırı
               </div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
@@ -140,6 +196,38 @@ export default function FiyatPage() {
                 );
               })}
             </div>
+
+            {/* Boyut (kolon) + değer filtresi */}
+            <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13, opacity: 0.75 }}>Filtre:</span>
+              <select
+                value={dimKey}
+                onChange={(e) => { setDimKey(e.target.value); setDimVal(""); }}
+                style={sel}
+              >
+                <option value="">Boyut seç…</option>
+                {DIMS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+              </select>
+              <select
+                value={dimVal}
+                onChange={(e) => setDimVal(e.target.value)}
+                disabled={!dimKey}
+                style={{ ...sel, minWidth: 200 }}
+              >
+                <option value="">{dimKey ? "Değer seç…" : "—"}</option>
+                {dimValues.map((v) => <option key={String(v)} value={String(v)}>{String(v)}</option>)}
+              </select>
+              {(dimKey || dimVal) && (
+                <button
+                  type="button"
+                  onClick={() => { setDimKey(""); setDimVal(""); }}
+                  style={{ ...sel, cursor: "pointer", color: "#5b6675", background: "#fff" }}
+                >
+                  Temizle
+                </button>
+              )}
+              <span style={{ fontSize: 12.5, opacity: 0.6 }}>{shown.length} satır</span>
+            </div>
           </div>
 
           {/* Tablo */}
@@ -147,7 +235,7 @@ export default function FiyatPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {["Provider", "Kategori", "Tür", "Birim", "Para", "Fiyat Sonra", "Referans", "Sonuç", "Not / Intro"].map((h) => (
+                  {["Provider", "Kategori", "Şehir", "Tür", "Birim", "Para", "Fiyat Sonra", "Referans", "Sonuç", "Not / Intro"].map((h) => (
                     <th key={h} style={th}>{h}</th>
                   ))}
                 </tr>
@@ -157,15 +245,14 @@ export default function FiyatPage() {
                   <tr key={i}>
                     <td style={td} title={`#${row.providerId}`}>{row.providerName || row.providerId}</td>
                     <td style={td}>{row.category}</td>
+                    <td style={td}>{row.city}</td>
                     <td style={td}>{row.type}</td>
                     <td style={td}>{row.unit === "kisi" ? "Kişi Başı" : "Paket"}</td>
                     <td style={td}>{row.currency}</td>
                     <td style={{ ...td, fontWeight: 600 }}>{TR(row.priceAfter)}</td>
                     <td style={td}>{TR(v.refValue)}</td>
                     <td style={{ ...td, color: VCOLOR[v.verdict], fontWeight: 700 }}>{v.verdict}</td>
-                    <td style={{ ...td, whiteSpace: "normal", maxWidth: 360, opacity: 0.8 }}>
-                      {v.reason || row.intro}
-                    </td>
+                    <td style={{ ...td, whiteSpace: "normal", maxWidth: 360, opacity: 0.8 }}>{v.reason || row.intro}</td>
                   </tr>
                 ))}
               </tbody>
@@ -187,6 +274,10 @@ export default function FiyatPage() {
             </a>
           )}
         </>
+      )}
+
+      {!initLoading && data && rows.length === 0 && (
+        <div className="card" style={{ fontSize: 13, opacity: 0.75 }}>Veri boş.</div>
       )}
     </main>
   );

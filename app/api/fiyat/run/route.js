@@ -40,13 +40,21 @@ export async function GET() {
 
     const { rows, catMissing, campMissing } = buildComparison(catalog, campaign);
 
-    // 3 sekmeyi sıfırdan yaz.
+    const updatedAt = new Date().toISOString();
+    const metaRow = [
+      `Güncelleme: ${updatedAt}`,
+      `Katalog satır: ${catalog.rows.length}`,
+      `Kampanya satır: ${campaign.rows.length}`,
+    ];
+
+    // 3 sekmeyi sıfırdan yaz (Kıyas'a en üste meta/güncelleme satırı).
     const catSheet = await overwriteSheetTab([catalog.columns, ...catalog.rows], { tab: TAB_CATALOG });
     const campSheet = await overwriteSheetTab([campaign.columns, ...campaign.rows], { tab: TAB_CAMPAIGN });
-    const kiyasSheet = await overwriteSheetTab(kiyasMatrix(rows, "max"), { tab: TAB_KIYAS });
+    const kiyasSheet = await overwriteSheetTab([metaRow, ...kiyasMatrix(rows, "max")], { tab: TAB_KIYAS });
 
     return Response.json({
       ok: true,
+      updatedAt,
       catalogRows: catalog.rows.length,
       campaignRows: campaign.rows.length,
       catMissing,

@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 export default async function ProviderPage() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect("/");
 
   async function doSignOut() {
     "use server";

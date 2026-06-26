@@ -12,7 +12,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET / AUTH_SECRET env'leri v5 tarafından
   // otomatik okunur.
   providers: [Google],
-  pages: { signIn: "/login" },
+  pages: { signIn: "/" }, // giriş ana sayfada (Performans Yönetimi)
 
   session: {
     strategy: "jwt",

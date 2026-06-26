@@ -1,5 +1,4 @@
-import { auth, signOut } from "@/auth";
-import { redirect } from "next/navigation";
+import { auth, signIn, signOut } from "@/auth";
 import Link from "next/link";
 
 export const runtime = "nodejs";
@@ -19,11 +18,32 @@ const tools = [
 
 export default async function Home() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+
+  // Giriş yapılmamışsa: ana sayfa = Google giriş ekranı.
+  if (!session?.user) {
+    async function googleSignIn() {
+      "use server";
+      await signIn("google", { redirectTo: "/" });
+    }
+    return (
+      <main className="wrap" style={{ maxWidth: 520, margin: "0 auto", padding: 16 }}>
+        <p className="eyebrow">Düğün.com</p>
+        <h1 className="title">Performans Yönetimi</h1>
+        <p className="lede">Devam etmek için izinli bir Google hesabıyla giriş yap.</p>
+        <div className="card">
+          <form action={googleSignIn}>
+            <button className="btn" type="submit" style={{ width: "100%", height: 46 }}>
+              Google ile giriş yap
+            </button>
+          </form>
+        </div>
+      </main>
+    );
+  }
 
   async function doSignOut() {
     "use server";
-    await signOut({ redirectTo: "/login" });
+    await signOut({ redirectTo: "/" });
   }
 
   return (
