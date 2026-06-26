@@ -1,8 +1,8 @@
 "use client";
 // app/fiyat-tutarlilik/page.js
-// Açılışta mevcut (son çalıştırılmış) Kıyas verisini + güncelleme tarihini gösterir.
-// "Çalıştır" pipeline'ı yeniden tetikler. Referans stratejisi ve boyut(kolon)+değer filtresi canlı.
-import { useEffect, useMemo, useState } from "react";
+// Açılışta mevcut Kıyas verisini + güncelleme tarihini gösterir; "Çalıştır" pipeline'ı tetikler.
+// Referans stratejisi, sayım bazı (kampanya/provider) ve çoklu boyut+değer filtreleri canlı.
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { verdictFor, summarize } from "../../lib/fiyat";
 
@@ -13,8 +13,13 @@ const STRATS = [
   { key: "median", label: "Katalog Medyan" },
   { key: "isMain", label: "Ana Katalog" },
 ];
+const BASES = [
+  { key: "campaign", label: "Kampanya bazlı" },
+  { key: "optimistic", label: "Provider — en az 1 tutarlı" },
+  { key: "proportional", label: "Provider — oran (1/3)" },
+  { key: "strict", label: "Provider — tutarsız varsa tutarsız" },
+];
 const VCOLOR = { Tutarlı: "#1f7a3d", Tutarsız: "#c0392b", Karşılaştırılamaz: "#8a93a0" };
-// Filtrelenebilir boyutlar (kolonlar). get(row, verdict) → değer.
 const DIMS = [
   { key: "category", label: "Kategori", get: (r) => r.category },
   { key: "city", label: "Şehir", get: (r) => r.city },
@@ -26,11 +31,75 @@ const DIMS = [
   { key: "verdict", label: "Sonuç", get: (_r, v) => v.verdict },
 ];
 const CAP = 400;
+const SEL = { height: 34, padding: "0 8px", borderRadius: 8, border: "1px solid #d7dce3", background: "#fff", fontSize: 12.5 };
 
 function fmtDate(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString("tr-TR");
+}
+const fmtCount = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+// Checkbox'lı çoklu seçim açılır menüsü.
+function MultiSelect({ options, selected, onChange, disabled }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+  const toggle = (val) =>
+    onChange(selected.includes(val) ? selected.filter((v) => v !== val) : [...selected, val]);
+  const label = selected.length === 0 ? "Değer seç…" : `${selected.length} seçili`;
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        style={{ ...SEL, minWidth: 170, textAlign: "left", cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1 }}
+      >
+        {label} ▾
+      </button>
+      {open && (
+        <div style={{ position: "absolute", zIndex: 30, top: "calc(100% + 4px)", left: 0, background: "#fff", border: "1px solid #d7dce3", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,.12)", maxHeight: 260, overflow: "auto", minWidth: 220, padding: 6 }}>
+          {options.length === 0 && <div style={{ padding: 8, fontSize: 12.5, opacity: 0.6 }}>—</div>}
+          {options.map((o) => (
+            <label key={o} style={{ display: "flex", gap: 8, alignItems: "center", padding: "5px 6px", fontSize: 13, cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.includes(o)} onChange={() => toggle(o)} />
+              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Provider başına {comparable, tutarli, tutarsiz} özetini kurar.
+function providerAgg(computed) {
+  const m = new Map();
+  for (const { row, v } of computed) {
+    const pid = row.providerId || row.providerName;
+    if (!m.has(pid)) m.set(pid, { comparable: 0, tutarli: 0, tutarsiz: 0 });
+    const g = m.get(pid);
+    if (v.verdict === "Tutarlı") { g.comparable++; g.tutarli++; }
+    else if (v.verdict === "Tutarsız") { g.comparable++; g.tutarsiz++; }
+  }
+  return m;
+}
+function provScore(g, mode) {
+  if (g.comparable === 0) return null; // karşılaştırılamaz
+  if (mode === "optimistic") return g.tutarli > 0 ? 1 : 0;
+  if (mode === "strict") return g.tutarsiz > 0 ? 0 : 1;
+  return g.tutarli / g.comparable; // proportional
+}
+function provBucketLabel(g, mode) {
+  if (g.comparable === 0) return "Karşılaştırılamaz";
+  if (mode === "proportional") return `${g.tutarli}/${g.comparable} tutarlı`;
+  const s = provScore(g, mode);
+  return s === 1 ? "Tutarlı" : "Tutarsız";
 }
 
 export default function FiyatPage() {
@@ -39,22 +108,18 @@ export default function FiyatPage() {
   const [error, setError] = useState("");
   const [data, setData] = useState(null);
   const [strategy, setStrategy] = useState("max");
-  const [filter, setFilter] = useState("Tutarsız");
-  const [dimKey, setDimKey] = useState("");
-  const [dimVal, setDimVal] = useState("");
+  const [basis, setBasis] = useState("campaign");
+  const [cardFilter, setCardFilter] = useState("Tutarsız");
+  const [filters, setFilters] = useState([]);
+  const idRef = useRef(0);
 
-  // Açılışta mevcut veriyi yükle.
   useEffect(() => {
     (async () => {
       try {
         const r = await fetch("/api/fiyat/data");
         const j = await r.json();
         if (j.ok && !j.empty) setData(j);
-      } catch {
-        /* sessiz */
-      } finally {
-        setInitLoading(false);
-      }
+      } catch { /* sessiz */ } finally { setInitLoading(false); }
     })();
   }, []);
 
@@ -74,45 +139,74 @@ export default function FiyatPage() {
   }
 
   const rows = data?.rows || [];
-  const computed = useMemo(
-    () => rows.map((r) => ({ row: r, v: verdictFor(r, strategy) })),
-    [rows, strategy]
-  );
-  const counts = useMemo(() => summarize(rows, strategy), [rows, strategy]);
+  const computed = useMemo(() => rows.map((r) => ({ row: r, v: verdictFor(r, strategy) })), [rows, strategy]);
+  const provAgg = useMemo(() => providerAgg(computed), [computed]);
 
-  const dimDef = DIMS.find((d) => d.key === dimKey);
-  const dimValues = useMemo(() => {
-    if (!dimDef) return [];
-    const set = new Set();
-    computed.forEach(({ row, v }) => set.add(dimDef.get(row, v)));
-    return [...set]
-      .filter((x) => x !== "" && x != null)
-      .sort((a, b) => String(a).localeCompare(String(b), "tr"));
-  }, [computed, dimKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Kart sayımları: kampanya bazlı (campaign) ya da provider bazlı (3 mod).
+  const counts = useMemo(() => {
+    if (basis === "campaign") return summarize(rows, strategy);
+    let T = 0, F = 0, K = 0;
+    for (const g of provAgg.values()) {
+      const s = provScore(g, basis);
+      if (s == null) { K++; continue; }
+      T += s; F += 1 - s;
+    }
+    return { Tutarlı: T, Tutarsız: F, Karşılaştırılamaz: K, total: provAgg.size };
+  }, [basis, rows, strategy, provAgg]);
+
+  // Her boyutun ayrık değerleri (filtre menüleri için).
+  const dimValuesAll = useMemo(() => {
+    const sets = {}; DIMS.forEach((d) => (sets[d.key] = new Set()));
+    computed.forEach(({ row, v }) => DIMS.forEach((d) => sets[d.key].add(d.get(row, v))));
+    const out = {};
+    for (const k in sets) out[k] = [...sets[k]].filter((x) => x !== "" && x != null).map(String).sort((a, b) => a.localeCompare(b, "tr"));
+    return out;
+  }, [computed]);
 
   const shown = useMemo(
-    () =>
-      computed.filter(({ row, v }) => {
-        if (filter !== "Tümü" && v.verdict !== filter) return false;
-        if (dimDef && dimVal !== "" && String(dimDef.get(row, v)) !== String(dimVal)) return false;
-        return true;
-      }),
-    [computed, filter, dimKey, dimVal] // eslint-disable-line react-hooks/exhaustive-deps
+    () => computed.filter(({ row, v }) => {
+      if (cardFilter !== "Tümü" && v.verdict !== cardFilter) return false;
+      for (const f of filters) {
+        if (!f.dim || !f.values.length) continue;
+        const dd = DIMS.find((d) => d.key === f.dim);
+        if (!f.values.includes(String(dd.get(row, v)))) return false;
+      }
+      return true;
+    }),
+    [computed, cardFilter, filters]
   );
+
+  // Provider bazlı modda tabloyu provider'a göre grupla.
+  const isProv = basis !== "campaign";
+  const tableItems = useMemo(() => {
+    const src = isProv
+      ? [...shown].sort((a, b) => String(a.row.providerName || a.row.providerId).localeCompare(String(b.row.providerName || b.row.providerId), "tr"))
+      : shown;
+    const out = [];
+    let n = 0, lastProv = null;
+    for (const item of src) {
+      if (n >= CAP) break;
+      if (isProv && item.row.providerId !== lastProv) {
+        lastProv = item.row.providerId;
+        const g = provAgg.get(item.row.providerId);
+        out.push({ type: "group", row: item.row, bucket: g ? provBucketLabel(g, basis) : "" });
+      }
+      out.push({ type: "row", ...item });
+      n++;
+    }
+    return out;
+  }, [shown, isProv, basis, provAgg]);
+
+  const addFilter = () => setFilters((f) => [...f, { id: ++idRef.current, dim: "", values: [] }]);
+  const updateFilter = (id, patch) => setFilters((f) => f.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const removeFilter = (id) => setFilters((f) => f.filter((x) => x.id !== id));
 
   const th = { textAlign: "left", padding: "6px 8px", borderBottom: "1px solid #e3e7ec", position: "sticky", top: 0, background: "#fff" };
   const td = { padding: "5px 8px", borderBottom: "1px solid #f0f2f5", whiteSpace: "nowrap" };
-  const sel = { height: 34, padding: "0 8px", borderRadius: 8, border: "1px solid #d7dce3" };
 
   return (
     <main className="wrap" style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
-      <Link
-        href="/"
-        style={{
-          display: "inline-block", border: "1px solid #d7dce3", background: "#fff", color: "#5b6675",
-          textDecoration: "none", fontSize: 12.5, padding: "6px 12px", borderRadius: 8, marginBottom: 12,
-        }}
-      >
+      <Link href="/" style={{ display: "inline-block", border: "1px solid #d7dce3", background: "#fff", color: "#5b6675", textDecoration: "none", fontSize: 12.5, padding: "6px 12px", borderRadius: 8, marginBottom: 12 }}>
         &larr; Performans Yönetimi
       </Link>
       <p className="eyebrow">Qlik → Google Sheets</p>
@@ -120,7 +214,6 @@ export default function FiyatPage() {
       <p className="lede">
         Aktif provider&apos;ların katalog ve kampanya fiyatlarını eşleştirir; kampanya fiyatı
         eşleşen birimdeki katalog referansından düşükse <b>Tutarlı</b>, değilse <b>Tutarsız</b>.
-        Birim, kampanya metnindeki &quot;Kişi Başı&quot; ifadesinden belirlenir.
       </p>
 
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
@@ -128,17 +221,11 @@ export default function FiyatPage() {
           {running ? "Çalışıyor… (Qlik + Sheet)" : "Çalıştır (verileri yenile)"}
         </button>
         <span style={{ fontSize: 13, opacity: 0.75 }}>
-          {initLoading
-            ? "Mevcut veri yükleniyor…"
-            : data
-            ? <>Son güncelleme: <b>{fmtDate(data.updatedAt)}</b></>
-            : "Henüz çalıştırılmadı."}
+          {initLoading ? "Mevcut veri yükleniyor…" : data ? <>Son güncelleme: <b>{fmtDate(data.updatedAt)}</b></> : "Henüz çalıştırılmadı."}
         </span>
       </div>
 
-      {error && (
-        <div className="card" style={{ borderColor: "#c0392b", color: "#c0392b", marginBottom: 16 }}>{error}</div>
-      )}
+      {error && <div className="card" style={{ borderColor: "#c0392b", color: "#c0392b", marginBottom: 16 }}>{error}</div>}
 
       {data && rows.length > 0 && (
         <>
@@ -150,83 +237,70 @@ export default function FiyatPage() {
             </div>
           )}
 
-          {/* Strateji + özet */}
           <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ fontSize: 13, opacity: 0.75 }}>Referans:</span>
-                {STRATS.map((s) => (
-                  <button
-                    key={s.key}
-                    type="button"
-                    onClick={() => setStrategy(s.key)}
-                    style={{
-                      border: "1px solid " + (strategy === s.key ? "#1f6feb" : "#d7dce3"),
-                      background: strategy === s.key ? "#1f6feb" : "#fff",
-                      color: strategy === s.key ? "#fff" : "#5b6675",
-                      fontSize: 12.5, padding: "5px 10px", borderRadius: 8, cursor: "pointer",
-                    }}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-              <div style={{ fontSize: 13, opacity: 0.7 }}>
+            {/* Yan yana açılır menüler: Referans + Sayım bazı */}
+            <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
+                Referans:
+                <select value={strategy} onChange={(e) => setStrategy(e.target.value)} style={SEL}>
+                  {STRATS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                </select>
+              </label>
+              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
+                Sayım bazı:
+                <select value={basis} onChange={(e) => setBasis(e.target.value)} style={SEL}>
+                  {BASES.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
+                </select>
+              </label>
+              <span style={{ fontSize: 13, opacity: 0.7, marginLeft: "auto" }}>
                 {data.catalogRows ?? "—"} katalog · {data.campaignRows ?? "—"} kampanya satırı
-              </div>
+              </span>
             </div>
+
+            {/* Sayı kartları (sayı + %) */}
             <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
               {["Tutarlı", "Tutarsız", "Karşılaştırılamaz", "Tümü"].map((k) => {
                 const n = k === "Tümü" ? counts.total : counts[k];
-                const active = filter === k;
+                const pctv = counts.total ? (n / counts.total) * 100 : 0;
+                const active = cardFilter === k;
                 return (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setFilter(k)}
-                    style={{
-                      border: "1px solid " + (active ? "#1f6feb" : "#e3e7ec"),
-                      background: active ? "#eef4ff" : "#fff",
-                      borderRadius: 10, padding: "8px 14px", cursor: "pointer", textAlign: "left",
-                    }}
-                  >
-                    <div style={{ fontSize: 18, fontWeight: 700, color: k === "Tümü" ? "#1f2733" : VCOLOR[k] }}>{n}</div>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>{k}</div>
+                  <button key={k} type="button" onClick={() => setCardFilter(k)}
+                    style={{ border: "1px solid " + (active ? "#1f6feb" : "#e3e7ec"), background: active ? "#eef4ff" : "#fff", borderRadius: 10, padding: "8px 14px", cursor: "pointer", textAlign: "left", minWidth: 110 }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: k === "Tümü" ? "#1f2733" : VCOLOR[k] }}>
+                      {fmtCount(n)}
+                      <span style={{ fontSize: 12, fontWeight: 600, opacity: 0.6, marginLeft: 6 }}>{pctv.toFixed(1)}%</span>
+                    </div>
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>{k}{isProv && k !== "Tümü" ? " (provider)" : ""}</div>
                   </button>
                 );
               })}
             </div>
 
-            {/* Boyut (kolon) + değer filtresi */}
-            <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, opacity: 0.75 }}>Filtre:</span>
-              <select
-                value={dimKey}
-                onChange={(e) => { setDimKey(e.target.value); setDimVal(""); }}
-                style={sel}
-              >
-                <option value="">Boyut seç…</option>
-                {DIMS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
-              </select>
-              <select
-                value={dimVal}
-                onChange={(e) => setDimVal(e.target.value)}
-                disabled={!dimKey}
-                style={{ ...sel, minWidth: 200 }}
-              >
-                <option value="">{dimKey ? "Değer seç…" : "—"}</option>
-                {dimValues.map((v) => <option key={String(v)} value={String(v)}>{String(v)}</option>)}
-              </select>
-              {(dimKey || dimVal) && (
-                <button
-                  type="button"
-                  onClick={() => { setDimKey(""); setDimVal(""); }}
-                  style={{ ...sel, cursor: "pointer", color: "#5b6675", background: "#fff" }}
-                >
-                  Temizle
-                </button>
-              )}
-              <span style={{ fontSize: 12.5, opacity: 0.6 }}>{shown.length} satır</span>
+            {/* Çoklu boyut + çoklu değer filtreleri */}
+            <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+              {filters.map((f) => (
+                <div key={f.id} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <select value={f.dim} onChange={(e) => updateFilter(f.id, { dim: e.target.value, values: [] })} style={SEL}>
+                    <option value="">Boyut…</option>
+                    {DIMS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                  </select>
+                  <MultiSelect
+                    options={f.dim ? dimValuesAll[f.dim] || [] : []}
+                    selected={f.values}
+                    onChange={(values) => updateFilter(f.id, { values })}
+                    disabled={!f.dim}
+                  />
+                  <button type="button" onClick={() => removeFilter(f.id)} title="Filtreyi kaldır"
+                    style={{ ...SEL, cursor: "pointer", color: "#c0392b", borderColor: "#f0c4c0" }}>×</button>
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <button type="button" onClick={addFilter} style={{ ...SEL, cursor: "pointer", color: "#1f6feb" }}>+ Filtre ekle</button>
+                {filters.length > 0 && (
+                  <button type="button" onClick={() => setFilters([])} style={{ ...SEL, cursor: "pointer", color: "#5b6675" }}>Tümünü temizle</button>
+                )}
+                <span style={{ fontSize: 12.5, opacity: 0.6 }}>{shown.length} kampanya satırı</span>
+              </div>
             </div>
           </div>
 
@@ -241,20 +315,29 @@ export default function FiyatPage() {
                 </tr>
               </thead>
               <tbody>
-                {shown.slice(0, CAP).map(({ row, v }, i) => (
-                  <tr key={i}>
-                    <td style={td} title={`#${row.providerId}`}>{row.providerName || row.providerId}</td>
-                    <td style={td}>{row.category}</td>
-                    <td style={td}>{row.city}</td>
-                    <td style={td}>{row.type}</td>
-                    <td style={td}>{row.unit === "kisi" ? "Kişi Başı" : "Paket"}</td>
-                    <td style={td}>{row.currency}</td>
-                    <td style={{ ...td, fontWeight: 600 }}>{TR(row.priceAfter)}</td>
-                    <td style={td}>{TR(v.refValue)}</td>
-                    <td style={{ ...td, color: VCOLOR[v.verdict], fontWeight: 700 }}>{v.verdict}</td>
-                    <td style={{ ...td, whiteSpace: "normal", maxWidth: 360, opacity: 0.8 }}>{v.reason || row.intro}</td>
-                  </tr>
-                ))}
+                {tableItems.map((it, i) =>
+                  it.type === "group" ? (
+                    <tr key={`g${i}`}>
+                      <td colSpan={10} style={{ padding: "6px 8px", background: "#f6f8fb", fontWeight: 700, borderBottom: "1px solid #e3e7ec" }}>
+                        {it.row.providerName || it.row.providerId}
+                        <span style={{ fontWeight: 500, opacity: 0.65, marginLeft: 8, fontSize: 12 }}>· {it.bucket}</span>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={i}>
+                      <td style={td} title={`#${it.row.providerId}`}>{it.row.providerName || it.row.providerId}</td>
+                      <td style={td}>{it.row.category}</td>
+                      <td style={td}>{it.row.city}</td>
+                      <td style={td}>{it.row.type}</td>
+                      <td style={td}>{it.row.unit === "kisi" ? "Kişi Başı" : "Paket"}</td>
+                      <td style={td}>{it.row.currency}</td>
+                      <td style={{ ...td, fontWeight: 600 }}>{TR(it.row.priceAfter)}</td>
+                      <td style={td}>{TR(it.v.refValue)}</td>
+                      <td style={{ ...td, color: VCOLOR[it.v.verdict], fontWeight: 700 }}>{it.v.verdict}</td>
+                      <td style={{ ...td, whiteSpace: "normal", maxWidth: 360, opacity: 0.8 }}>{it.v.reason || it.row.intro}</td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
             {shown.length > CAP && (
@@ -262,14 +345,11 @@ export default function FiyatPage() {
                 {shown.length} satırdan ilk {CAP} gösteriliyor. Tamamı &quot;Fiyat_Tutarlılık_Kıyas&quot; sekmesinde.
               </div>
             )}
-            {shown.length === 0 && (
-              <div style={{ padding: 14, fontSize: 13, opacity: 0.7 }}>Bu filtrede satır yok.</div>
-            )}
+            {shown.length === 0 && <div style={{ padding: 14, fontSize: 13, opacity: 0.7 }}>Bu filtrede satır yok.</div>}
           </div>
 
           {data.sheets?.kiyas?.sheetUrl && (
-            <a className="sheet-link" href={data.sheets.kiyas.sheetUrl} target="_blank" rel="noreferrer"
-               style={{ display: "inline-block", marginTop: 12 }}>
+            <a className="sheet-link" href={data.sheets.kiyas.sheetUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 12 }}>
               Sheet&apos;i aç &rarr;
             </a>
           )}
