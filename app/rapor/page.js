@@ -5,6 +5,7 @@
 // sürükle-bırak sıralama (venue içi, venue'ler arası, venue sırası), satır/venue silme,
 // banner her zaman görünür ama boş.
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 const TR_INT = (v) => Math.round(v).toLocaleString("tr-TR");
 
@@ -301,6 +302,22 @@ export default function RaporPage() {
 
   return (
     <main className="wrap" style={{ maxWidth: 980, margin: "0 auto", padding: 16 }}>
+      <Link
+        href="/"
+        style={{
+          display: "inline-block",
+          border: "1px solid #d7dce3",
+          background: "#fff",
+          color: "#5b6675",
+          textDecoration: "none",
+          fontSize: 12.5,
+          padding: "6px 12px",
+          borderRadius: 8,
+          marginBottom: 12,
+        }}
+      >
+        &larr; Ana sayfa
+      </Link>
       <p className="eyebrow">Google Sheets → PowerPoint</p>
       <h1 className="title">Sunum Önizleme &amp; Düzenleme</h1>
       <p className="lede">
