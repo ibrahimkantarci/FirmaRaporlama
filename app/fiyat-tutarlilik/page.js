@@ -4,14 +4,13 @@
 // Referans stratejisi, sayım bazı (kampanya/provider) ve çoklu boyut+değer filtreleri canlı.
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { verdictFor, summarize } from "../../lib/fiyat";
+import { verdictFor } from "../../lib/fiyat";
 
 const TR = (v) => (v == null || v === "" ? "—" : Number(v).toLocaleString("tr-TR"));
 const STRATS = [
   { key: "max", label: "Katalog Max (esnek)" },
   { key: "min", label: "Katalog Min (katı)" },
   { key: "median", label: "Katalog Medyan" },
-  { key: "isMain", label: "Ana Katalog" },
 ];
 const BASES = [
   { key: "campaign", label: "Kampanya bazlı" },
@@ -79,29 +78,33 @@ function MultiSelect({ options, selected, onChange, disabled }) {
   );
 }
 
-// Provider başına {comparable, tutarli, tutarsiz} özetini kurar.
+// Provider başına özet: kimlik + kampanya sayıları.
 function providerAgg(computed) {
   const m = new Map();
   for (const { row, v } of computed) {
     const pid = row.providerId || row.providerName;
-    if (!m.has(pid)) m.set(pid, { comparable: 0, tutarli: 0, tutarsiz: 0 });
+    if (!m.has(pid)) m.set(pid, { id: row.providerId, name: row.providerName, category: row.category, city: row.city, total: 0, tutarli: 0, tutarsiz: 0, kars: 0 });
     const g = m.get(pid);
-    if (v.verdict === "Tutarlı") { g.comparable++; g.tutarli++; }
-    else if (v.verdict === "Tutarsız") { g.comparable++; g.tutarsiz++; }
+    g.total++;
+    if (v.verdict === "Tutarlı") g.tutarli++;
+    else if (v.verdict === "Tutarsız") g.tutarsiz++;
+    else g.kars++;
   }
   return m;
 }
+const comparableOf = (g) => g.tutarli + g.tutarsiz;
 function provScore(g, mode) {
-  if (g.comparable === 0) return null; // karşılaştırılamaz
+  const comp = comparableOf(g);
+  if (comp === 0) return null; // karşılaştırılamaz
   if (mode === "optimistic") return g.tutarli > 0 ? 1 : 0;
   if (mode === "strict") return g.tutarsiz > 0 ? 0 : 1;
-  return g.tutarli / g.comparable; // proportional
+  return g.tutarli / comp; // proportional
 }
 function provBucketLabel(g, mode) {
-  if (g.comparable === 0) return "Karşılaştırılamaz";
-  if (mode === "proportional") return `${g.tutarli}/${g.comparable} tutarlı`;
-  const s = provScore(g, mode);
-  return s === 1 ? "Tutarlı" : "Tutarsız";
+  const comp = comparableOf(g);
+  if (comp === 0) return "Karşılaştırılamaz";
+  if (mode === "proportional") return `${g.tutarli}/${comp} tutarlı`;
+  return provScore(g, mode) === 1 ? "Tutarlı" : "Tutarsız";
 }
 
 export default function FiyatPage() {
@@ -142,21 +145,40 @@ export default function FiyatPage() {
 
   const rows = data?.rows || [];
   const computed = useMemo(() => rows.map((r) => ({ row: r, v: verdictFor(r, strategy) })), [rows, strategy]);
-  const provAgg = useMemo(() => providerAgg(computed), [computed]);
+  const isProv = basis !== "campaign";
 
-  // Kart sayımları: kampanya bazlı (campaign) ya da provider bazlı (3 mod).
+  // Boyut (kolon) filtreleri uygulanmış küme — kartlar ve tablo bunun üzerinden hesaplanır.
+  // (Kart/sonuç filtresi ayrı; aşağıda uygulanır.)
+  const dimFiltered = useMemo(
+    () => computed.filter(({ row, v }) => {
+      for (const f of filters) {
+        if (!f.dim || !f.values.length) continue;
+        const dd = DIMS.find((d) => d.key === f.dim);
+        if (!f.values.includes(String(dd.get(row, v)))) return false;
+      }
+      return true;
+    }),
+    [computed, filters]
+  );
+  const provAgg = useMemo(() => providerAgg(dimFiltered), [dimFiltered]);
+
+  // Kart sayımları (filtreye duyarlı): kampanya bazlı ya da provider bazlı (3 mod).
   const counts = useMemo(() => {
-    if (basis === "campaign") return summarize(rows, strategy);
+    if (basis === "campaign") {
+      const s = { Tutarlı: 0, Tutarsız: 0, Karşılaştırılamaz: 0, total: dimFiltered.length };
+      for (const { v } of dimFiltered) s[v.verdict]++;
+      return s;
+    }
     let T = 0, F = 0, K = 0;
     for (const g of provAgg.values()) {
-      const s = provScore(g, basis);
-      if (s == null) { K++; continue; }
-      T += s; F += 1 - s;
+      const sc = provScore(g, basis);
+      if (sc == null) { K++; continue; }
+      T += sc; F += 1 - sc;
     }
     return { Tutarlı: T, Tutarsız: F, Karşılaştırılamaz: K, total: provAgg.size };
-  }, [basis, rows, strategy, provAgg]);
+  }, [basis, dimFiltered, provAgg]);
 
-  // Her boyutun ayrık değerleri (filtre menüleri için).
+  // Filtre menüleri: her boyutun ayrık değerleri (tüm veriden).
   const dimValuesAll = useMemo(() => {
     const sets = {}; DIMS.forEach((d) => (sets[d.key] = new Set()));
     computed.forEach(({ row, v }) => DIMS.forEach((d) => sets[d.key].add(d.get(row, v))));
@@ -165,22 +187,22 @@ export default function FiyatPage() {
     return out;
   }, [computed]);
 
+  // Kart (sonuç) filtresi tabloya uygulanır.
   const shown = useMemo(
-    () => computed.filter(({ row, v }) => {
-      if (cardFilter !== "Tümü" && v.verdict !== cardFilter) return false;
-      for (const f of filters) {
-        if (!f.dim || !f.values.length) continue;
-        const dd = DIMS.find((d) => d.key === f.dim);
-        if (!f.values.includes(String(dd.get(row, v)))) return false;
-      }
-      return true;
-    }),
-    [computed, cardFilter, filters]
+    () => dimFiltered.filter(({ v }) => cardFilter === "Tümü" || v.verdict === cardFilter),
+    [dimFiltered, cardFilter]
   );
 
-  // Provider bazlı modda tabloyu provider'a göre grupla.
-  const isProv = basis !== "campaign";
+  // Provider bazlı + "Tümü" → provider başına tek satır (provider rollup).
+  const showProviderTable = isProv && cardFilter === "Tümü";
+  const providerRows = useMemo(() => {
+    if (!showProviderTable) return [];
+    return [...provAgg.values()].sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), "tr"));
+  }, [showProviderTable, provAgg]);
+
+  // Aksi halde kampanya satırları; provider modunda provider'a göre grup başlıklı.
   const tableItems = useMemo(() => {
+    if (showProviderTable) return [];
     const src = isProv
       ? [...shown].sort((a, b) => String(a.row.providerName || a.row.providerId).localeCompare(String(b.row.providerName || b.row.providerId), "tr"))
       : shown;
@@ -197,7 +219,7 @@ export default function FiyatPage() {
       n++;
     }
     return out;
-  }, [shown, isProv, basis, provAgg]);
+  }, [shown, isProv, basis, provAgg, showProviderTable]);
 
   const addFilter = () => setFilters((f) => [...f, { id: ++idRef.current, dim: "", values: [] }]);
   const updateFilter = (id, patch) => setFilters((f) => f.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -301,54 +323,91 @@ export default function FiyatPage() {
                 {filters.length > 0 && (
                   <button type="button" onClick={() => setFilters([])} style={{ ...SEL, cursor: "pointer", color: "#5b6675" }}>Tümünü temizle</button>
                 )}
-                <span style={{ fontSize: 12.5, opacity: 0.6 }}>{shown.length} kampanya satırı</span>
+                <span style={{ fontSize: 12.5, opacity: 0.6 }}>
+                  {showProviderTable ? `${providerRows.length} provider` : `${shown.length} kampanya satırı`}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Tablo */}
           <div className="card" style={{ padding: 0, overflow: "auto", maxHeight: 600 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-              <thead>
-                <tr>
-                  {["Provider", "Kategori", "Şehir", "Tür", "Birim", "Dönem", "Para", "Fiyat Sonra", "Referans", "Sonuç", "Not / Intro"].map((h) => (
-                    <th key={h} style={th}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {tableItems.map((it, i) =>
-                  it.type === "group" ? (
-                    <tr key={`g${i}`}>
-                      <td colSpan={11} style={{ padding: "6px 8px", background: "#f6f8fb", fontWeight: 700, borderBottom: "1px solid #e3e7ec" }}>
-                        {it.row.providerName || it.row.providerId}
-                        <span style={{ fontWeight: 500, opacity: 0.65, marginLeft: 8, fontSize: 12 }}>· {it.bucket}</span>
-                      </td>
-                    </tr>
-                  ) : (
+            {showProviderTable ? (
+              /* Provider rollup: provider başına tek satır */
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                <thead>
+                  <tr>
+                    {["Provider", "Kategori", "Şehir", "Kampanya", "Tutarlı", "Tutarsız", "Karş.", "Durum"].map((h) => (
+                      <th key={h} style={th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {providerRows.slice(0, CAP).map((g, i) => (
                     <tr key={i}>
-                      <td style={td} title={`#${it.row.providerId}`}>{it.row.providerName || it.row.providerId}</td>
-                      <td style={td}>{it.row.category}</td>
-                      <td style={td}>{it.row.city}</td>
-                      <td style={td}>{it.row.type}</td>
-                      <td style={td}>{it.row.unit === "kisi" ? "Kişi Başı" : "Paket"}</td>
-                      <td style={td}>{periodLabel(it.row.period)}</td>
-                      <td style={td}>{it.row.currency}</td>
-                      <td style={{ ...td, fontWeight: 600 }}>{TR(it.row.priceAfter)}</td>
-                      <td style={td}>{TR(it.v.refValue)}</td>
-                      <td style={{ ...td, color: VCOLOR[it.v.verdict], fontWeight: 700 }}>{it.v.verdict}</td>
-                      <td style={{ ...td, whiteSpace: "normal", maxWidth: 360, opacity: 0.8 }}>{it.v.reason || it.row.intro}</td>
+                      <td style={td} title={`#${g.id}`}>{g.name || g.id}</td>
+                      <td style={td}>{g.category}</td>
+                      <td style={td}>{g.city}</td>
+                      <td style={td}>{g.total}</td>
+                      <td style={{ ...td, color: VCOLOR.Tutarlı, fontWeight: 600 }}>{g.tutarli}</td>
+                      <td style={{ ...td, color: VCOLOR.Tutarsız, fontWeight: 600 }}>{g.tutarsiz}</td>
+                      <td style={{ ...td, color: VCOLOR.Karşılaştırılamaz }}>{g.kars}</td>
+                      <td style={{ ...td, fontWeight: 700 }}>{provBucketLabel(g, basis)}</td>
                     </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-            {shown.length > CAP && (
-              <div style={{ padding: 10, fontSize: 12.5, opacity: 0.7 }}>
-                {shown.length} satırdan ilk {CAP} gösteriliyor. Tamamı &quot;Fiyat_Tutarlılık_Kıyas&quot; sekmesinde.
-              </div>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                <thead>
+                  <tr>
+                    {["Provider", "Kategori", "Şehir", "Tür", "Birim", "Dönem", "Para", "Fiyat Sonra", "Referans", "Sonuç", "Not / Intro"].map((h) => (
+                      <th key={h} style={th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableItems.map((it, i) =>
+                    it.type === "group" ? (
+                      <tr key={`g${i}`}>
+                        <td colSpan={11} style={{ padding: "6px 8px", background: "#f6f8fb", fontWeight: 700, borderBottom: "1px solid #e3e7ec" }}>
+                          {it.row.providerName || it.row.providerId}
+                          <span style={{ fontWeight: 500, opacity: 0.65, marginLeft: 8, fontSize: 12 }}>· {it.bucket}</span>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={i}>
+                        <td style={td} title={`#${it.row.providerId}`}>{it.row.providerName || it.row.providerId}</td>
+                        <td style={td}>{it.row.category}</td>
+                        <td style={td}>{it.row.city}</td>
+                        <td style={td}>{it.row.type}</td>
+                        <td style={td}>{it.row.unit === "kisi" ? "Kişi Başı" : "Paket"}</td>
+                        <td style={td}>{periodLabel(it.row.period)}</td>
+                        <td style={td}>{it.row.currency}</td>
+                        <td style={{ ...td, fontWeight: 600 }}>{TR(it.row.priceAfter)}</td>
+                        <td style={td}>{TR(it.v.refValue)}</td>
+                        <td style={{ ...td, color: VCOLOR[it.v.verdict], fontWeight: 700 }}>{it.v.verdict}</td>
+                        <td style={{ ...td, whiteSpace: "normal", maxWidth: 360, opacity: 0.8 }}>{it.v.reason || it.row.intro}</td>
+                      </tr>
+                    )
+                  )}
+                </tbody>
+              </table>
             )}
-            {shown.length === 0 && <div style={{ padding: 14, fontSize: 13, opacity: 0.7 }}>Bu filtrede satır yok.</div>}
+            {showProviderTable
+              ? providerRows.length > CAP && (
+                  <div style={{ padding: 10, fontSize: 12.5, opacity: 0.7 }}>
+                    {providerRows.length} provider&apos;dan ilk {CAP} gösteriliyor.
+                  </div>
+                )
+              : shown.length > CAP && (
+                  <div style={{ padding: 10, fontSize: 12.5, opacity: 0.7 }}>
+                    {shown.length} satırdan ilk {CAP} gösteriliyor. Tamamı &quot;Fiyat_Tutarlılık_Kıyas&quot; sekmesinde.
+                  </div>
+                )}
+            {((showProviderTable && providerRows.length === 0) || (!showProviderTable && shown.length === 0)) && (
+              <div style={{ padding: 14, fontSize: 13, opacity: 0.7 }}>Bu filtrede satır yok.</div>
+            )}
           </div>
 
           {data.sheets?.kiyas?.sheetUrl && (
