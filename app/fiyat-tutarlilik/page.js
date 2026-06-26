@@ -25,6 +25,7 @@ const DIMS = [
   { key: "city", label: "Şehir", get: (r) => r.city },
   { key: "type", label: "Tür", get: (r) => r.type },
   { key: "unit", label: "Birim", get: (r) => (r.unit === "kisi" ? "Kişi Başı" : "Paket") },
+  { key: "period", label: "Dönem", get: (r) => periodLabel(r.period) },
   { key: "currency", label: "Para", get: (r) => r.currency },
   { key: "label", label: "Etiket", get: (r) => r.label },
   { key: "providerName", label: "Provider", get: (r) => r.providerName || r.providerId },
@@ -39,6 +40,7 @@ function fmtDate(iso) {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString("tr-TR");
 }
 const fmtCount = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+const periodLabel = (p) => (p === "weekend" ? "Hafta Sonu" : p === "weekday" ? "Hafta İçi" : "Tümü");
 
 // Checkbox'lı çoklu seçim açılır menüsü.
 function MultiSelect({ options, selected, onChange, disabled }) {
@@ -309,7 +311,7 @@ export default function FiyatPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {["Provider", "Kategori", "Şehir", "Tür", "Birim", "Para", "Fiyat Sonra", "Referans", "Sonuç", "Not / Intro"].map((h) => (
+                  {["Provider", "Kategori", "Şehir", "Tür", "Birim", "Dönem", "Para", "Fiyat Sonra", "Referans", "Sonuç", "Not / Intro"].map((h) => (
                     <th key={h} style={th}>{h}</th>
                   ))}
                 </tr>
@@ -318,7 +320,7 @@ export default function FiyatPage() {
                 {tableItems.map((it, i) =>
                   it.type === "group" ? (
                     <tr key={`g${i}`}>
-                      <td colSpan={10} style={{ padding: "6px 8px", background: "#f6f8fb", fontWeight: 700, borderBottom: "1px solid #e3e7ec" }}>
+                      <td colSpan={11} style={{ padding: "6px 8px", background: "#f6f8fb", fontWeight: 700, borderBottom: "1px solid #e3e7ec" }}>
                         {it.row.providerName || it.row.providerId}
                         <span style={{ fontWeight: 500, opacity: 0.65, marginLeft: 8, fontSize: 12 }}>· {it.bucket}</span>
                       </td>
@@ -330,6 +332,7 @@ export default function FiyatPage() {
                       <td style={td}>{it.row.city}</td>
                       <td style={td}>{it.row.type}</td>
                       <td style={td}>{it.row.unit === "kisi" ? "Kişi Başı" : "Paket"}</td>
+                      <td style={td}>{periodLabel(it.row.period)}</td>
                       <td style={td}>{it.row.currency}</td>
                       <td style={{ ...td, fontWeight: 600 }}>{TR(it.row.priceAfter)}</td>
                       <td style={td}>{TR(it.v.refValue)}</td>
