@@ -123,6 +123,22 @@ Eşleme:
 uygun katalog fiyatı yoksa, daraltma yapılmaz ve **tüm dönemlere düşülür** (satır
 karşılaştırılabilir kalır). Kampanyanın dönemi Kıyas'taki **"Dönem"** kolonunda görünür.
 
+### 3.5 Kademeli eşleşme: Kalem → Tip → Referans
+
+Dönemle daraltılan havuz, üç seviyeli (özelden genele) bir kademeyle daha da
+isabetli hale getirilir. Hangi seviye kullanıldığı **"Eşleşme"** kolonunda görünür.
+
+| Seviye | Nasıl | Havuz |
+|--------|-------|-------|
+| **Kalem** | Intro'da bir menü kalemi (Beyaz Et, Kırmızı Et, Tavuk, Ordövr, Kokteyl, Pasta, Meşrubat) geçer ve provider'ın **Catalog Name**'inde bulunur | Yalnız o kaleme ait katalog fiyatları |
+| **Tip** | Kalem yoksa; Intro'dan menü tipi (Kokteyl / Yemekli / Salon) belirlenir ve provider'ın **Catalog Type**'ında bulunur | O tipe ait katalog fiyatları |
+| **Referans** | İkisi de yoksa | Tüm birim havuzu (mevcut davranış) |
+
+Seçilen havuzdan **yine Referans tipi (Max/Min/Medyan)** ile karar verilir — kademe
+yalnızca *hangi katalog fiyatlarına* bakılacağını belirler. Her seviye, üstteki boşsa
+bir alta düşer; en sonda tam birim havuzuna (Referans) iner. (Veride: Kalem ~%17,
+Tip ~%8, Referans ~%54; etki en çok Min/Medyan referansında belirgindir.)
+
 ---
 
 ## 4. Referans Tipleri (karar referansı)
@@ -264,8 +280,8 @@ provider'ları hızlıca görüp aksiyon almak içindir.
   seçeneği işaretle.
 - Mantık: **satırlar arası VE**, **satır içi VEYA**.
   (Örn. *Kategori ∈ {Kır Düğünü, Otel Düğünü}* **VE** *Şehir ∈ {İstanbul}*.)
-- Boyutlar: Kategori, Şehir, **Sorumlu PY**, Tür, Birim, Dönem, Para, Etiket,
-  Provider, Sonuç. ("Sonuç" boyutu seçilen referansa göre canlı değişir.)
+- Boyutlar: Kategori, Şehir, **Sorumlu PY**, Birim, Dönem, Para, **Eşleşme** (Kalem/
+  Tip/Referans), Etiket, Provider, Sonuç. ("Sonuç" boyutu seçilen referansa göre canlı değişir.)
 
 ---
 
@@ -278,7 +294,7 @@ provider'ları hızlıca görüp aksiyon almak içindir.
 
 `Provider Id`, `Provider Adı`, `Kategori`, `Şehir`, `Sorumlu PY`, `Kampanya Id`,
 `Tür`, `Etiket`, `Birim`, `Dönem`, `Para`, `Fiyat Önce`, `Fiyat Sonra`, `Ref Min`,
-`Ref Max`, `Ref Medyan`, `Ref Ana`, `Ref Adet`, `Sonuç`, `Neden`, `Intro`.
+`Ref Max`, `Ref Medyan`, `Ref Ana`, `Ref Adet`, `Eşleşme`, `Sonuç`, `Neden`, `Intro`.
 
 > `Sorumlu PY`, kampanyanın provider'ına ait **katalog** kaydındaki "Responsible PY"
 > değerinden gelir (provider bazında eşlenir).

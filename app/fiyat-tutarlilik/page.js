@@ -33,6 +33,7 @@ const COLUMNS = [
   { key: "currency", label: "Para", get: (r) => r.currency },
   { key: "priceAfter", label: "Fiyat Sonra", get: (r, v, row) => TR(row.priceAfter), bold: true },
   { key: "reference", label: "Referans", get: (r, v) => TR(v.refValue) },
+  { key: "matchTier", label: "Eşleşme", get: (r) => r.matchTier },
   { key: "verdict", label: "Sonuç", get: (r, v) => v.verdict, verdict: true },
   { key: "intro", label: "Not / Intro", get: (r, v, row) => v.reason || row.intro, wrap: true },
 ];
@@ -46,6 +47,7 @@ const DIMS = [
   { key: "unit", label: "Birim", get: (r) => (r.unit === "kisi" ? "Kişi Başı" : "Paket") },
   { key: "period", label: "Dönem", get: (r) => periodLabel(r.period) },
   { key: "currency", label: "Para", get: (r) => r.currency },
+  { key: "matchTier", label: "Eşleşme", get: (r) => r.matchTier },
   { key: "label", label: "Etiket", get: (r) => r.label },
   { key: "providerName", label: "Provider", get: (r) => r.providerName || r.providerId },
   { key: "verdict", label: "Sonuç", get: (_r, v) => v.verdict },
@@ -513,7 +515,7 @@ export default function FiyatPage() {
                               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                                 <thead>
                                   <tr>
-                                    {["Kategori", "Şehir", "Birim", "Dönem", "Para", "Fiyat Sonra", "Referans", "Sonuç", "Not / Intro"].map((h) => (
+                                    {["Kategori", "Şehir", "Birim", "Dönem", "Para", "Fiyat Sonra", "Referans", "Eşleşme", "Sonuç", "Not / Intro"].map((h) => (
                                       <th key={h} style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #e3e7ec", opacity: 0.7, whiteSpace: "nowrap" }}>{h}</th>
                                     ))}
                                   </tr>
@@ -528,6 +530,7 @@ export default function FiyatPage() {
                                       <td style={td}>{it.row.currency}</td>
                                       <td style={{ ...td, fontWeight: 600 }}>{TR(it.row.priceAfter)}</td>
                                       <td style={td}>{TR(it.v.refValue)}</td>
+                                      <td style={td}>{it.row.matchTier}</td>
                                       <td style={{ ...td, color: VCOLOR[it.v.verdict], fontWeight: 700 }}>{it.v.verdict}</td>
                                       <td style={{ ...td, whiteSpace: "normal", maxWidth: 460, opacity: 0.8 }}>{it.v.reason || it.row.intro}</td>
                                     </tr>
