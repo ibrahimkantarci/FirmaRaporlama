@@ -5,7 +5,7 @@
 // "yalnız tutarsız provider" analiz görünümü (toggle).
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import Link from "next/link";
-import { verdictFor } from "../../lib/fiyat";
+import { verdictFor, upperCategory } from "../../lib/fiyat";
 
 const TR = (v) => (v == null || v === "" ? "—" : Number(v).toLocaleString("tr-TR"));
 const STRATS = [
@@ -25,8 +25,10 @@ const periodLabel = (p) => (p === "weekend" ? "Hafta Sonu" : p === "weekday" ? "
 // Kampanya tablosu kolonları (seçilebilir + sürüklenebilir).
 const COLUMNS = [
   { key: "provider", label: "Provider", get: (r) => r.providerName || r.providerId },
+  { key: "providerId", label: "Provider Id", get: (r) => r.providerId },
   { key: "responsiblePY", label: "Sorumlu PY", get: (r) => r.responsiblePY },
   { key: "category", label: "Kategori", get: (r) => r.category },
+  { key: "upperCategory", label: "Üst Kategori", get: (r) => r.upperCategory || upperCategory(r.category) },
   { key: "city", label: "Şehir", get: (r) => r.city },
   { key: "unit", label: "Birim", get: (r) => (r.unit === "kisi" ? "Kişi Başı" : "Paket") },
   { key: "period", label: "Dönem", get: (r) => periodLabel(r.period) },
@@ -42,6 +44,7 @@ const DEFAULT_ORDER = COLUMNS.map((c) => c.key);
 // Filtrelenebilir boyutlar.
 const DIMS = [
   { key: "category", label: "Kategori", get: (r) => r.category },
+  { key: "upperCategory", label: "Üst Kategori", get: (r) => r.upperCategory || upperCategory(r.category) },
   { key: "city", label: "Şehir", get: (r) => r.city },
   { key: "responsiblePY", label: "Sorumlu PY", get: (r) => r.responsiblePY },
   { key: "unit", label: "Birim", get: (r) => (r.unit === "kisi" ? "Kişi Başı" : "Paket") },
@@ -211,22 +214,50 @@ export default function FiyatPage() {
   const [expanded, setExpanded] = useState([]); // açık provider rollup satırları
   const idRef = useRef(0);
   const colDrag = useRef(null);
+  const savedReady = useRef(false);
 
-  // Kolon tercihlerini sakla/yükle.
+  const mergeOrder = (o) =>
+    DEFAULT_ORDER.filter((k) => o.includes(k)).sort((a, b) => o.indexOf(a) - o.indexOf(b)).concat(DEFAULT_ORDER.filter((k) => !o.includes(k)));
+
+  // Önce localStorage (anında), sonra kullanıcının Sheet'teki ayarları (cihazlar arası).
   useEffect(() => {
     try {
       const o = JSON.parse(localStorage.getItem("fiyat_colOrder") || "null");
       const h = JSON.parse(localStorage.getItem("fiyat_colHidden") || "null");
-      if (Array.isArray(o) && o.length) setColOrder(DEFAULT_ORDER.filter((k) => o.includes(k)).sort((a, b) => o.indexOf(a) - o.indexOf(b)).concat(DEFAULT_ORDER.filter((k) => !o.includes(k))));
+      if (Array.isArray(o) && o.length) setColOrder(mergeOrder(o));
       if (Array.isArray(h)) setColHidden(h);
     } catch { /* yok */ }
+    (async () => {
+      try {
+        const r = await fetch("/api/fiyat/settings");
+        const j = await r.json();
+        const s = j?.settings;
+        if (s) {
+          if (Array.isArray(s.colOrder) && s.colOrder.length) setColOrder(mergeOrder(s.colOrder));
+          if (Array.isArray(s.colHidden)) setColHidden(s.colHidden);
+          if (s.strategy) setStrategy(s.strategy);
+          if (s.basis) setBasis(s.basis);
+        }
+      } catch { /* yok */ } finally { savedReady.current = true; }
+    })();
   }, []);
+
+  // Değişiklikleri localStorage + Sheet'e (debounce) yaz.
   useEffect(() => {
     try {
       localStorage.setItem("fiyat_colOrder", JSON.stringify(colOrder));
       localStorage.setItem("fiyat_colHidden", JSON.stringify(colHidden));
     } catch { /* yok */ }
-  }, [colOrder, colHidden]);
+    if (!savedReady.current) return;
+    const t = setTimeout(() => {
+      fetch("/api/fiyat/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ colOrder, colHidden, strategy, basis }),
+      }).catch(() => {});
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [colOrder, colHidden, strategy, basis]);
 
   useEffect(() => {
     (async () => {

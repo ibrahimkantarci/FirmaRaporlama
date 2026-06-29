@@ -260,7 +260,12 @@ C temiz → 1. Orantılı: A=2/3, B=0, C=1 → 1,67.)
 - **Gruplama provider_id'ye göredir:** kampanya tablosunda her provider_id tek bir
   blok olur (aynı isimli farklı id'ler ayrı bloklar; grup başlığında kategori de görünür).
 - **Kolonlar seçilebilir ve sürüklenerek sıralanır** ("Kolonlar" menüsü + başlık
-  sürükleme). Tercih tarayıcıda saklanır. ("Tür" kolonu UI'dan kaldırıldı — hepsi İndirim.)
+  sürükleme). ("Tür" kolonu UI'dan kaldırıldı — hepsi İndirim.)
+- **Üst Kategori** türetilmiş bir kolondur (kategoriden hesaplanır): **Big 5**,
+  **Others**, geri kalan her şey **Venue**. **Provider Id** de ayrı bir kolondur.
+- **Kullanıcı tercihleri kişiye özel saklanır:** seçili kolonlar, sıraları, referans
+  ve sayım bazı, e-posta bazında Sheet'teki **"Fiyat_Ayarlar"** sekmesine yazılır;
+  aynı kullanıcı her cihazda kendi düzenini geri yükler (yerel kopya da tutulur).
 - Tablo en çok 400 satır gösterir; tamamı `Fiyat_Tutarlılık_Kıyas` sekmesindedir.
 
 ### 7.1 "Yalnız tutarsız provider'lar" görünümü (toggle)
@@ -280,8 +285,9 @@ provider'ları hızlıca görüp aksiyon almak içindir.
   seçeneği işaretle.
 - Mantık: **satırlar arası VE**, **satır içi VEYA**.
   (Örn. *Kategori ∈ {Kır Düğünü, Otel Düğünü}* **VE** *Şehir ∈ {İstanbul}*.)
-- Boyutlar: Kategori, Şehir, **Sorumlu PY**, Birim, Dönem, Para, **Eşleşme** (Kalem/
-  Tip/Referans), Etiket, Provider, Sonuç. ("Sonuç" boyutu seçilen referansa göre canlı değişir.)
+- Boyutlar: Kategori, **Üst Kategori**, Şehir, **Sorumlu PY**, Birim, Dönem, Para,
+  **Eşleşme** (Kalem/Tip/Referans), Etiket, Provider, Sonuç. ("Sonuç" boyutu seçilen
+  referansa göre canlı değişir.)
 
 ---
 
@@ -292,9 +298,9 @@ provider'ları hızlıca görüp aksiyon almak içindir.
 1. **Meta satırı:** `Güncelleme: <tarih>`, `Katalog satır: <n>`, `Kampanya satır: <m>`
 2. **Başlık satırı** + veri satırları:
 
-`Provider Id`, `Provider Adı`, `Kategori`, `Şehir`, `Sorumlu PY`, `Kampanya Id`,
-`Tür`, `Etiket`, `Birim`, `Dönem`, `Para`, `Fiyat Önce`, `Fiyat Sonra`, `Ref Min`,
-`Ref Max`, `Ref Medyan`, `Ref Ana`, `Ref Adet`, `Eşleşme`, `Sonuç`, `Neden`, `Intro`.
+`Provider Id`, `Provider Adı`, `Kategori`, `Üst Kategori`, `Şehir`, `Sorumlu PY`,
+`Kampanya Id`, `Tür`, `Etiket`, `Birim`, `Dönem`, `Para`, `Fiyat Önce`, `Fiyat Sonra`,
+`Ref Min`, `Ref Max`, `Ref Medyan`, `Ref Ana`, `Ref Adet`, `Eşleşme`, `Sonuç`, `Neden`, `Intro`.
 
 > `Sorumlu PY`, kampanyanın provider'ına ait **katalog** kaydındaki "Responsible PY"
 > değerinden gelir (provider bazında eşlenir).
