@@ -9,15 +9,15 @@ import { verdictFor } from "../../lib/fiyat";
 
 const TR = (v) => (v == null || v === "" ? "—" : Number(v).toLocaleString("tr-TR"));
 const STRATS = [
-  { key: "max", label: "Katalog Max (esnek)" },
-  { key: "min", label: "Katalog Min (katı)" },
-  { key: "median", label: "Katalog Medyan" },
+  { key: "max", label: "Katalog Max (esnek)", info: "Kampanya fiyatı, provider'ın aynı birimdeki EN YÜKSEK katalog fiyatından düşükse Tutarlı. En müsamahalı; yalnızca açık ihlalleri yakalar, en az yanlış alarm." },
+  { key: "min", label: "Katalog Min (katı)", info: "EN DÜŞÜK katalog fiyatından düşükse Tutarlı. En sıkı; daha çok satır yakalar ama gürültülü olabilir (lüks kampanya vs. ucuz menü)." },
+  { key: "median", label: "Katalog Medyan", info: "Medyan katalog fiyatına göre karar verir. Orta yol; aşırı uçlardan etkilenmez." },
 ];
 const BASES = [
-  { key: "campaign", label: "Kampanya bazlı" },
-  { key: "optimistic", label: "Provider — en az 1 tutarlı" },
-  { key: "proportional", label: "Provider — oran (1/3)" },
-  { key: "strict", label: "Provider — tutarsız varsa tutarsız" },
+  { key: "campaign", label: "Kampanya bazlı", info: "Her kampanya tek tek sayılır." },
+  { key: "optimistic", label: "Provider — en az 1 tutarlı", info: "Provider'ın en az bir Tutarlı kampanyası varsa Tutarlı sayılır (iyimser)." },
+  { key: "proportional", label: "Provider — oran (1/3)", info: "Provider, tutarlı kampanya oranı kadar sayılır (örn. 3 kampanyadan 1'i tutarlı → 1/3 = 0,33). Kart sayıları kesirli olabilir." },
+  { key: "strict", label: "Provider — tutarsız varsa tutarsız", info: "Provider'ın bir tane bile Tutarsız kampanyası varsa Tutarsız sayılır (katı). Hiç tutarsızı yoksa Tutarlı." },
 ];
 const VCOLOR = { Tutarlı: "#1f7a3d", Tutarsız: "#c0392b", Karşılaştırılamaz: "#8a93a0" };
 const periodLabel = (p) => (p === "weekend" ? "Hafta Sonu" : p === "weekday" ? "Hafta İçi" : "Tümü");
@@ -114,6 +114,29 @@ function ColumnPicker({ order, hidden, onToggle }) {
               </label>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Açıklama balonu: seçeneklerin (label + info) mantığını Türkçe gösterir.
+function InfoPopover({ title, items }) {
+  const [open, setOpen] = useState(false);
+  const ref = useClickOutside(() => setOpen(false));
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
+      <button type="button" onClick={() => setOpen((o) => !o)} title="Açıklama"
+        style={{ width: 20, height: 20, borderRadius: "50%", border: "1px solid #c7d0db", background: "#fff", color: "#5b6675", fontSize: 12, fontWeight: 700, lineHeight: "1", cursor: "pointer", padding: 0 }}>i</button>
+      {open && (
+        <div style={{ ...POP, minWidth: 320, maxWidth: 380, padding: 12, fontSize: 12.5, lineHeight: 1.45 }}>
+          {title && <div style={{ fontWeight: 700, marginBottom: 8 }}>{title}</div>}
+          {items.map((it) => (
+            <div key={it.key} style={{ marginBottom: 8 }}>
+              <b>{it.label}</b>
+              <div style={{ opacity: 0.8 }}>{it.info}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -389,18 +412,24 @@ export default function FiyatPage() {
             ) : (
               <>
                 <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-                  <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
-                    Referans:
-                    <select value={strategy} onChange={(e) => setStrategy(e.target.value)} style={SEL}>
-                      {STRATS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                    </select>
-                  </label>
-                  <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
-                    Sayım bazı:
-                    <select value={basis} onChange={(e) => setBasis(e.target.value)} style={SEL}>
-                      {BASES.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
-                    </select>
-                  </label>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
+                      Referans:
+                      <select value={strategy} onChange={(e) => setStrategy(e.target.value)} style={SEL}>
+                        {STRATS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                      </select>
+                    </label>
+                    <InfoPopover title="Referans seçenekleri" items={STRATS} />
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, opacity: 0.85 }}>
+                      Sayım bazı:
+                      <select value={basis} onChange={(e) => setBasis(e.target.value)} style={SEL}>
+                        {BASES.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
+                      </select>
+                    </label>
+                    <InfoPopover title="Sayım bazı seçenekleri" items={BASES} />
+                  </div>
                   <ColumnPicker order={colOrder} hidden={colHidden} onToggle={toggleCol} />
                   <span style={{ fontSize: 13, opacity: 0.7, marginLeft: "auto" }}>
                     {data.catalogRows ?? "—"} katalog · {data.campaignRows ?? "—"} kampanya satırı
