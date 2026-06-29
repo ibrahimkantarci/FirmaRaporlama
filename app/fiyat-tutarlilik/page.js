@@ -3,7 +3,7 @@
 // Katalog↔kampanya fiyat tutarlılık denetimi. Referans/sayım/çoklu filtre canlı;
 // kolon seç/sırala (sürükle), Sorumlu PY, provider_id'ye göre gruplama,
 // "yalnız tutarsız provider" analiz görünümü (toggle).
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import Link from "next/link";
 import { verdictFor } from "../../lib/fiyat";
 
@@ -28,7 +28,6 @@ const COLUMNS = [
   { key: "responsiblePY", label: "Sorumlu PY", get: (r) => r.responsiblePY },
   { key: "category", label: "Kategori", get: (r) => r.category },
   { key: "city", label: "Şehir", get: (r) => r.city },
-  { key: "type", label: "Tür", get: (r) => r.type },
   { key: "unit", label: "Birim", get: (r) => (r.unit === "kisi" ? "Kişi Başı" : "Paket") },
   { key: "period", label: "Dönem", get: (r) => periodLabel(r.period) },
   { key: "currency", label: "Para", get: (r) => r.currency },
@@ -44,7 +43,6 @@ const DIMS = [
   { key: "category", label: "Kategori", get: (r) => r.category },
   { key: "city", label: "Şehir", get: (r) => r.city },
   { key: "responsiblePY", label: "Sorumlu PY", get: (r) => r.responsiblePY },
-  { key: "type", label: "Tür", get: (r) => r.type },
   { key: "unit", label: "Birim", get: (r) => (r.unit === "kisi" ? "Kişi Başı" : "Paket") },
   { key: "period", label: "Dönem", get: (r) => periodLabel(r.period) },
   { key: "currency", label: "Para", get: (r) => r.currency },
@@ -185,6 +183,7 @@ export default function FiyatPage() {
   const [view, setView] = useState("normal"); // normal | tutarsiz
   const [colOrder, setColOrder] = useState(DEFAULT_ORDER);
   const [colHidden, setColHidden] = useState([]);
+  const [expanded, setExpanded] = useState([]); // açık provider rollup satırları
   const idRef = useRef(0);
   const colDrag = useRef(null);
 
@@ -249,6 +248,17 @@ export default function FiyatPage() {
     [computed, filters]
   );
   const provAgg = useMemo(() => providerAgg(dimFiltered), [dimFiltered]);
+  // Provider → kampanya satırları (rollup detay açılımı için).
+  const byProvider = useMemo(() => {
+    const m = new Map();
+    for (const it of dimFiltered) {
+      const pid = it.row.providerId || it.row.providerName;
+      if (!m.has(pid)) m.set(pid, []);
+      m.get(pid).push(it);
+    }
+    return m;
+  }, [dimFiltered]);
+  const toggleExpand = (id) => setExpanded((e) => (e.includes(id) ? e.filter((x) => x !== id) : [...e, id]));
 
   const counts = useMemo(() => {
     if (basis === "campaign") {
@@ -329,7 +339,7 @@ export default function FiyatPage() {
   };
 
   return (
-    <main className="wrap" style={{ maxWidth: 1180, margin: "0 auto", padding: 16 }}>
+    <main className="wrap" style={{ maxWidth: "min(1600px, 97vw)", margin: "0 auto", padding: 16 }}>
       <Link href="/" style={{ display: "inline-block", border: "1px solid #d7dce3", background: "#fff", color: "#5b6675", textDecoration: "none", fontSize: 12.5, padding: "6px 12px", borderRadius: 8, marginBottom: 12 }}>
         &larr; Performans Yönetimi
       </Link>
@@ -440,7 +450,7 @@ export default function FiyatPage() {
           </div>
 
           {/* Tablo */}
-          <div className="card" style={{ padding: 0, overflow: "auto", maxHeight: 600 }}>
+          <div className="card" style={{ padding: 0, overflow: "auto", maxHeight: "calc(100vh - 80px)" }}>
             {showProviderTable ? (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
                 <thead>
@@ -449,19 +459,58 @@ export default function FiyatPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {providerRows.slice(0, CAP).map((g, i) => (
-                    <tr key={i}>
-                      <td style={td} title={`#${g.id}`}>{g.name || g.id}</td>
-                      <td style={td}>{g.responsiblePY}</td>
-                      <td style={td}>{g.category}</td>
-                      <td style={td}>{g.city}</td>
-                      <td style={td}>{g.total}</td>
-                      <td style={{ ...td, color: VCOLOR.Tutarlı, fontWeight: 600 }}>{g.tutarli}</td>
-                      <td style={{ ...td, color: VCOLOR.Tutarsız, fontWeight: 600 }}>{g.tutarsiz}</td>
-                      <td style={{ ...td, color: VCOLOR.Karşılaştırılamaz }}>{g.kars}</td>
-                      <td style={{ ...td, fontWeight: 700 }}>{provBucketLabel(g, basis)}</td>
-                    </tr>
-                  ))}
+                  {providerRows.slice(0, CAP).map((g, i) => {
+                    const pkey = g.id || g.name;
+                    const open = expanded.includes(pkey);
+                    return (
+                      <Fragment key={i}>
+                        <tr onClick={() => toggleExpand(pkey)} style={{ cursor: "pointer", background: open ? "#f6f8fb" : undefined }}>
+                          <td style={{ ...td, fontWeight: 600 }} title={`#${g.id}`}>
+                            <span style={{ display: "inline-block", width: 14, color: "#8a93a0" }}>{open ? "▾" : "▸"}</span>
+                            {g.name || g.id}
+                          </td>
+                          <td style={td}>{g.responsiblePY}</td>
+                          <td style={td}>{g.category}</td>
+                          <td style={td}>{g.city}</td>
+                          <td style={td}>{g.total}</td>
+                          <td style={{ ...td, color: VCOLOR.Tutarlı, fontWeight: 600 }}>{g.tutarli}</td>
+                          <td style={{ ...td, color: VCOLOR.Tutarsız, fontWeight: 600 }}>{g.tutarsiz}</td>
+                          <td style={{ ...td, color: VCOLOR.Karşılaştırılamaz }}>{g.kars}</td>
+                          <td style={{ ...td, fontWeight: 700 }}>{provBucketLabel(g, basis)}</td>
+                        </tr>
+                        {open && (
+                          <tr key={`d${i}`}>
+                            <td colSpan={9} style={{ padding: "4px 8px 10px 28px", background: "#fafbfc" }}>
+                              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                                <thead>
+                                  <tr>
+                                    {["Kategori", "Şehir", "Birim", "Dönem", "Para", "Fiyat Sonra", "Referans", "Sonuç", "Not / Intro"].map((h) => (
+                                      <th key={h} style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #e3e7ec", opacity: 0.7, whiteSpace: "nowrap" }}>{h}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(byProvider.get(pkey) || []).map((it, j) => (
+                                    <tr key={j}>
+                                      <td style={td}>{it.row.category}</td>
+                                      <td style={td}>{it.row.city}</td>
+                                      <td style={td}>{it.row.unit === "kisi" ? "Kişi Başı" : "Paket"}</td>
+                                      <td style={td}>{periodLabel(it.row.period)}</td>
+                                      <td style={td}>{it.row.currency}</td>
+                                      <td style={{ ...td, fontWeight: 600 }}>{TR(it.row.priceAfter)}</td>
+                                      <td style={td}>{TR(it.v.refValue)}</td>
+                                      <td style={{ ...td, color: VCOLOR[it.v.verdict], fontWeight: 700 }}>{it.v.verdict}</td>
+                                      <td style={{ ...td, whiteSpace: "normal", maxWidth: 460, opacity: 0.8 }}>{it.v.reason || it.row.intro}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (

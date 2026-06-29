@@ -239,11 +239,12 @@ C temiz → 1. Orantılı: A=2/3, B=0, C=1 → 1,67.)
   etiketi: `· 2/3 tutarlı`, `· Tutarsız`, `· Karşılaştırılamaz`).
 - **Provider modunda "Tümü" seçilince** tablo **provider başına tek satıra**
   döner (provider rollup): Provider, Sorumlu PY, Kategori, Şehir, Kampanya, Tutarlı,
-  Tutarsız, Karş., Durum.
+  Tutarsız, Karş., Durum. **Bir provider satırına tıklayınca** o provider'ın tüm
+  kampanyaları (fiyat + referans + sonuç) satır satır açılır (drill-down).
 - **Gruplama provider_id'ye göredir:** kampanya tablosunda her provider_id tek bir
   blok olur (aynı isimli farklı id'ler ayrı bloklar; grup başlığında kategori de görünür).
 - **Kolonlar seçilebilir ve sürüklenerek sıralanır** ("Kolonlar" menüsü + başlık
-  sürükleme). Tercih tarayıcıda saklanır.
+  sürükleme). Tercih tarayıcıda saklanır. ("Tür" kolonu UI'dan kaldırıldı — hepsi İndirim.)
 - Tablo en çok 400 satır gösterir; tamamı `Fiyat_Tutarlılık_Kıyas` sekmesindedir.
 
 ### 7.1 "Yalnız tutarsız provider'lar" görünümü (toggle)
