@@ -351,6 +351,30 @@ tbody tr:hover td{background:#fafafa}
         <div class="card-head"><span class="ct">📊 Segment bazlı lead dağılımı</span></div>
         <div id="pf-lead-dist"></div>
       </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head">
+            <span class="ct">🏙️ Şehir × Value</span>
+            <select id="pf-sehir-select" onchange="renderSehirValue()" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+              <option value="">Tüm şehirler</option>
+            </select>
+          </div>
+          <div id="pf-sehir-value"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <span class="ct">🏳️ Flag × Value</span>
+            <select id="pf-flag-select" onchange="renderFlagValue()" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+              <option value="">Tüm flagler</option>
+              <option value="Yeşil">🟢 Yeşil</option>
+              <option value="Sarı">🟡 Sarı</option>
+              <option value="Turuncu">🟠 Turuncu</option>
+              <option value="Kırmızı">🔴 Kırmızı</option>
+            </select>
+          </div>
+          <div id="pf-flag-value"></div>
+        </div>
+      </div>
       <div class="card">
         <div class="card-head">
           <span class="ct">📅 Paket yenileme — aylık dağılım</span>
@@ -531,7 +555,11 @@ tbody tr:hover td{background:#fafafa}
       <!-- Tarih filtresi -->
       <div class="card" style="margin-bottom:14px;padding:12px 18px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0">Dönem</span>
+          <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0">Granülarite</span>
+          <div class="chip" style="font-size:11px" onclick="setCagriGranularity(this,'gun')">Gün</div>
+          <div class="chip" style="font-size:11px" onclick="setCagriGranularity(this,'hafta')">Hafta</div>
+          <div class="chip on" style="font-size:11px" onclick="setCagriGranularity(this,'ay')">Ay</div>
+          <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;margin-left:10px">Dönem</span>
           <select id="ca-tarih-select" onchange="onCagriAyChange()" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
             <option value="">Tüm dönemler</option>
           </select>
@@ -571,38 +599,6 @@ tbody tr:hover td{background:#fafafa}
       </div>
 
       <div class="card">
-        <div class="card-head">
-          <span class="ct">📊 Value coverage</span>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:11px;color:#71717a">Çağrı dönemi</span>
-            <select id="ca-coverage-cagri-ay" onchange="renderCoverage()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-              <option value="">Tüm dönemler</option>
-            </select>
-            <span style="font-size:11px;color:#71717a">→ Yenileme dönemi</span>
-            <select id="ca-coverage-yenileme-ay" onchange="renderCoverage()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-              <option value="">Tüm dönemler</option>
-            </select>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:32px;padding:8px 0;flex-wrap:wrap">
-          <div>
-            <div style="font-size:11px;color:#71717a;margin-bottom:4px">Coverage oranı</div>
-            <div id="ca-coverage" style="font-size:32px;font-weight:800;color:#185FA5">—</div>
-          </div>
-          <div style="flex:1">
-            <div id="ca-coverage-sub" style="font-size:13px;color:#52525b;margin-bottom:8px"></div>
-            <div id="ca-coverage-bar" style="background:#f4f4f5;border-radius:6px;height:20px;overflow:hidden;display:none">
-              <div id="ca-coverage-bar-fill" style="height:100%;background:#185FA5;border-radius:6px;transition:width .4s"></div>
-            </div>
-          </div>
-        </div>
-        <div id="ca-coverage-detail" style="font-size:11px;color:#a1a1aa;margin-top:4px"></div>
-        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #f4f4f5;font-size:11px;color:#a1a1aa;line-height:1.6">
-          ⓘ Karşılaştırma verisi <b>Satış Fiyatı</b> sütununda yıllık value bulundurmalıdır. Çağrı Logları exceli <b>value</b> ve <b>paket bitiş tarihi</b> bilgisi bulundurmalıdır.
-        </div>
-      </div>
-
-      <div class="card">
         <div class="card-head" onclick="toggleFirmaCagri()" style="cursor:pointer;user-select:none">
           <span class="ct">Firma bazlı çağrı özeti</span>
           <div style="display:flex;gap:5px;align-items:center">
@@ -634,9 +630,9 @@ tbody tr:hover td{background:#fafafa}
         <div class="card-head">
           <span class="ct">📵 Aranmayan müşteriler</span>
           <div style="display:flex;gap:4px">
-            <div class="chip on" style="font-size:11px" onclick="fAranmayan(this,30)">30 gün</div>
-            <div class="chip" style="font-size:11px" onclick="fAranmayan(this,45)">45 gün</div>
-            <div class="chip" style="font-size:11px" onclick="fAranmayan(this,60)">60 gün</div>
+            <div class="chip on" style="font-size:11px" onclick="fAranmayan(this,'30-45')">30-45 gün</div>
+            <div class="chip" style="font-size:11px" onclick="fAranmayan(this,'45-60')">45-60 gün</div>
+            <div class="chip" style="font-size:11px" onclick="fAranmayan(this,'60+')">60+ gün</div>
           </div>
         </div>
         <div class="tw"><table>
@@ -841,7 +837,7 @@ tbody tr:hover td{background:#fafafa}
       </div>
       <div class="step-content" id="step-cagri_value">
         <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:12px;color:#1d4ed8;margin-bottom:14px">
-          <b>Beklenen sütunlar:</b> Provider Id · Bitiş Tarihi (yenileme ayı) · Satış Fiyatı (yıllık value). Tüm provider listesi olmalı.
+          <b>Beklenen sütunlar:</b> Provider Id · Bitiş Tarihi (yenileme ayı) · Satış Fiyatı (yıllık value) · PY. Tüm provider listesi olmalı.
         </div>
         <div class="dz" id="dz-cagri_value" ondragover="dzo(event,'cagri_value')" ondragleave="dzl('cagri_value')" ondrop="dzd(event,'cagri_value')">
           <input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onchange="fileIn(event,'cagri_value')">
@@ -1247,6 +1243,7 @@ function applyImport(){
       firma_id:    ['Provider Id','RÇİ','firma_id'],
       bitis_tarihi:['Bitiş Tarihi','Bitis Tarihi','bitis_tarihi'],
       satis_fiyati:['Satış Fiyatı','Satis Fiyati','Value','value','satis_fiyati'],
+      py_adi:      ['PY','Sorumlu PY','py_adi','Employee Name'],
     };
     S._cagriValueData={};
     S.pending.cagri_value.map(row=>mapRow(row,CAGRI_VALUE_MAP)).forEach(r=>{
@@ -1256,7 +1253,7 @@ function applyImport(){
       // Bitiş tarihi — Date objesi veya string olabilir
       let bt=r.bitis_tarihi||'';
       bt=parseTarih(bt);
-      S._cagriValueData[k]={bitis_tarihi:bt,satis_fiyati:sf};
+      S._cagriValueData[k]={bitis_tarihi:bt,satis_fiyati:sf,py_adi:r.py_adi||''};
     });
     S.loaded.cagri_value=true;n++;
     setTimeout(()=>toast(`✓ Value karşılaştırma: ${Object.keys(S._cagriValueData).length} provider yüklendi`),100);
@@ -1965,7 +1962,7 @@ function renderPF(){
   const anlasma=f.map(x=>num(x.anlasma_sayisi)).filter(x=>x>0);
   document.getElementById('pf-teklif').textContent=teklifler.length?Math.round(teklifler.reduce((a,b)=>a+b,0)/teklifler.length):'—';
   document.getElementById('pf-anlasma').textContent=anlasma.length?(anlasma.reduce((a,b)=>a+b,0)/anlasma.length).toFixed(1):'—';
-  renderFirmaTbl();renderPYCards();renderKatDist();renderPYChips();renderYenilemeMonthDist();renderLeadDist();
+  renderFirmaTbl();renderPYCards();renderKatDist();renderPYChips();renderYenilemeMonthDist();renderLeadDist();renderSehirValue();renderFlagValue();
 }
 
 function renderFirmaTbl(){
@@ -2122,6 +2119,119 @@ function renderLeadDist(){
     </div>`;
 }
 
+function renderSehirValue(){
+  const el=document.getElementById('pf-sehir-value');
+  if(!el) return;
+  const f=S.firmalar;
+  if(!f.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri bekleniyor</div>';return;}
+
+  const sel=document.getElementById('pf-sehir-select');
+  // Dropdown doldur
+  if(sel&&sel.options.length<=1){
+    const sehirler=[...new Set(f.map(x=>x.sehir).filter(s=>s&&s!=='—'))].sort();
+    sehirler.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+  }
+  const secili=sel?sel.value:'';
+
+  if(secili){
+    const grp=f.filter(x=>x.sehir===secili);
+    const toplam=grp.reduce((a,x)=>a+(num(x.satis_fiyati)||0),0);
+    el.innerHTML=`
+      <div style="padding:8px 0">
+        <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px">${secili}</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 16px;text-align:center">
+            <div style="font-size:18px;font-weight:700;color:#1d4ed8">${fmt(toplam)}</div>
+            <div style="font-size:11px;color:#1d4ed8;margin-top:2px">Toplam value (yıllık)</div>
+          </div>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 16px;text-align:center">
+            <div style="font-size:18px;font-weight:700;color:#185FA5">${fmt(Math.round(toplam/12))}</div>
+            <div style="font-size:11px;color:#185FA5;margin-top:2px">Aylık value</div>
+          </div>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 16px;text-align:center">
+            <div style="font-size:18px;font-weight:700;color:#15803d">${grp.length}</div>
+            <div style="font-size:11px;color:#15803d;margin-top:2px">Firma</div>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    const sehirMap={};
+    f.forEach(x=>{
+      const s=x.sehir||'Diğer';
+      if(!sehirMap[s]) sehirMap[s]={toplam:0,adet:0};
+      sehirMap[s].toplam+=num(x.satis_fiyati)||0;
+      sehirMap[s].adet++;
+    });
+    const sorted=Object.entries(sehirMap).sort((a,b)=>b[1].toplam-a[1].toplam).slice(0,10);
+    const max=sorted[0]?sorted[0][1].toplam:1;
+    const colors=['#185FA5','#E5002A','#16a34a','#ca8a04','#7c3aed','#0891b2','#db2777','#65a30d','#f76707','#0f766e'];
+    el.innerHTML=sorted.map(([s,v],i)=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+        <span style="font-size:12px;width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s}</span>
+        <div style="flex:1;background:#f4f4f5;border-radius:4px;height:18px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(v.toplam/max*100)}%;background:${colors[i%10]};border-radius:4px"></div>
+        </div>
+        <span style="font-size:11px;font-weight:600;color:${colors[i%10]};width:80px;text-align:right">${fmt(v.toplam)}</span>
+        <span style="font-size:10px;color:#a1a1aa;width:30px;text-align:right">${v.adet}f</span>
+      </div>`).join('')||'<div style="color:#a1a1aa;font-size:12px">Şehir verisi yok</div>';
+  }
+}
+
+function renderFlagValue(){
+  const el=document.getElementById('pf-flag-value');
+  if(!el) return;
+  const f=S.firmalar;
+  if(!f.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri bekleniyor</div>';return;}
+
+  const sel=document.getElementById('pf-flag-select');
+  const secili=sel?sel.value:'';
+  const flagColors={Yeşil:'#16a34a',Sarı:'#ca8a04',Turuncu:'#ea580c',Kırmızı:'#dc2626'};
+
+  if(secili){
+    const grp=f.filter(x=>x.flag_rengi===secili);
+    const toplam=grp.reduce((a,x)=>a+(num(x.satis_fiyati)||0),0);
+    const renk=flagColors[secili]||'#185FA5';
+    el.innerHTML=grp.length?`
+      <div style="padding:8px 0">
+        <div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:10px">${secili} Flag</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 16px;text-align:center">
+            <div style="font-size:18px;font-weight:700;color:${renk}">${fmt(toplam)}</div>
+            <div style="font-size:11px;color:${renk};margin-top:2px">Toplam value (yıllık)</div>
+          </div>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 16px;text-align:center">
+            <div style="font-size:18px;font-weight:700;color:${renk}">${fmt(Math.round(toplam/12))}</div>
+            <div style="font-size:11px;color:${renk};margin-top:2px">Aylık value</div>
+          </div>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 16px;text-align:center">
+            <div style="font-size:18px;font-weight:700;color:#15803d">${grp.length}</div>
+            <div style="font-size:11px;color:#15803d;margin-top:2px">Firma</div>
+          </div>
+        </div>
+      </div>`
+    :'<div style="color:#a1a1aa;font-size:12px;padding:8px">Bu flagte firma yok</div>';
+  } else {
+    const flagMap={};
+    ['Yeşil','Sarı','Turuncu','Kırmızı'].forEach(fl=>flagMap[fl]={toplam:0,adet:0});
+    f.forEach(x=>{
+      const fl=x.flag_rengi;
+      if(flagMap[fl]){flagMap[fl].toplam+=num(x.satis_fiyati)||0;flagMap[fl].adet++;}
+    });
+    const max=Math.max(...Object.values(flagMap).map(v=>v.toplam),1);
+    el.innerHTML=['Yeşil','Sarı','Turuncu','Kırmızı'].filter(fl=>flagMap[fl].adet>0).map(fl=>{
+      const v=flagMap[fl];const renk=flagColors[fl];
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+        <span style="font-size:12px;width:70px">${fl}</span>
+        <div style="flex:1;background:#f4f4f5;border-radius:4px;height:18px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(v.toplam/max*100)}%;background:${renk};border-radius:4px"></div>
+        </div>
+        <span style="font-size:11px;font-weight:600;color:${renk};width:80px;text-align:right">${fmt(v.toplam)}</span>
+        <span style="font-size:10px;color:#a1a1aa;width:30px;text-align:right">${v.adet}f</span>
+      </div>`;
+    }).join('')||'<div style="color:#a1a1aa;font-size:12px">Flag verisi yok</div>';
+  }
+}
+
 function renderKatDist(){
   const km={};S.firmalar.forEach(f=>{const k=f.kategori_adi||'Diğer';if(!km[k])km[k]=0;km[k]++;});
   const sorted=Object.entries(km).sort((a,b)=>b[1]-a[1]).slice(0,10);
@@ -2234,14 +2344,15 @@ function renderYN(){
       '</div>'+
       '<div style="flex:1;min-width:180px">'+
         '<div style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">İl dağılımı (top 6)</div>'+
-        (topSehirler.map(function(item){const sehir=item[0],cnt=item[1];return
+        (topSehirler.map(function(item){const sehir=item[0],cnt=item[1];return (
           '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'+
             '<span style="font-size:12px;width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+sehir+'</span>'+
             '<div style="flex:1;background:#f4f4f5;border-radius:4px;height:16px;overflow:hidden">'+
               '<div style="height:100%;width:'+(topSehirler[0]?Math.round(cnt/topSehirler[0][1]*100):0)+'%;background:#185FA5;border-radius:4px"></div>'+
             '</div>'+
             '<span style="font-size:12px;font-weight:600;color:#185FA5;width:24px;text-align:right">'+cnt+'</span>'+
-          '</div>';}).join('')||'<div style="color:#a1a1aa;font-size:12px">Şehir verisi yok</div>')+
+          '</div>'
+        );}).join('')||'<div style="color:#a1a1aa;font-size:12px">Şehir verisi yok</div>')+
       '</div>'+
     '</div>'
   ):'<div style="color:#a1a1aa;font-size:12px;padding:12px">Seçili aralıkta firma yok</div>';
@@ -2254,7 +2365,7 @@ function renderYN(){
     custMap[cid].firmalar.push(f.musteri_adi||f.firma_id);
     custMap[cid].toplam+=num(f.satis_fiyati);
   });
-  const custSorted=Object.entries(custMap).sort((a,b)=>b[1].toplam-a[1].toplam).slice(0,30);
+  const custSorted=Object.entries(custMap).sort((a,b)=>b[1].toplam-a[1].toplam).slice(0,20);
   document.getElementById('yn-customer-cnt').textContent=custSorted.length+' customer';
   document.getElementById('yn-customer-tbl').innerHTML=custSorted.length?custSorted.map(function(item){
     const cid=item[0],v=item[1];
@@ -2271,18 +2382,86 @@ function setYnPY(py){S._ynSecilenPY=py;renderYN();}
 function setYnPY(py){S._ynSecilenPY=py;renderYN();}
 
 // ── ÇAĞRI ANALİZİ ─────────────────────────────────────────────────────────────
-function buildCagriMonthSelector(){
-  const ayMap={};
-  S.cagrilar.forEach(c=>{
-    if(!c.tarih||c.tarih==='-') return;
-    const ay=c.tarih.slice(0,7);
-    ayMap[ay]=(ayMap[ay]||0)+1;
+function getYenilemeAyFromSecilenDonem(){
+  // Seçili çağrı dönemi YYYY-MM formatındaysa direkt kullan, değilse (gün/hafta) ay kısmını çıkar
+  const sec=S._cagriSecilenAy||'';
+  if(!sec) return '';
+  if(/^\d{4}-\d{2}$/.test(sec)) return sec; // zaten ay formatı
+  if(/^\d{4}-\d{2}-\d{2}/.test(sec)) return sec.slice(0,7); // gün → ay
+  if(/^\d{4}-W\d{2}$/.test(sec)){
+    // hafta numarasından yaklaşık ay çıkar — ISO haftanın perşembe günü o haftanın ayını temsil eder
+    return ''; // hafta bazlı kesin ay eşlemesi belirsiz, filtre uygulanmaz
+  }
+  return '';
+}
+
+function calcPYCoverage(pyName){
+  if(!S.loaded.cagri_value||!S._cagriValueData) return null;
+  const yenilemeAy=getYenilemeAyFromSecilenDonem();
+  // Bu PY'ye ait, seçili dönemde yenilemesi olan TÜM firmalar (payda)
+  const paydaFirmalar=Object.entries(S._cagriValueData).filter(([,v])=>{
+    if(pyName!=='tümü'&&v.py_adi!==pyName) return false;
+    if(!yenilemeAy) return true;
+    if(!v.bitis_tarihi) return false;
+    const d=new Date(v.bitis_tarihi);if(isNaN(d)) return false;
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')===yenilemeAy;
   });
-  const aylar=Object.keys(ayMap).sort();
+  if(!paydaFirmalar.length) return {valueOran:null,countOran:null,aranan:0,toplam:0,aranValue:0,toplamValue:0};
+  const paydaIds=new Set(paydaFirmalar.map(([k])=>k));
+  const toplamValue=paydaFirmalar.reduce((a,[,v])=>a+(v.satis_fiyati/12),0);
+  // Bu firmalardan seçili dönemde aranmış olanlar
+  const cagriData=getCagriFiltered();
+  const aralanIds=new Set(cagriData.filter(c=>pyName==='tümü'||c.py_adi===pyName).map(c=>String(c.firma_id||'').trim()).filter(Boolean));
+  const aranFirmalar=paydaFirmalar.filter(([k])=>aralanIds.has(k));
+  const aranValue=aranFirmalar.reduce((a,[,v])=>a+(v.satis_fiyati/12),0);
+  return{
+    valueOran:Math.round(aranValue/toplamValue*100),
+    countOran:Math.round(aranFirmalar.length/paydaFirmalar.length*100),
+    aranan:aranFirmalar.length,
+    toplam:paydaFirmalar.length,
+    aranValue,toplamValue,
+  };
+}
+
+function getISOWeek(d){
+  const date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const dayNum=(date.getUTCDay()+6)%7;
+  date.setUTCDate(date.getUTCDate()-dayNum+3);
+  const firstThursday=new Date(Date.UTC(date.getUTCFullYear(),0,4));
+  const weekNum=1+Math.round(((date-firstThursday)/864e5-3+(firstThursday.getUTCDay()+6)%7)/7);
+  return date.getUTCFullYear()+'-W'+String(weekNum).padStart(2,'0');
+}
+
+function cagriPeriodKey(tarih){
+  if(!tarih||tarih==='-') return '';
+  const g=S._cagriGranularite||'ay';
+  if(g==='gun') return tarih.slice(0,10);
+  if(g==='hafta') return getISOWeek(new Date(tarih));
+  return tarih.slice(0,7);
+}
+
+function setCagriGranularity(el,g){
+  document.querySelectorAll('#panel-cagri .card:first-of-type .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  S._cagriGranularite=g;
+  buildCagriMonthSelector();
+  S._cagriSecilenAy='';
+  renderCA();
+  renderCoverage();
+}
+
+function buildCagriMonthSelector(){
+  const periodMap={};
+  S.cagrilar.forEach(c=>{
+    const k=cagriPeriodKey(c.tarih);
+    if(!k) return;
+    periodMap[k]=(periodMap[k]||0)+1;
+  });
+  const periods=Object.keys(periodMap).sort();
   S._cagriSecilenAy='';
   const sel=document.getElementById('ca-tarih-select');
   if(!sel) return;
-  sel.innerHTML='<option value="">Tüm dönemler</option>'+aylar.map(ay=>`<option value="${ay}">${ay} (${ayMap[ay]})</option>`).join('');
+  sel.innerHTML='<option value="">Tüm dönemler</option>'+periods.map(p=>`<option value="${p}">${p} (${periodMap[p]})</option>`).join('');
 }
 
 function onCagriAyChange(){
@@ -2293,10 +2472,7 @@ function onCagriAyChange(){
 
 function getCagriFiltered(){
   if(!S._cagriSecilenAy) return S.cagrilar;
-  return S.cagrilar.filter(c=>{
-    if(!c.tarih||c.tarih==='-') return false;
-    return c.tarih.slice(0,7)===S._cagriSecilenAy;
-  });
+  return S.cagrilar.filter(c=>cagriPeriodKey(c.tarih)===S._cagriSecilenAy);
 }
 
 function buildCagriMaps(){
@@ -2425,19 +2601,13 @@ function renderCA(){
 
   renderMetrikler(S._secilenCagriPY);
 
-  if(!S._aranmayanGun) S._aranmayanGun=30;
+  if(!S._aranmayanBand) S._aranmayanBand='30-45';
   renderAranmayan();
 
   // Tarih bilgi
   const info=document.getElementById('ca-tarih-info');
   if(info) info.textContent=S._cagriSecilenAy&&data.length<S.cagrilar.length?`${data.length} / ${S.cagrilar.length} çağrı`:'';
   const {fm,pm}=buildCagriMaps();
-  // Coverage dropdown'larını doldur
-  const cagriAylar=[...new Set(S.cagrilar.map(c=>c.tarih?c.tarih.slice(0,7):'').filter(Boolean))].sort();
-  const covCagriSel=document.getElementById('ca-coverage-cagri-ay');
-  if(covCagriSel&&covCagriSel.options.length<=1){
-    cagriAylar.forEach(ay=>{const o=document.createElement('option');o.value=ay;o.textContent=ay;covCagriSel.appendChild(o);});
-  }
   if(S.loaded.cagri_value&&S._cagriValueData){
     const yenilemeAylar=[...new Set(Object.values(S._cagriValueData).map(v=>{
       if(!v.bitis_tarihi) return '';
@@ -2486,6 +2656,9 @@ function renderCA(){
       const topFirma=new Set(Object.values(pm).flatMap(d=>[...d.firmalar])).size;
       const oranAll=topT?Math.round(topB/topT*100):0;
       const oranColor=oranAll>=70?'#16a34a':oranAll>=50?'#ea580c':'#dc2626';
+      const covAll=calcPYCoverage('tümü');
+      const topCoverageEl=covAll&&covAll.toplam?`<span style="font-size:12px;font-weight:700;color:#185FA5">₺${Math.round(covAll.aranValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#71717a;margin-left:2px">/₺${Math.round(covAll.toplamValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#185FA5;font-weight:700;margin-left:4px">%${covAll.valueOran}</span>`:'<span style="font-size:12px;color:#d4d4d8">—</span>';
+      const topCountCoverageEl=covAll&&covAll.toplam?`<span style="font-size:12px;font-weight:700;color:#7c3aed">${covAll.aranan}</span><span style="font-size:10px;color:#71717a;margin-left:2px">/${covAll.toplam}</span><span style="font-size:10px;color:#7c3aed;font-weight:700;margin-left:4px">%${covAll.countOran}</span>`:'<span style="font-size:12px;color:#d4d4d8">—</span>';
       document.getElementById('py-cagri-blocks').innerHTML=`<div class="py-cagri-block">
         <div class="py-cagri-header">
           <div class="py-cagri-av" style="background:#374151;color:#fff">TM</div>
@@ -2497,6 +2670,8 @@ function renderCA(){
           <div class="stat-box s-bas"><div class="stat-val">${topB}</div><div class="stat-lbl">Touch</div></div>
           <div class="stat-box s-cevaps"><div class="stat-val">${topC}</div><div class="stat-lbl">Attempt</div></div>
           <div class="stat-box s-sure"><div class="stat-val">${topS?fmtSure(topS):'—'}</div><div class="stat-lbl">Toplam süre</div></div>
+          <div class="stat-box" style="background:#eff6ff;border-color:#bfdbfe"><div class="stat-val" style="font-size:13px">${topCoverageEl}</div><div class="stat-lbl">Value coverage</div></div>
+          <div class="stat-box" style="background:#f5f3ff;border-color:#ddd6fe"><div class="stat-val" style="font-size:13px">${topCountCoverageEl}</div><div class="stat-lbl">Count coverage</div></div>
         </div>
         <div class="rate-bar"><div class="rate-fill" style="width:${oranAll}%;background:${oranColor}"></div></div>
       </div>`;
@@ -2506,9 +2681,9 @@ function renderCA(){
     const ini=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const oran=d.toplam?Math.round(d.basarili/d.toplam*100):0;
     const toplamSD=d.sure?fmtSure(d.sure):'—';
-    const valueList=Object.values(d.firmaValues||{});
-    const toplamValue=valueList.reduce((a,b)=>a+b,0);
-    const coverageEl=valueList.length?`<span style="font-size:12px;font-weight:700;color:#185FA5">₺${Math.round(toplamValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#71717a;margin-left:4px">coverage</span>`:'<span style="font-size:12px;color:#d4d4d8">—</span>';
+    const cov=calcPYCoverage(name);
+    const coverageEl=cov&&cov.toplam?`<span style="font-size:12px;font-weight:700;color:#185FA5">₺${Math.round(cov.aranValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#71717a;margin-left:2px">/₺${Math.round(cov.toplamValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#185FA5;font-weight:700;margin-left:4px">%${cov.valueOran}</span>`:'<span style="font-size:12px;color:#d4d4d8">—</span>';
+    const countCoverageEl=cov&&cov.toplam?`<span style="font-size:12px;font-weight:700;color:#7c3aed">${cov.aranan}</span><span style="font-size:10px;color:#71717a;margin-left:2px">/${cov.toplam}</span><span style="font-size:10px;color:#7c3aed;font-weight:700;margin-left:4px">%${cov.countOran}</span>`:'<span style="font-size:12px;color:#d4d4d8">—</span>';
     const yipOranD=d.musteri>0?Math.round(d.yip_musteri/d.musteri*100):null;
     const yipEl=yipOranD!==null?`<span style="font-weight:700;color:#7c3aed">%${yipOranD}</span> <span style="font-size:10px;color:#71717a">(${d.yip_musteri}/${d.musteri})</span>`:'<span style="color:#d4d4d8">—</span>';
     const oranColor=oran>=70?'#16a34a':oran>=50?'#ea580c':'#dc2626';
@@ -2527,6 +2702,7 @@ function renderCA(){
         <div class="stat-box s-cevaps"><div class="stat-val">${d.cevapsiz}</div><div class="stat-lbl">Attempt</div></div>
         <div class="stat-box s-sure"><div class="stat-val">${toplamSD}</div><div class="stat-lbl">Toplam süre</div></div>
         <div class="stat-box" style="background:#eff6ff;border-color:#bfdbfe"><div class="stat-val" style="font-size:13px">${coverageEl}</div><div class="stat-lbl">Value coverage</div></div>
+        <div class="stat-box" style="background:#f5f3ff;border-color:#ddd6fe"><div class="stat-val" style="font-size:13px">${countCoverageEl}</div><div class="stat-lbl">Count coverage</div></div>
         <div class="stat-box" style="background:#f5f3ff;border-color:#ddd6fe"><div class="stat-val" style="font-size:13px">${yipEl}</div><div class="stat-lbl">Executive Employee oranı</div></div>
       </div>
       <div class="rate-bar"><div class="rate-fill" style="width:${oran}%;background:${oranColor}"></div></div>
@@ -2551,15 +2727,16 @@ function renderCagriTbl(){
 }
 
 function srtC(key){if(S.cSortKey===key)S.cSortDir*=-1;else{S.cSortKey=key;S.cSortDir=1;}renderCagriTbl();}
-function fAranmayan(el,gun){
+function fAranmayan(el,band){
   document.querySelectorAll('#panel-cagri .card:last-child .chip').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
-  S._aranmayanGun=gun;
+  S._aranmayanBand=band;
   renderAranmayan();
 }
 
 function renderAranmayan(){
-  const gun=S._aranmayanGun||30;
+  const band=S._aranmayanBand||'30-45';
+  const [bandMin,bandMax]=band==='60+'?[60,Infinity]:band.split('-').map(Number);
   const today=new Date();
   // Son çağrı tarihini firma bazlı bul
   const sonCagri={};
@@ -2581,9 +2758,9 @@ function renderAranmayan(){
   const aranmayan=kaynakFirms.filter(f=>{
     const k=f.firma_id||f.musteri_adi;
     const son=sonCagri[k];
-    if(!son||son==='-') return true; // hiç aranmamış
+    if(!son||son==='-') return bandMin===60; // hiç aranmamışları sadece 60+ bandında göster
     const gecen=Math.ceil((today-new Date(son))/864e5);
-    return gecen>=gun;
+    return gecen>=bandMin&&gecen<bandMax;
   }).map(f=>{
     const k=f.firma_id||f.musteri_adi;
     const son=sonCagri[k];
@@ -2597,24 +2774,16 @@ function renderAranmayan(){
     <td style="font-size:11px">${f.py_adi||'—'}</td>
     <td style="font-size:11px;color:#71717a">${f.son_cagri||'Hiç aranmadı'}</td>
     <td><span class="days hot">${f.gecen_gun!==null?f.gecen_gun+'g':'—'}</span></td>
-  </tr>`).join(''):`<tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:12px">${gun} gün+ aranmayan firma yok ✅</td></tr>`;
+  </tr>`).join(''):`<tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:12px">${band} gün aranmayan firma yok ✅</td></tr>`;
 }
 
 function renderCoverage(){
   const covEl=document.getElementById('ca-coverage');
-  const subEl=document.getElementById('ca-coverage-sub');
-  const detailEl=document.getElementById('ca-coverage-detail');
-  const barWrap=document.getElementById('ca-coverage-bar');
-  const barFill=document.getElementById('ca-coverage-bar-fill');
   if(!covEl) return;
   if(!S.loaded.cagri_value||!S._cagriValueData){
     covEl.textContent='—';
-    if(subEl) subEl.textContent='';
-    if(detailEl) detailEl.textContent='7 · Çağrı Value Karşılaştırma verisi yüklenmedi';
-    if(barWrap) barWrap.style.display='none';
     return;
   }
-  const cagriAy=document.getElementById('ca-coverage-cagri-ay')?.value||'';
   const yenilemeAy=document.getElementById('ca-coverage-yenileme-ay')?.value||'';
   // X: karşılaştırma dosyasından seçili yenileme ayındaki firmalar
   const paydaFirmalar=Object.entries(S._cagriValueData).filter(([,v])=>{
@@ -2625,10 +2794,9 @@ function renderCoverage(){
   });
   const X=paydaFirmalar.reduce((a,[,v])=>a+(v.satis_fiyati/12),0);
   const paydaIds=new Set(paydaFirmalar.map(([k])=>k));
-  // Y: çağrı loglarından seçili dönemde aranan ve yenileme ayı eşleşen firmalar
-  const cagriData=cagriAy?S.cagrilar.filter(c=>c.tarih&&c.tarih.slice(0,7)===cagriAy):S.cagrilar;
+  // Y: tüm çağrı loglarından aranan ve yenileme ayı eşleşen firmalar
   const aralanMap={};
-  cagriData.forEach(c=>{
+  S.cagrilar.forEach(c=>{
     const k=String(c.firma_id||'').trim();if(!k) return;
     if(!aralanMap[k]) aralanMap[k]={satis_fiyati:num(c.satis_fiyati)||0,bitis_tarihi:c.bitis_tarihi||''};
   });
@@ -2644,10 +2812,6 @@ function renderCoverage(){
   const oran=X>0?Math.round(Y/X*100):null;
   covEl.textContent=oran!==null?'%'+oran:'—';
   covEl.style.color=oran!==null?(oran>=70?'#16a34a':oran>=40?'#ea580c':'#dc2626'):'#185FA5';
-  if(subEl) subEl.textContent=oran!==null?'₺'+Math.round(Y).toLocaleString('tr-TR')+' / ₺'+Math.round(X).toLocaleString('tr-TR')+' aylık':'';
-  if(detailEl) detailEl.textContent=oran!==null?payFirmalar.length+' / '+paydaFirmalar.length+' firma · Çağrı: '+(cagriAy||'Tümü')+' · Yenileme: '+(yenilemeAy||'Tümü'):(X===0?'Seçili yenileme döneminde firma yok':'');
-  if(barWrap) barWrap.style.display=oran!==null?'block':'none';
-  if(barFill) barFill.style.width=Math.min(oran||0,100)+'%';
 }
 
 function selectCagriPYTab(name){S._secilenCagriPY=name;renderCA();}

@@ -2,6 +2,7 @@ import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Brand } from "../brand";
+import DashboardPanel from "./dashboard-panel";
 
 export const runtime = "nodejs";
 
@@ -32,11 +33,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <iframe
-        src="/b2b-dashboard.html"
-        title="B2B Lifecycle Dashboard"
-        style={{ flex: 1, width: "100%", border: "none" }}
-      />
+      <DashboardPanel />
     </div>
   );
 }
