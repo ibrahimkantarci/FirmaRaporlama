@@ -38,16 +38,7 @@ export const GET = withAccess("provider", async (request) => {
       getEngagementData(doc, engObjectId, id)
     );
 
-    // "Sozlesme" sekmesine blok olarak ekle (üzerine yazmaz; manuel silinir).
-    const sozMeta = [
-      `Müşteri: ${id}`,
-      `Önceki sözleşme bitiş: ${eng.previousContractEnd ?? "-"}`,
-      `Aktif provider sayısı: ${eng.activeProviderIds.length}`,
-    ];
-    const sozMatrix = [sozMeta, eng.table.columns, ...eng.table.rows];
-    const sozSheet = await writeMatrixToSheet(sozMatrix, { tab: "Sozlesme" });
-
-    // 2) Ana uygulama → YoY. Geçen yıl = (önceki sözleşme bitişi - 7 gün)'e en yakın.
+    // 2) Ana uygulama → YoY (henüz YAZMA). Geçen yıl = (önceki sözleşme bitişi - 7 gün).
     const opts =
       eng.previousContractEndMs != null
         ? { lastYearTargetMs: eng.previousContractEndMs - 7 * DAY_MS }
@@ -56,9 +47,34 @@ export const GET = withAccess("provider", async (request) => {
     const data = await withQlikDoc(QLIK_SOURCES.main.appId, ({ doc }) =>
       getCustomerYoYFull(doc, objectId, id, opts)
     );
-    injectResponseTimes(data, eng.responseByProvider);
 
-    // Dönem toplamlarını (gerçek Qlik grand total) meta satırına göm — rapor okur.
+    // GUARD: müşteri ID veride yoksa (ya da hiç provider satırı yoksa) HİÇBİR
+    // sekmeye yazma — ne ana sekme ne "Sozlesme". Boş/yanlış veri yazılmasını önler.
+    if (!data.customerFound || data.providerCount === 0) {
+      return Response.json(
+        {
+          ok: false,
+          stage: "export",
+          notFound: true,
+          customerFound: data.customerFound,
+          providerCount: data.providerCount,
+          error: `Bu müşteri ID (${id}) için veri bulunamadı; Sheet'e hiçbir şey yazılmadı.`,
+        },
+        { status: 404 }
+      );
+    }
+
+    // 3) "Sozlesme" sekmesine blok olarak ekle (artık veri olduğunu biliyoruz).
+    const sozMeta = [
+      `Müşteri: ${id}`,
+      `Önceki sözleşme bitiş: ${eng.previousContractEnd ?? "-"}`,
+      `Aktif provider sayısı: ${eng.activeProviderIds.length}`,
+    ];
+    const sozMatrix = [sozMeta, eng.table.columns, ...eng.table.rows];
+    const sozSheet = await writeMatrixToSheet(sozMatrix, { tab: "Sozlesme" });
+
+    // 4) Dönüş sürelerini bas + dönem toplamlarını meta'ya göm + ana sekmeye yaz.
+    injectResponseTimes(data, eng.responseByProvider);
     const fmt = (v) => (v == null ? "" : String(v));
     data.matrix[0].push(
       `EngMedyanBu: ${fmt(eng.totals?.current?.median)}`,
