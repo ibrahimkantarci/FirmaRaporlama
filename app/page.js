@@ -17,7 +17,7 @@ const tools = [
   {
     href: "/dashboard",
     title: "Dashboard",
-    desc: "Performans göstergelerini panolar halinde görüntüle. (Yapım aşamasında)",
+    desc: "B2B yaşam döngüsü panoları: onboarding, performans, yenileme, çağrı analizi ve alarmlar.",
   },
 ];
 

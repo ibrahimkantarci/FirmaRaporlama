@@ -4,6 +4,9 @@ import Link from "next/link";
 
 export const runtime = "nodejs";
 
+// B2B Lifecycle dashboard'u tam ekran göm. Dashboard kendi içinde bağımsız bir
+// HTML/JS uygulamasıdır (public/b2b-dashboard.html) — stilleri iframe içinde
+// izole kalır. Üstte ince bir uygulama çubuğu (geri + e-posta + çıkış) durur.
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/");
@@ -14,18 +17,19 @@ export default async function DashboardPage() {
   }
 
   return (
-    <>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <header
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 12,
-          maxWidth: 760,
-          margin: "0 auto",
-          padding: "14px 20px 0",
+          padding: "8px 16px",
+          borderBottom: "1px solid #e4e4e7",
+          background: "#fff",
           fontSize: 13,
           color: "#5b6675",
+          flexShrink: 0,
         }}
       >
         <Link
@@ -66,32 +70,11 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <main className="wrap" style={{ maxWidth: 760, margin: "0 auto", padding: 16 }}>
-        <p className="eyebrow">Düğün.com</p>
-        <h1 className="title">Dashboard</h1>
-        <p className="lede">Performans göstergeleri panolar halinde burada gösterilecek.</p>
-
-        {/* PLACEHOLDER — hazırlanan dashboard HTML'i buraya yerleştirilecek.
-            Sonraki adım: pano verisini besleyecek pipeline (Qlik → API → bu sayfa). */}
-        <div
-          className="card"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: 240,
-            color: "#5b6675",
-            textAlign: "center",
-          }}
-        >
-          <div>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Yapım aşamasında</p>
-            <p style={{ margin: "6px 0 0", fontSize: 13.5, opacity: 0.75 }}>
-              Dashboard içeriği hazırlandığında buraya eklenecek.
-            </p>
-          </div>
-        </div>
-      </main>
-    </>
+      <iframe
+        src="/b2b-dashboard.html"
+        title="B2B Lifecycle Dashboard"
+        style={{ flex: 1, width: "100%", border: "none" }}
+      />
+    </div>
   );
 }
