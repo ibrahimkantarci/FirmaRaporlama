@@ -299,8 +299,6 @@ tbody tr:hover td{background:#fafafa}
     <div class="panel" id="panel-performans">
       <div class="mg">
         <div class="mc"><div class="mc-label">Toplam portföy</div><div class="mc-val" id="pf-top">—</div></div>
-        <div class="mc blue"><div class="mc-label">Ort. teklif / firma</div><div class="mc-val" id="pf-teklif">—</div></div>
-        <div class="mc purple"><div class="mc-label">Ort. anlaşma sayısı</div><div class="mc-val" id="pf-anlasma">—</div></div>
       </div>
       <div class="filter-row">
         <span class="flbl">Flag</span>
@@ -343,7 +341,13 @@ tbody tr:hover td{background:#fafafa}
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><span class="ct">Kategori dağılımı</span></div>
+          <div class="card-head">
+            <span class="ct">Kategori dağılımı</span>
+            <div style="display:flex;gap:4px">
+              <div class="chip on" style="font-size:11px" id="kd-tab-kategori" onclick="setKatDistTab('kategori')">Kategori</div>
+              <div class="chip" style="font-size:11px" id="kd-tab-grup" onclick="setKatDistTab('grup')">Kategori Grubu</div>
+            </div>
+          </div>
           <div id="kat-dist"></div>
         </div>
       </div>
@@ -574,6 +578,14 @@ tbody tr:hover td{background:#fafafa}
         <div class="mc purple"><div class="mc-label">Toplam Talk Duration</div><div class="mc-val" id="ca-sure">—</div><div class="mc-sub">Touch çağrılar</div></div>
         <div class="mc orange"><div class="mc-label">Touch oranı</div><div class="mc-val" id="ca-oran">—</div></div>
         <div class="mc"><div class="mc-label">Executive Employee oranı</div><div class="mc-val" id="ca-yip-oran">—</div><div class="mc-sub" id="ca-yip-sub"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="ct">🏳️ Flag rengine göre arama — Touch oranı</span>
+          <div id="ca-flag-py-tabs" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+        </div>
+        <div id="ca-flag-touch"></div>
       </div>
 
       <div class="card" style="padding:0">
@@ -918,7 +930,7 @@ const FIRMA_MAP = {
   urun_adi:         ['Ürün Adı','Urun Adi'],
   sehir:            ['Şehir','sehir'],
   ilce:             ['İlçe','ilce'],
-  musteri_statusu:  ['Müşteri Statüsü','Müşteri Statusu'],
+  musteri_statusu:  ['Segment','Müşteri Statüsü','Müşteri Statusu'],
   soz_id:           ['Söz. ID','Soz. ID'],
   baslama_tarihi:   ['Başlama Tarihi','Baslama Tarihi'],
   bitis_tarihi:     ['Bitiş Tarihi','Bitis Tarihi'],
@@ -1958,10 +1970,6 @@ function renderPF(){
   const f=S.firmalar;if(!f.length)return;
   const cnt=flag=>f.filter(x=>x.flag_rengi===flag).length;
   document.getElementById('pf-top').textContent=f.length;
-  const teklifler=f.map(x=>num(x.teklif)).filter(x=>x>0);
-  const anlasma=f.map(x=>num(x.anlasma_sayisi)).filter(x=>x>0);
-  document.getElementById('pf-teklif').textContent=teklifler.length?Math.round(teklifler.reduce((a,b)=>a+b,0)/teklifler.length):'—';
-  document.getElementById('pf-anlasma').textContent=anlasma.length?(anlasma.reduce((a,b)=>a+b,0)/anlasma.length).toFixed(1):'—';
   renderFirmaTbl();renderPYCards();renderKatDist();renderPYChips();renderYenilemeMonthDist();renderLeadDist();renderSehirValue();renderFlagValue();
 }
 
@@ -2081,10 +2089,18 @@ function renderLeadDist(){
   const f=S.firmalar;
   if(!f.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri bekleniyor</div>';return;}
 
+  // Segment sütunu yoksa boş bırak
+  const segmentVarMi=f.some(x=>x.musteri_statusu&&x.musteri_statusu.trim()!=='');
+  if(!segmentVarMi){
+    el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Segment sütunu bulunamadı — Excel\'de "Segment" sütunu ekleyin</div>';
+    return;
+  }
+
   // Statü grupları
   const gruplar={};
   f.forEach(x=>{
-    const st=(x.musteri_statusu||'Diğer').trim();
+    const st=(x.musteri_statusu||'').trim();
+    if(!st) return;
     const teklif=num(x.teklif)||0;
     if(!gruplar[st]) gruplar[st]={firma:0,toplamLead:0};
     gruplar[st].firma++;
@@ -2232,12 +2248,22 @@ function renderFlagValue(){
   }
 }
 
+function setKatDistTab(tab){
+  S._katDistTab=tab;
+  document.getElementById('kd-tab-kategori').classList.toggle('on',tab==='kategori');
+  document.getElementById('kd-tab-grup').classList.toggle('on',tab==='grup');
+  renderKatDist();
+}
+
 function renderKatDist(){
-  const km={};S.firmalar.forEach(f=>{const k=f.kategori_adi||'Diğer';if(!km[k])km[k]=0;km[k]++;});
+  const tab=S._katDistTab||'kategori';
+  const field=tab==='grup'?'kategori_grubu':'kategori_adi';
+  const kaynak=S.fPY!=='tümü'?S.firmalar.filter(f=>f.py_adi===S.fPY):S.firmalar;
+  const km={};kaynak.forEach(f=>{const k=f[field]||'Diğer';if(!km[k])km[k]=0;km[k]++;});
   const sorted=Object.entries(km).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const max=sorted[0]?.[1]||1;
   const colors=['#E5002A','#f76707','#f0b429','#27a060','#185FA5','#7c3aed','#db2777','#0891b2','#65a30d','#a16207'];
-  document.getElementById('kat-dist').innerHTML=sorted.map(([k,v],i)=>`<div class="pg-row"><span class="pg-lbl">${k}</span><div class="pg-track"><div class="pg-fill" style="width:${Math.round(v/max*100)}%;background:${colors[i%10]}"></div></div><span class="pg-pct" style="color:${colors[i%10]}">${v}</span></div>`).join('');
+  document.getElementById('kat-dist').innerHTML=sorted.length?sorted.map(([k,v],i)=>`<div class="pg-row"><span class="pg-lbl">${k}</span><div class="pg-track"><div class="pg-fill" style="width:${Math.round(v/max*100)}%;background:${colors[i%10]}"></div></div><span class="pg-pct" style="color:${colors[i%10]}">${v}</span></div>`).join(''):'<div style="color:#a1a1aa;font-size:12px;padding:8px">Bu PY için veri yok</div>';
 }
 
 function renderPYChips(){
@@ -2250,7 +2276,7 @@ function srt(key){if(S.sortKey===key)S.sortDir*=-1;else{S.sortKey=key;S.sortDir=
   ({performans:renderFirmaTbl,yenileme:renderYN,ozel:renderOZ})[panel]?.();
 }
 function fFlag(el,v){document.querySelectorAll('#panel-performans .filter-row .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');S.fFlag=v;renderFirmaTbl();}
-function fPY(el,v){document.querySelectorAll('#py-chips .chip,#py-all-chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');S.fPY=v;renderFirmaTbl();renderPYCards();}
+function fPY(el,v){document.querySelectorAll('#py-chips .chip,#py-all-chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');S.fPY=v;renderFirmaTbl();renderPYCards();renderKatDist();}
 
 // ── YENİLEME ─────────────────────────────────────────────────────────────────
 function renderYN(){
@@ -2536,6 +2562,48 @@ function renderCA(){
   const toplamSure=sures.reduce((a,b)=>a+b,0);
   document.getElementById('ca-sure').textContent=toplamSure?fmtSure(toplamSure):'—';
 
+  // Flag rengine göre Touch/Attempt dağılımı
+  const flagEl=document.getElementById('ca-flag-touch');
+  if(flagEl){
+    const firmaFlagMap={};
+    S.firmalar.forEach(f=>{const k=String(f.firma_id||'').trim();if(k) firmaFlagMap[k]=f.flag_rengi;});
+
+    // PY sekmeleri
+    const flagPyler=['Tümü',...[...new Set(data.map(c=>c.py_adi).filter(Boolean))].sort()];
+    if(!S._flagTouchPY||!flagPyler.includes(S._flagTouchPY)) S._flagTouchPY='Tümü';
+    const fpBgs=['#374151','#3730a3','#15803d','#a16207','#be123c','#6d28d9','#0f766e'];
+    const tabsEl=document.getElementById('ca-flag-py-tabs');
+    if(tabsEl) tabsEl.innerHTML=flagPyler.map((py,i)=>{
+      const active=S._flagTouchPY===py;
+      return `<div onclick="setFlagTouchPY('${py}')" style="padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;background:${active?fpBgs[i%7]:'#f4f4f5'};color:${active?'#fff':'#52525b'};border:1px solid ${active?fpBgs[i%7]:'#e4e4e7'}">${py==='Tümü'?'Tümü':py.split(' ')[0]}</div>`;
+    }).join('');
+
+    const flagData=S._flagTouchPY==='Tümü'?data:data.filter(c=>c.py_adi===S._flagTouchPY);
+    const flagStats={Yeşil:{touch:0,attempt:0},Sarı:{touch:0,attempt:0},Turuncu:{touch:0,attempt:0},Kırmızı:{touch:0,attempt:0}};
+    flagData.forEach(c=>{
+      const k=String(c.firma_id||'').trim();
+      const fl=firmaFlagMap[k];
+      if(!fl||!flagStats[fl]) return;
+      if(c.durum==='Touch') flagStats[fl].touch++;
+      else if(c.durum==='Attempt') flagStats[fl].attempt++;
+    });
+    const flagColors={Yeşil:'#16a34a',Sarı:'#ca8a04',Turuncu:'#ea580c',Kırmızı:'#dc2626'};
+    const flagIconsX={Yeşil:'🟢',Sarı:'🟡',Turuncu:'🟠',Kırmızı:'🔴'};
+    const aktifFlagler=Object.keys(flagStats).filter(fl=>flagStats[fl].touch+flagStats[fl].attempt>0);
+    flagEl.innerHTML=aktifFlagler.length?aktifFlagler.map(fl=>{
+      const s=flagStats[fl];const top=s.touch+s.attempt;
+      const oran=top?Math.round(s.touch/top*100):0;
+      return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+        <span style="font-size:12px;width:90px;flex-shrink:0">${flagIconsX[fl]} ${fl}</span>
+        <span style="font-size:11px;color:#71717a;width:130px;flex-shrink:0">${s.touch} touch · ${s.attempt} attempt</span>
+        <div style="flex:1;background:#f4f4f5;border-radius:5px;height:18px;overflow:hidden">
+          <div style="height:100%;width:${oran}%;background:${flagColors[fl]};border-radius:5px"></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:${flagColors[fl]};width:45px;text-align:right">%${oran}</span>
+      </div>`;
+    }).join(''):'<div style="color:#a1a1aa;font-size:12px;padding:8px">Firma flag verisi eşleşmedi — Performans terminaline firma listesi yükleyin</div>';
+  }
+
   // Aktif günler
   const gunSet=new Set(data.filter(c=>c.tarih&&c.tarih!=='-').map(c=>c.tarih.slice(0,10)));
   const aktifGun=gunSet.size;
@@ -2814,6 +2882,7 @@ function renderCoverage(){
   covEl.style.color=oran!==null?(oran>=70?'#16a34a':oran>=40?'#ea580c':'#dc2626'):'#185FA5';
 }
 
+function setFlagTouchPY(py){S._flagTouchPY=py;renderCA();}
 function selectCagriPYTab(name){S._secilenCagriPY=name;renderCA();}
 function toggleCard(bodyId, iconId){
   const body=document.getElementById(bodyId);
