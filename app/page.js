@@ -14,6 +14,11 @@ const tools = [
     title: "Fiyat Tutarlılık",
     desc: "Katalog ve kampanya fiyatlarını eşleştirip kampanyaların katalogla tutarlı olup olmadığını denetler.",
   },
+  {
+    href: "/dashboard",
+    title: "Dashboard",
+    desc: "Performans göstergelerini panolar halinde görüntüle. (Yapım aşamasında)",
+  },
 ];
 
 export default async function Home() {

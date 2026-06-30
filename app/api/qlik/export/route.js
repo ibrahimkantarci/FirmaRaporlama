@@ -16,7 +16,7 @@ const DAY_MS = 86400000;
 // /api/qlik/export?id=58367
 // 1) Engagement uygulamasından sözleşme verisini çek → "Sozlesme" sekmesine yaz,
 //    önceki sözleşme bitişini ve provider dönüş sürelerini (ort/medyan) türet.
-// 2) Ana uygulamadan bu yıl + (bitiş - 3 gün) geçen yıl tüm sütunları çek,
+// 2) Ana uygulamadan bu yıl + (bitiş - 7 gün) geçen yıl tüm sütunları çek,
 //    dönüş sürelerini engagement'tan bas, ana sekmeye yaz.
 export async function GET(request) {
   const session = await auth();
