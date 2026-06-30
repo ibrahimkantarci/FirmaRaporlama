@@ -7,6 +7,7 @@ import {
 import { writeMatrixToSheet } from "../../../../lib/sheets";
 import { withAccess } from "../../../../lib/api";
 import { validateCustomerId } from "../../../../lib/validate";
+import { QLIK_SOURCES } from "../../../../lib/qlik-sources";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,19 +27,10 @@ export const GET = withAccess("provider", async (request) => {
     return Response.json({ ok: false, stage: "export", error: v.error }, { status: 400 });
   }
   const id = v.value;
-  const objectId = process.env.QLIK_OBJECT_ID;
-  const engAppId = process.env.ENGAGEMENT_APP_ID;
-  const engObjectId = process.env.ENGAGEMENT_OBJECT_ID;
-
-  if (!objectId) {
-    return Response.json({ ok: false, error: "QLIK_OBJECT_ID tanımlı değil." }, { status: 400 });
-  }
-  if (!engAppId || !engObjectId) {
-    return Response.json(
-      { ok: false, error: "ENGAGEMENT_APP_ID / ENGAGEMENT_OBJECT_ID tanımlı değil." },
-      { status: 400 }
-    );
-  }
+  // App/object ID'leri lib/qlik-sources.js'ten (env değil) — bkz. o dosya.
+  const objectId = QLIK_SOURCES.main.objectId;
+  const engAppId = QLIK_SOURCES.engagement.appId;
+  const engObjectId = QLIK_SOURCES.engagement.objectId;
 
   try {
     // 1) Engagement (ikinci uygulama) → sözleşme verisi
@@ -61,7 +53,7 @@ export const GET = withAccess("provider", async (request) => {
         ? { lastYearTargetMs: eng.previousContractEndMs - 7 * DAY_MS }
         : { skipLastYear: true };
 
-    const data = await withQlikDoc(({ doc }) =>
+    const data = await withQlikDoc(QLIK_SOURCES.main.appId, ({ doc }) =>
       getCustomerYoYFull(doc, objectId, id, opts)
     );
     injectResponseTimes(data, eng.responseByProvider);

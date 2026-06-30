@@ -5,6 +5,7 @@ import { withAccess } from "../../../../lib/api";
 import { withQlikDoc, readFiyatCatalog, readFiyatCampaign } from "../../../../lib/qlik";
 import { overwriteSheetTab } from "../../../../lib/sheets";
 import { buildComparison, kiyasMatrix, summarize } from "../../../../lib/fiyat";
+import { QLIK_SOURCES } from "../../../../lib/qlik-sources";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,15 +16,8 @@ const TAB_CAMPAIGN = "Fiyat_Tutarlılık_Campaign";
 const TAB_KIYAS = "Fiyat_Tutarlılık_Kıyas";
 
 export const GET = withAccess("fiyat", async () => {
-  const appId = process.env.FIYAT_APP_ID || process.env.ENGAGEMENT_APP_ID;
-  const catObj = process.env.FIYAT_CATALOG_OBJECT_ID;
-  const campObj = process.env.FIYAT_CAMPAIGN_OBJECT_ID;
-  if (!appId || !catObj || !campObj) {
-    return Response.json(
-      { ok: false, error: "FIYAT_APP_ID / FIYAT_CATALOG_OBJECT_ID / FIYAT_CAMPAIGN_OBJECT_ID tanımlı değil." },
-      { status: 400 }
-    );
-  }
+  // App/object ID'leri lib/qlik-sources.js'ten (env değil).
+  const { appId, catalogObjectId: catObj, campaignObjectId: campObj } = QLIK_SOURCES.fiyat;
 
   try {
     // Her iki obje aynı uygulamada — tek oturumda, aralarında clearAll ile oku.
