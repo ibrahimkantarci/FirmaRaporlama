@@ -33,15 +33,16 @@ Her iki tablo da okunurken Qlik'te şu seçimler uygulanır:
 
 | Tablo    | Uygulanan seçim                                                   | Anlamı                                |
 |----------|-------------------------------------------------------------------|---------------------------------------|
-| Katalog  | `is_currently_listing = 1`                                        | Aktif (yayında) provider'lar          |
+| Katalog  | `is_currently_listing = 1`, `catalog_expire_date ≥ bugün`         | Aktif provider'lar + **süresi geçmemiş fiyatlar** |
 | Kampanya | `is_currently_listing = 1`, `campaign_status = 1`, `campaign_type = İndirim`, `campaign_valid_until ≥ bugün` | Aktif provider + geçerli + yalnız İndirim + **yalnız bugünden itibaren geçerli** |
 
 > Yalnız **İndirim** kampanyaları çekilir; Hediye/Taksit pipeline'a hiç girmez.
 
-> **Geçerlilik filtresi:** `campaign_valid_until` alanında yalnız **bugün ve sonrası**
-> seçilir (geçmişte biten kampanyalar hariç). Karşılaştırma Qlik'in qNum (Excel seri
-> no) değeriyle yapılır (`lib/qlik.js` → `selectFieldFromToday`). Geçerlilik tarihi
-> **boş/NULL** olan kampanyalar da dışarıda kalır (Qlik değer seçimi NULL'ı kapsamaz).
+> **Geçerlilik/süre filtresi:** hem katalog (`catalog_expire_date`) hem kampanya
+> (`campaign_valid_until`) için yalnız **bugün ve sonrası** seçilir (süresi geçmiş
+> katalog fiyatları ve biten kampanyalar hariç). Karşılaştırma Qlik'in qNum (Excel
+> seri no) değeriyle yapılır (`lib/qlik.js` → `selectFieldFromToday`). Tarihi
+> **boş/NULL** olan satırlar da dışarıda kalır (Qlik değer seçimi NULL'ı kapsamaz).
 
 > Fiyatlar Qlik'in **ham sayısal değerinden (qNum)** okunur; metin biçimi
 > ("1.500" gibi Türkçe binlik) güvenilmez olduğu için kullanılmaz.
