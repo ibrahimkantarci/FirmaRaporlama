@@ -6,13 +6,13 @@
   --muted: #52525b;
   --faint: #a1a1aa;
   --line: #e4e4e7;
-  --brand: #e5002a;
-  --brand-700: #be123c;
-  --brand-50: #fff1f2;
-  --brand-100: #ffe4e6;
-  --accent: #e5002a;
-  --accent-soft: #fff1f2;
-  --accent-ink: #be123c;
+  --brand: #e6197d;
+  --brand-700: #c2126a;
+  --brand-50: #fdeef5;
+  --brand-100: #fbd9e9;
+  --accent: #e6197d;
+  --accent-soft: #fdeef5;
+  --accent-ink: #c2126a;
   --info: #185fa5;
   --warn: #b5731a;
   --warn-soft: #fbf1e2;
@@ -285,16 +285,9 @@ body {
   color: var(--muted);
 }
 
-/* Wordmark: düğün.com */
-.brand { display: inline-flex; align-items: baseline; gap: 1px; text-decoration: none; }
-.brand-name {
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--brand);
-  line-height: 1;
-}
-.brand-tld { font-size: 19px; font-weight: 800; color: var(--ink); line-height: 1; }
+/* Logo: düğün.com */
+.brand { display: inline-flex; align-items: center; text-decoration: none; }
+.brand-logo { height: 22px; width: auto; display: block; }
 .brand-sub {
   font-size: 10px;
   text-transform: uppercase;

@@ -34,8 +34,8 @@ const tools = [
     title: "Firma Raporlama",
     desc: "Müşteri verisini Qlik'ten Google Sheet'e aktar; oradan düzenleyip PowerPoint sunum üret.",
     icon: ReportIcon,
-    accent: "#e5002a",
-    soft: "#fff1f2",
+    accent: "#e6197d",
+    soft: "#fdeef5",
   },
   {
     href: "/fiyat-tutarlilik",
@@ -76,7 +76,7 @@ export default async function Home() {
       >
         <div style={{ width: "100%", maxWidth: 400 }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}>
-            <Brand />
+            <Brand subtitle={null} logoHeight={38} />
           </div>
           <div className="card" style={{ textAlign: "center" }}>
             <h1 className="title" style={{ fontSize: 21 }}>Giriş yap</h1>

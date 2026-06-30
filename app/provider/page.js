@@ -24,7 +24,7 @@ export default async function ProviderPage() {
         </div>
         <div className="appbar-actions">
           <span className="appbar-mail">{session.user.email}</span>
-          <Link href="/rapor" className="gbtn" style={{ borderColor: "#e5002a", background: "#e5002a", color: "#fff" }}>
+          <Link href="/rapor" className="gbtn" style={{ borderColor: "var(--brand)", background: "var(--brand)", color: "#fff" }}>
             Sunum oluştur &rarr;
           </Link>
           <form action={doSignOut}>
