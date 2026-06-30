@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Provider Aktarımı",
-  description: "Qlik'ten müşteri provider verisini bu yıl + geçen yıl olarak Google Sheet'e aktarır",
+  title: "Performans Yönetimi — düğün.com",
+  description: "düğün.com iç araç: firma raporlama, fiyat tutarlılık ve performans panoları.",
 };
 
 export default function RootLayout({ children }) {

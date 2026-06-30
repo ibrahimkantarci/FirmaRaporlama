@@ -6,6 +6,7 @@
 // banner her zaman görünür ama boş.
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { Brand } from "../brand";
 
 const TR_INT = (v) => Math.round(v).toLocaleString("tr-TR");
 
@@ -302,27 +303,15 @@ export default function RaporPage() {
 
   return (
     <main className="wrap" style={{ maxWidth: 980, margin: "0 auto", padding: 16 }}>
-      <Link
-        href="/"
-        style={{
-          display: "inline-block",
-          border: "1px solid #d7dce3",
-          background: "#fff",
-          color: "#5b6675",
-          textDecoration: "none",
-          fontSize: 12.5,
-          padding: "6px 12px",
-          borderRadius: 8,
-          marginBottom: 12,
-        }}
-      >
-        &larr; Ana sayfa
-      </Link>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+        <Link href="/provider" className="gbtn">&larr; Firma Raporlama</Link>
+        <Brand subtitle="Sunum Üretimi" />
+      </div>
       <p className="eyebrow">Google Sheets → PowerPoint</p>
       <h1 className="title">Sunum Önizleme &amp; Düzenleme</h1>
       <p className="lede">
         Müşteri verisini Google Sheet&apos;ten çek, alanları düzelt, sırala, sonra sunumu üret.
-        (Veri önce &quot;Provider Aktarımı&quot; ekranından Sheet&apos;e aktarılmış olmalı.)
+        (Veri önce &quot;Firma Raporlama&quot; ekranından Sheet&apos;e aktarılmış olmalı.)
       </p>
 
       <div className="card" style={{ marginBottom: 16 }}>

@@ -43,7 +43,7 @@ export default function ExportTool() {
   return (
     <main className="wrap">
       <p className="eyebrow">Qlik &rarr; Google Sheets</p>
-      <h1 className="title">Provider Aktarımı</h1>
+      <h1 className="title">Firma Raporlama</h1>
       <p className="lede">
         Bir müşteri ID gir; o müşterinin tüm provider'ları, bu dönem ve önceki dönem
         yan yana olacak şekilde Google Sheet'e yazılır.

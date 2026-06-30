@@ -58,7 +58,7 @@ export async function POST(request) {
       return Response.json({
         ok: false,
         error:
-          "Bu müşteri Sheet'te bulunamadı. Önce 'Provider Aktarımı' ekranından bu müşteriyi aktar.",
+          "Bu müşteri Sheet'te bulunamadı. Önce 'Firma Raporlama' ekranından bu müşteriyi aktar.",
       });
     }
 

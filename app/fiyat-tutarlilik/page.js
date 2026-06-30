@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import Link from "next/link";
 import { verdictFor, upperCategory } from "../../lib/fiyat";
+import { Brand } from "../brand";
 
 const TR = (v) => (v == null || v === "" ? "—" : Number(v).toLocaleString("tr-TR"));
 const STRATS = [
@@ -396,9 +397,10 @@ export default function FiyatPage() {
 
   return (
     <main className="wrap" style={{ maxWidth: "min(1600px, 97vw)", margin: "0 auto", padding: 16 }}>
-      <Link href="/" style={{ display: "inline-block", border: "1px solid #d7dce3", background: "#fff", color: "#5b6675", textDecoration: "none", fontSize: 12.5, padding: "6px 12px", borderRadius: 8, marginBottom: 12 }}>
-        &larr; Performans Yönetimi
-      </Link>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+        <Link href="/" className="gbtn">&larr; Hub</Link>
+        <Brand subtitle="Fiyat Tutarlılık" />
+      </div>
       <p className="eyebrow">Qlik → Google Sheets</p>
       <h1 className="title">Fiyat Tutarlılık</h1>
       <p className="lede">
