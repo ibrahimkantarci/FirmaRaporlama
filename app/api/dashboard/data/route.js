@@ -1,7 +1,7 @@
 // app/api/dashboard/data/route.js
 // Dashboard pipeline (okuma): yazılmış Sheet sekmelerini JSON satır nesnelerine çevirir.
 // Dashboard açılışta bunu çeker; her kaynak ham başlık adlarıyla döner (mapRow ile eşlenir).
-import { auth } from "@/auth";
+import { withAccess } from "../../../../lib/api";
 import { readMatrixFromSheet } from "../../../../lib/sheets";
 import { DASHBOARD_SOURCES } from "../../../../lib/dashboard-sources";
 
@@ -25,12 +25,7 @@ function toObjects(values) {
     });
 }
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ ok: false, error: "Yetkisiz." }, { status: 401 });
-  }
-
+export const GET = withAccess("dashboard", async () => {
   const out = { ok: true };
   try {
     for (const src of DASHBOARD_SOURCES) {
@@ -46,4 +41,4 @@ export async function GET() {
   } catch (err) {
     return Response.json({ ok: false, error: String(err?.message ?? err) }, { status: 500 });
   }
-}
+});

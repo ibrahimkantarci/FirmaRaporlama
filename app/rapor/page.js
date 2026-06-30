@@ -5,8 +5,7 @@
 // sürükle-bırak sıralama (venue içi, venue'ler arası, venue sırası), satır/venue silme,
 // banner her zaman görünür ama boş.
 import { useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { Brand } from "../brand";
+import { validateCustomerId } from "../../lib/validate";
 
 const TR_INT = (v) => Math.round(v).toLocaleString("tr-TR");
 
@@ -111,8 +110,9 @@ export default function RaporPage() {
   async function loadPreview() {
     setError("");
     setData(null);
-    if (!customerId.trim()) {
-      setError("Müşteri ID gir.");
+    const v = validateCustomerId(customerId);
+    if (!v.ok) {
+      setError(v.error);
       return;
     }
     setLoading(true);
@@ -120,7 +120,7 @@ export default function RaporPage() {
       const r = await fetch("/api/sheet/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: customerId.trim() }),
+        body: JSON.stringify({ customerId: v.value }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.error || "Önizleme alınamadı.");
@@ -303,10 +303,6 @@ export default function RaporPage() {
 
   return (
     <main className="wrap" style={{ maxWidth: 980, margin: "0 auto", padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-        <Link href="/provider" className="gbtn">&larr; Firma Raporlama</Link>
-        <Brand subtitle="Sunum Üretimi" />
-      </div>
       <p className="eyebrow">Google Sheets → PowerPoint</p>
       <h1 className="title">Sunum Önizleme &amp; Düzenleme</h1>
       <p className="lede">
@@ -327,13 +323,13 @@ export default function RaporPage() {
             {loading ? "Çekiliyor…" : "Önizle"}
           </button>
         </div>
-        {error && <p style={{ color: "#c0392b", margin: "8px 0 0" }}>{error}</p>}
+        {error && <div className="error" style={{ marginTop: 12 }}>{error}</div>}
       </div>
 
       {data && (
         <>
           {data.missing?.length > 0 && (
-            <div className="card" style={{ borderColor: "#e67e22", marginBottom: 16 }}>
+            <div className="note warn" style={{ marginBottom: 16 }}>
               <strong>Uyarı — eksik/eşleşmeyen sütun(lar):</strong> {data.missing.join(", ")}.
               <div style={{ fontSize: 13, opacity: 0.8 }}>
                 Sheet başlık adlarını kontrol et (medyan kolonları eski aktarımlarda olmayabilir).

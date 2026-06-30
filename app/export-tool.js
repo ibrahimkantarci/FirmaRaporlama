@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { validateCustomerId } from "../lib/validate";
 
 export default function ExportTool() {
   const [customerId, setCustomerId] = useState("");
@@ -9,12 +10,13 @@ export default function ExportTool() {
   const [error, setError] = useState(null);
 
   async function runExport() {
-    const id = customerId.trim();
-    if (!id) {
-      setError({ message: "Bir müşteri ID gir." });
+    const v = validateCustomerId(customerId);
+    if (!v.ok) {
+      setError({ message: v.error });
       setResult(null);
       return;
     }
+    const id = v.value;
     setLoading(true);
     setError(null);
     setResult(null);

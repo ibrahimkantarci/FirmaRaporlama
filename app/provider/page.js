@@ -1,37 +1,29 @@
-import { auth, signOut } from "@/auth";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import ExportTool from "../export-tool";
-import { Brand } from "../brand";
+import { AppHeader } from "../app-header";
+import { requireToolAccess } from "../../lib/access";
 
 export const runtime = "nodejs";
 
 export default async function ProviderPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/");
-
-  async function doSignOut() {
-    "use server";
-    await signOut({ redirectTo: "/" });
-  }
+  const session = await requireToolAccess("provider");
 
   return (
     <>
-      <div className="appbar">
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <Link href="/" className="gbtn">&larr; Hub</Link>
-          <Brand subtitle="Firma Raporlama" />
-        </div>
-        <div className="appbar-actions">
-          <span className="appbar-mail">{session.user.email}</span>
-          <Link href="/rapor" className="gbtn" style={{ borderColor: "var(--brand)", background: "var(--brand)", color: "#fff" }}>
+      <AppHeader
+        back={{ href: "/", label: "Hub" }}
+        subtitle="Firma Raporlama"
+        email={session.user.email}
+        actions={
+          <Link
+            href="/rapor"
+            className="gbtn"
+            style={{ borderColor: "var(--brand)", background: "var(--brand)", color: "#fff" }}
+          >
             Sunum oluştur &rarr;
           </Link>
-          <form action={doSignOut}>
-            <button className="gbtn" type="submit">Çıkış</button>
-          </form>
-        </div>
-      </div>
+        }
+      />
       <ExportTool />
     </>
   );

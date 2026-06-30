@@ -1,7 +1,7 @@
 // app/api/fiyat/run/route.js
 // Fiyat Tutarlılık pipeline: katalog + kampanya objelerini (aktif provider filtreli) oku,
 // 3 sekmeye yaz (Catalog / Campaign / Kıyas), kıyas satırlarını sayfaya döndür.
-import { auth } from "@/auth";
+import { withAccess } from "../../../../lib/api";
 import { withQlikDoc, readFiyatCatalog, readFiyatCampaign } from "../../../../lib/qlik";
 import { overwriteSheetTab } from "../../../../lib/sheets";
 import { buildComparison, kiyasMatrix, summarize } from "../../../../lib/fiyat";
@@ -14,12 +14,7 @@ const TAB_CATALOG = "Fiyat_Tutarlılık_Catalog";
 const TAB_CAMPAIGN = "Fiyat_Tutarlılık_Campaign";
 const TAB_KIYAS = "Fiyat_Tutarlılık_Kıyas";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ ok: false, error: "Yetkisiz." }, { status: 401 });
-  }
-
+export const GET = withAccess("fiyat", async () => {
   const appId = process.env.FIYAT_APP_ID || process.env.ENGAGEMENT_APP_ID;
   const catObj = process.env.FIYAT_CATALOG_OBJECT_ID;
   const campObj = process.env.FIYAT_CAMPAIGN_OBJECT_ID;
@@ -69,4 +64,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+});

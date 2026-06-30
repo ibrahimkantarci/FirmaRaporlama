@@ -2,8 +2,9 @@
 // Önizleme/düzenleme ekranını GOOGLE SHEET'ten besler (Qlik'e GİTMEZ).
 // Müşteri ID → Sheet'teki en son blok → yapısal JSON (venue -> kategoriler).
 // Veri akışı: Qlik → Sheets (export) → BURADA Sheet'ten okunur → düzenleme → pptx.
-import { auth } from "@/auth";
+import { withAccess } from "../../../../lib/api";
 import { readMatrixFromSheet, findCustomerBlock } from "../../../../lib/sheets";
+import { validateCustomerId } from "../../../../lib/validate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,22 +35,18 @@ function metaVal(meta, prefix) {
   return cell ? String(cell).slice(prefix.length).trim() : null;
 }
 
-export async function POST(request) {
-  // Auth (middleware'e ek güvenlik).
-  const session = await auth();
-  if (!session) {
-    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAccess("provider", async (request) => {
   let customerId;
   try {
     ({ customerId } = await request.json());
   } catch {
     customerId = null;
   }
-  if (!customerId) {
-    return Response.json({ ok: false, error: "customerId gerekli" }, { status: 400 });
+  const v = validateCustomerId(customerId);
+  if (!v.ok) {
+    return Response.json({ ok: false, error: v.error }, { status: 400 });
   }
+  customerId = v.value;
 
   try {
     const values = await readMatrixFromSheet();
@@ -164,4 +161,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-}
+});

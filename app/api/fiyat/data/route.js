@@ -1,6 +1,6 @@
 // app/api/fiyat/data/route.js
 // Sayfa açılışında mevcut (son çalıştırılmış) Kıyas verisini ve güncelleme tarihini döndürür.
-import { auth } from "@/auth";
+import { withAccess } from "../../../../lib/api";
 import { readMatrixFromSheet } from "../../../../lib/sheets";
 import { parseKiyasSheet, summarize } from "../../../../lib/fiyat";
 
@@ -9,12 +9,7 @@ export const dynamic = "force-dynamic";
 
 const TAB_KIYAS = "Fiyat_Tutarlılık_Kıyas";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ ok: false, error: "Yetkisiz." }, { status: 401 });
-  }
-
+export const GET = withAccess("fiyat", async () => {
   try {
     let values = [];
     try {
@@ -40,4 +35,4 @@ export async function GET() {
   } catch (err) {
     return Response.json({ ok: false, error: String(err?.message ?? err) }, { status: 500 });
   }
-}
+});

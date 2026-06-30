@@ -5,7 +5,8 @@ import {
   injectResponseTimes,
 } from "../../../../lib/qlik";
 import { writeMatrixToSheet } from "../../../../lib/sheets";
-import { auth } from "@/auth";
+import { withAccess } from "../../../../lib/api";
+import { validateCustomerId } from "../../../../lib/validate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,24 +19,17 @@ const DAY_MS = 86400000;
 //    önceki sözleşme bitişini ve provider dönüş sürelerini (ort/medyan) türet.
 // 2) Ana uygulamadan bu yıl + (bitiş - 7 gün) geçen yıl tüm sütunları çek,
 //    dönüş sürelerini engagement'tan bas, ana sekmeye yaz.
-export async function GET(request) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ ok: false, error: "Yetkisiz." }, { status: 401 });
-  }
-
+export const GET = withAccess("provider", async (request) => {
   const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
+  const v = validateCustomerId(searchParams.get("id"));
+  if (!v.ok) {
+    return Response.json({ ok: false, stage: "export", error: v.error }, { status: 400 });
+  }
+  const id = v.value;
   const objectId = process.env.QLIK_OBJECT_ID;
   const engAppId = process.env.ENGAGEMENT_APP_ID;
   const engObjectId = process.env.ENGAGEMENT_OBJECT_ID;
 
-  if (!id) {
-    return Response.json(
-      { ok: false, error: "customer id gerekli. Örnek: /api/qlik/export?id=58367" },
-      { status: 400 }
-    );
-  }
   if (!objectId) {
     return Response.json({ ok: false, error: "QLIK_OBJECT_ID tanımlı değil." }, { status: 400 });
   }
@@ -102,4 +96,4 @@ export async function GET(request) {
       { status: 500 }
     );
   }
-}
+});

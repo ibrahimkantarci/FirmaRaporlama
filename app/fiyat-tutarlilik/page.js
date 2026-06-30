@@ -4,9 +4,7 @@
 // kolon seç/sırala (sürükle), Sorumlu PY, provider_id'ye göre gruplama,
 // "yalnız tutarsız provider" analiz görünümü (toggle).
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
-import Link from "next/link";
 import { verdictFor, upperCategory } from "../../lib/fiyat";
-import { Brand } from "../brand";
 
 const TR = (v) => (v == null || v === "" ? "—" : Number(v).toLocaleString("tr-TR"));
 const STRATS = [
@@ -397,10 +395,6 @@ export default function FiyatPage() {
 
   return (
     <main className="wrap" style={{ maxWidth: "min(1600px, 97vw)", margin: "0 auto", padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-        <Link href="/" className="gbtn">&larr; Hub</Link>
-        <Brand subtitle="Fiyat Tutarlılık" />
-      </div>
       <p className="eyebrow">Qlik → Google Sheets</p>
       <h1 className="title">Fiyat Tutarlılık</h1>
       <p className="lede">
@@ -423,12 +417,12 @@ export default function FiyatPage() {
         )}
       </div>
 
-      {error && <div className="card" style={{ borderColor: "#c0392b", color: "#c0392b", marginBottom: 16 }}>{error}</div>}
+      {error && <div className="error" style={{ marginTop: 0, marginBottom: 16 }}>{error}</div>}
 
       {data && rows.length > 0 && (
         <>
           {(data.catMissing?.length > 0 || data.campMissing?.length > 0) && (
-            <div className="card" style={{ borderColor: "#e67e22", marginBottom: 16, fontSize: 13 }}>
+            <div className="note warn" style={{ marginBottom: 16, fontSize: 13 }}>
               <strong>Uyarı — eşleşmeyen kolon(lar):</strong>{" "}
               {data.catMissing?.length ? `Katalog: ${data.catMissing.join(", ")}. ` : ""}
               {data.campMissing?.length ? `Kampanya: ${data.campMissing.join(", ")}.` : ""}

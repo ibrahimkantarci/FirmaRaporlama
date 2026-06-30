@@ -1,7 +1,7 @@
 // app/api/dashboard/run/route.js
 // Dashboard pipeline (yazma): yapılandırılmış Qlik objelerini oku → Sheet sekmelerine yaz.
 // Tek tek (?only=onboarding) veya tümü çalıştırılabilir. /api/fiyat/run ile aynı desen.
-import { auth } from "@/auth";
+import { withAccess } from "../../../../lib/api";
 import { withQlikDoc, fetchObjectData, selectExact } from "../../../../lib/qlik";
 import { overwriteSheetTab } from "../../../../lib/sheets";
 import { DASHBOARD_SOURCES } from "../../../../lib/dashboard-sources";
@@ -11,11 +11,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 async function runPipeline(request) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ ok: false, error: "Yetkisiz." }, { status: 401 });
-  }
-
   const { searchParams } = new URL(request.url);
   const only = searchParams.get("only");
   const sources = only
@@ -49,9 +44,5 @@ async function runPipeline(request) {
   }
 }
 
-export async function POST(request) {
-  return runPipeline(request);
-}
-export async function GET(request) {
-  return runPipeline(request);
-}
+export const POST = withAccess("dashboard", (request) => runPipeline(request));
+export const GET = withAccess("dashboard", (request) => runPipeline(request));

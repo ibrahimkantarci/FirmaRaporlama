@@ -1,6 +1,9 @@
-import { auth, signIn, signOut } from "@/auth";
+import { auth, signIn } from "@/auth";
 import Link from "next/link";
 import { Brand } from "./brand";
+import { AppHeader } from "./app-header";
+import { TOOLS } from "../lib/registry";
+import { allowedToolKeys } from "../lib/access";
 
 export const runtime = "nodejs";
 
@@ -28,34 +31,10 @@ const DashIcon = (
   </svg>
 );
 
-const tools = [
-  {
-    href: "/provider",
-    title: "Firma Raporlama",
-    desc: "Müşteri verisini Qlik'ten Google Sheet'e aktar; oradan düzenleyip PowerPoint sunum üret.",
-    icon: ReportIcon,
-    accent: "#e6197d",
-    soft: "#fdeef5",
-  },
-  {
-    href: "/fiyat-tutarlilik",
-    title: "Fiyat Tutarlılık",
-    desc: "Katalog ve kampanya fiyatlarını eşleştirip kampanyaların katalogla tutarlı olup olmadığını denetler.",
-    icon: PriceIcon,
-    accent: "#185fa5",
-    soft: "#ecf3fb",
-  },
-  {
-    href: "/dashboard",
-    title: "Dashboard",
-    desc: "B2B yaşam döngüsü panoları: onboarding, performans, yenileme, çağrı analizi ve alarmlar.",
-    icon: DashIcon,
-    accent: "#7c3aed",
-    soft: "#f5f3ff",
-  },
-];
+// İkonlar araç anahtarına göre eşlenir (veri tarafı registry'de, görsel burada).
+const ICONS = { provider: ReportIcon, fiyat: PriceIcon, dashboard: DashIcon };
 
-export default async function Home() {
+export default async function Home({ searchParams }) {
   const session = await auth();
 
   // Giriş yapılmamışsa: kurumsal giriş ekranı.
@@ -66,13 +45,7 @@ export default async function Home() {
     }
     return (
       <main
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 20,
-        }}
+        style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
       >
         <div style={{ width: "100%", maxWidth: 400 }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}>
@@ -103,22 +76,14 @@ export default async function Home() {
     );
   }
 
-  async function doSignOut() {
-    "use server";
-    await signOut({ redirectTo: "/" });
-  }
+  // YETKİLENDİRME: kullanıcı yalnızca erişebildiği araçları görür.
+  const allowed = await allowedToolKeys(session.user.email);
+  const visibleTools = TOOLS.filter((t) => allowed.has(t.key));
+  const denied = searchParams?.denied;
 
   return (
     <>
-      <div className="appbar">
-        <Brand />
-        <div className="appbar-actions">
-          <span className="appbar-mail">{session.user.email}</span>
-          <form action={doSignOut}>
-            <button className="gbtn" type="submit">Çıkış</button>
-          </form>
-        </div>
-      </div>
+      <AppHeader email={session.user.email} />
 
       <main style={{ maxWidth: 880, margin: "0 auto", padding: "40px 22px 64px" }}>
         <p className="eyebrow">Performans Yönetimi</p>
@@ -127,23 +92,38 @@ export default async function Home() {
           Raporlama, fiyat denetimi ve performans panoları — hepsi tek yerde.
         </p>
 
-        <div className="tool-grid">
-          {tools.map((t) => (
-            <Link
-              key={t.href}
-              href={t.href}
-              className="tool-card"
-              style={{ "--tool-accent": t.accent, "--tool-soft": t.soft }}
-            >
-              <span className="tool-ic">{t.icon}</span>
-              <h3 className="tool-title">
-                {t.title}
-                <span className="tool-arrow">&rarr;</span>
-              </h3>
-              <p className="tool-desc">{t.desc}</p>
-            </Link>
-          ))}
-        </div>
+        {denied && (
+          <div className="note warn" style={{ marginTop: 18 }}>
+            Bu araca erişim yetkiniz yok. Erişim için yöneticinizle iletişime geçin.
+          </div>
+        )}
+
+        {visibleTools.length === 0 ? (
+          <div className="card" style={{ marginTop: 22, textAlign: "center", color: "#71717a" }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Henüz erişiminiz yok</p>
+            <p style={{ margin: "6px 0 0", fontSize: 13.5 }}>
+              Hesabınıza bir araç erişimi tanımlandığında burada görünecek. Yöneticinizle iletişime geçin.
+            </p>
+          </div>
+        ) : (
+          <div className="tool-grid">
+            {visibleTools.map((t) => (
+              <Link
+                key={t.key}
+                href={t.href}
+                className="tool-card"
+                style={{ "--tool-accent": t.accent, "--tool-soft": t.soft }}
+              >
+                <span className="tool-ic">{ICONS[t.key]}</span>
+                <h3 className="tool-title">
+                  {t.title}
+                  <span className="tool-arrow">&rarr;</span>
+                </h3>
+                <p className="tool-desc">{t.desc}</p>
+              </Link>
+            ))}
+          </div>
+        )}
       </main>
     </>
   );

@@ -274,6 +274,7 @@ body {
   justify-content: space-between;
   gap: 12px;
   height: 58px;
+  flex-shrink: 0;
   padding: 0 22px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
