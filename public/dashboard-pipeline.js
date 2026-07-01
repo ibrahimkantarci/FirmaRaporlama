@@ -68,11 +68,13 @@
     "Şehir", "İlçe", "Müşteri Statüsü", "X Count", "PY Tahmin",
     "Yenileme Durumu", "Tahmin Tutarlılık Kodu",
   ];
-  // Kırılım/filtre için İZİNLİ provider flag kolonları (Provider_Flag_Old'daki DİĞER
-  // kolonlar — renk/isim/ekstra — gizli). Tab başlıklarıyla esnek eşleşir (boşluk /
-  // büyük-küçük harf / "Flag" son eki toleranslı).
+  // Kırılım/filtre için İZİNLİ provider flag kolonları — Provider_Flag_Old GERÇEK
+  // başlıklarıyla BİREBİR (normalize: boşluk/büyük-küçük). Tab'da ayrıca Provider,
+  // Customer ID, Account Manager, Total Flag, Discount/Media Count, Profile Score Raw…
+  // gibi 20+ kolon var; bunlar KASITLI dışarıda. "Provider Health Flag" = renk statüsü
+  // (Welcome/Yeşil/Sarı/Turuncu/Kırmızı); diğer 8'i binary (1/0).
   var REN_FLAG_WHITELIST = [
-    "Provider Health", "Campaign Flag", "Gallery Flag", "Last Seen Flag",
+    "Provider Health Flag", "Campaign Flag", "Gallery Flag", "Last Seen Flag",
     "Lead Count Flag", "Response Rate Flag", "Response Time Flag", "Review Flag", "CR Flag",
   ];
   function renNormHdr(s) { return String(s == null ? "" : s).replace(/\s+/g, " ").trim().toLocaleLowerCase("tr"); }
@@ -344,8 +346,7 @@
             for (var hi = 0; hi < fkeys.length; hi++) {
               var h = fkeys[hi];
               if (usedH[h] || h === pidKey || h === dtKey) continue;
-              var nh = renNormHdr(h);
-              if (nh === t || nh.indexOf(t) >= 0 || t.indexOf(nh) >= 0) { flagCols.push(h); usedH[h] = true; break; }
+              if (renNormHdr(h) === t) { flagCols.push(h); usedH[h] = true; break; }
             }
           });
           S._renFlagCols = flagCols.map(function (k) { return "⚑ " + k; });
