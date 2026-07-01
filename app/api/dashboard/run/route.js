@@ -29,6 +29,12 @@ async function runPipeline(request) {
   const out = { ok: true, updatedAt: new Date().toISOString() };
   try {
     for (const src of sources) {
+      // ── CANLI URL kaynağı (ör. RENEWAL_DATA): Sheet'e yazılmaz, data route canlı çeker.
+      if (src.urlEnv) {
+        out[src.key] = { mode: "live", tab: null };
+        continue;
+      }
+
       // ── ARTIMLI EKLEME (append): yalnız yeni satırları çek + Sheet'e EKLE ──────
       if (src.appendById) {
         let existing = [];

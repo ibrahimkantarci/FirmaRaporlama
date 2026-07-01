@@ -9,6 +9,21 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+// Canlı URL kaynağı (ör. RENEWAL_DATA Apps Script deploy'u): satır nesnelerini çeker.
+// Apps Script { ok, data: { <extract>: [ {...} ] } } döndürür.
+async function fetchExternalRows(src) {
+  const base = process.env[src.urlEnv];
+  if (!base) return []; // env tanımlı değil (ör. lokal) → boş
+  const sep = base.includes("?") ? "&" : "?";
+  const url = src.urlParams ? base + sep + src.urlParams : base;
+  const r = await fetch(url, { cache: "no-store" });
+  const j = await r.json();
+  if (!j || j.ok === false) return [];
+  const data = j.data || j;
+  const rows = src.extract ? data[src.extract] : data;
+  return Array.isArray(rows) ? rows : [];
+}
+
 // [header, ...rows] → [{ header: value }]
 function toObjects(values) {
   if (!Array.isArray(values) || values.length < 2) return [];
@@ -29,6 +44,15 @@ export const GET = withAccess("dashboard", async () => {
   const out = { ok: true };
   try {
     for (const src of DASHBOARD_SOURCES) {
+      // Canlı URL kaynağı → doğrudan çek (Sheet sekmesi yok).
+      if (src.urlEnv) {
+        try {
+          out[src.key] = await fetchExternalRows(src);
+        } catch {
+          out[src.key] = [];
+        }
+        continue;
+      }
       let values = [];
       try {
         values = await readMatrixFromSheet({ tab: src.tab });
