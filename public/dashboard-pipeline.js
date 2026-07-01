@@ -45,6 +45,12 @@
     var f = parseFloat(t);
     return isFinite(f) ? f : 0;
   }
+  // Provider ID normalizasyonu (join anahtarı): kenar boşluğu + sondaki ".0" temizle.
+  function renNormId(v) { var s = String(v == null ? "" : v).trim(); return s.replace(/\.0+$/, ""); }
+  // Flag Date hücresi (Excel seri no veya string) → "YYYY-MM" (ayın 15'i → o ay).
+  function renFlagMonth(v) { if (typeof v === "number") return renMonth(toDateStr(v)); var s = String(v == null ? "" : v).trim(); return renMonth(s) || renMonth(toDateStr(s)); }
+  // Binary flag değeri → okunur etiket. 1 = Flag var (kötü), 0 = Flag yok (iyi); renk/metin olduğu gibi.
+  function renFlagVal(v) { if (v === 1 || v === "1") return "Flag var"; if (v === 0 || v === "0") return "Flag yok"; return v == null ? "" : v; }
 
   // ── Yenileme (Genel Analiz) — 1'e 1 hedef + kırılım + esnek filtre ────────
   // İki metrik (görünüm biçimi):
@@ -66,6 +72,8 @@
       var raw = r.raw || {};
       for (var k in raw) { if (raw.hasOwnProperty(k) && k && !seen[k]) { seen[k] = 1; out.push(k); } }
     });
+    // Provider flag kolonları: hiç eşleşme olmasa bile listede dursun (seçilebilsin).
+    (S._renFlagCols || []).forEach(function (k) { if (k && !seen[k]) { seen[k] = 1; out.push(k); } });
     out.sort(function (a, b) { return a.localeCompare(b, "tr"); });
     S._renColsCache = out;
     return out;
@@ -305,11 +313,45 @@
         for (var ki = 0; ki < keys0.length; ki++) { if (/yenileme\s*mi/i.test(keys0[ki])) { eligKey = keys0[ki]; break; } }
         S._renEligKey = eligKey;
         S._renColsCache = null; // yeni veri → kolon listesini tazele
+
+        // ── Provider flag geçmişi (Provider_Flag_Old) → RÇİ + ay arama tablosu ──
+        // Anahtar = normalize(Provider ID) + "|" + ay. Değerler "⚑ <kolon>" adıyla
+        // renewal satırının raw'ına eklenir → Kırılım/filtre kolonu olur.
+        var flagByKey = {};
+        S._renFlagCols = [];
+        if (Array.isArray(d.provider_flag) && d.provider_flag.length) {
+          var fkeys = Object.keys(d.provider_flag[0] || {});
+          var pidKey = null, dtKey = null;
+          for (var fi = 0; fi < fkeys.length; fi++) {
+            if (!pidKey && /provider\s*id/i.test(fkeys[fi])) pidKey = fkeys[fi];
+            if (!dtKey && /date|tarih/i.test(fkeys[fi])) dtKey = fkeys[fi];
+          }
+          var flagCols = fkeys.filter(function (k) { return k !== pidKey && k !== dtKey; });
+          S._renFlagCols = flagCols.map(function (k) { return "⚑ " + k; });
+          if (pidKey && dtKey) {
+            d.provider_flag.forEach(function (fr) {
+              var pid = renNormId(fr[pidKey]), mo = renFlagMonth(fr[dtKey]);
+              if (!pid || !mo) return;
+              var rec = {};
+              flagCols.forEach(function (k) { rec["⚑ " + k] = renFlagVal(fr[k]); });
+              flagByKey[pid + "|" + mo] = rec;
+            });
+          } else {
+            console.warn("[pipeline] provider_flag: Provider ID / Date kolonu bulunamadı", fkeys);
+          }
+        }
+
         S._renewalRows = d.yenileme.map(function (r) {
           var durum = String(r["Yenileme Durumu"] || "").trim();
+          var ay = renMonth(r["Yenileme Ayı-Date"]) || renMonth(r["Yenileme Ayı"]);
+          // Provider flag'lerini (bu ay + RÇİ provider id) satırın raw'ına ekle →
+          // Kırılım/filtre kolonu olur. Eşleşme yoksa kolon boş kalır → "—".
+          var pid = renNormId(r["RÇİ"]);
+          var frec = (pid && ay) ? flagByKey[pid + "|" + ay] : null;
+          if (frec) for (var fk in frec) { if (frec.hasOwnProperty(fk)) r[fk] = frec[fk]; }
           return {
             raw: r,
-            ay: renMonth(r["Yenileme Ayı-Date"]) || renMonth(r["Yenileme Ayı"]),
+            ay: ay,
             yeniledi: durum === "Yenilendi",
             decided: durum === "Yenilendi" || durum === "Yenilemedi",
             // Toplam paydası: "Yenileme mi?" == "Yenileme". Kolon yoksa yedek: karar verilmiş satır.

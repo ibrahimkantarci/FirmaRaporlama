@@ -35,6 +35,13 @@ async function runPipeline(request) {
         continue;
       }
 
+      // ── STATİK kaynak (ör. Provider_Flag_Old): elle doldurulmuş sekme, Qlik yok.
+      // run route yazmaz; data route sekmeyi olduğu gibi okur.
+      if (src.static) {
+        out[src.key] = { mode: "static", tab: src.tab };
+        continue;
+      }
+
       // ── ARTIMLI EKLEME (append): yalnız yeni satırları çek + Sheet'e EKLE ──────
       if (src.appendById) {
         let existing = [];
