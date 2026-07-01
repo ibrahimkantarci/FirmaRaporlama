@@ -39,22 +39,32 @@ async function runPipeline(request) {
         }
         const header = existing.length ? existing[0].map((h) => String(h ?? "").trim()) : null;
 
-        // Mevcut sekmedeki en büyük id (yüksek-su-işareti).
+        // Mevcut sekmedeki en büyük id (yüksek-su-işareti) + tüm mevcut id'ler (dedupe).
         let maxId = 0;
+        const existingIds = new Set();
         if (header) {
           const idc = header.indexOf(src.appendById);
           if (idc >= 0) {
             for (let r = 1; r < existing.length; r++) {
-              const n = Number(existing[r]?.[idc]);
-              if (Number.isFinite(n) && n > maxId) maxId = n;
+              const raw = existing[r]?.[idc];
+              const n = Number(raw);
+              if (Number.isFinite(n)) {
+                if (n > maxId) maxId = n;
+                existingIds.add(String(raw).trim());
+              }
             }
           }
         }
 
         // Qlik: yalnız id > maxId olan (yeni) satırları oku. maxId=0 → ilk tam yükleme.
+        // KRİTİK: id > maxId eşleşmesi YOKSA seçim uygulanmaz → obje TÜM satırları döner.
+        // Bu durumda (senkron, yeni yok) hiç çekme — yoksa tüm veri tekrar eklenirdi.
         const fresh = await withQlikDoc(src.appId, async ({ doc }) => {
           await doc.clearAll(false);
-          if (maxId > 0) await selectFieldGreaterThan(doc, src.appendById, maxId);
+          if (maxId > 0) {
+            const sel = await selectFieldGreaterThan(doc, src.appendById, maxId);
+            if (!sel.selected) return { columns: [], rows: [] }; // yeni satır yok
+          }
           return fetchObjectData(doc, src.objectId);
         });
 
@@ -63,9 +73,13 @@ async function runPipeline(request) {
           const sheet = await overwriteSheetTab([fresh.columns, ...fresh.rows], { tab: src.tab });
           out[src.key] = { mode: "full", rows: fresh.rows.length, tab: src.tab, sheetUrl: sheet.sheetUrl };
         } else {
-          // Mevcut BAŞLIK sırasına hizala (kullanıcının fetch kolon sırası farklı olabilir), EKLE.
+          // DEDUPE: id'si zaten sekmede olan satırları at (çift-eklemeye karşı emniyet).
+          // Sonra mevcut BAŞLIK sırasına hizala ve EKLE.
+          const freshIdc = fresh.columns.indexOf(src.appendById);
           const colIdx = header.map((h) => fresh.columns.indexOf(h));
-          const aligned = fresh.rows.map((row) => colIdx.map((ci) => (ci >= 0 ? row[ci] : "")));
+          const aligned = fresh.rows
+            .filter((row) => freshIdc < 0 || !existingIds.has(String(row[freshIdc]).trim()))
+            .map((row) => colIdx.map((ci) => (ci >= 0 ? row[ci] : "")));
           if (aligned.length) await writeMatrixToSheet(aligned, { tab: src.tab });
           out[src.key] = { mode: "append", rows: aligned.length, maxIdBefore: maxId, tab: src.tab };
         }
