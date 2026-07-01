@@ -61,22 +61,25 @@
   // Ay (çoklu seçim) ve değer filtreleri önce popülasyonu daraltır.
   function renEsc(s) { return String(s == null ? "" : s).replace(/[<>&"]/g, function (c) { return { "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]; }); }
   var renTL = function (v) { return "₺" + Math.round(v || 0).toLocaleString("tr-TR"); };
-  // Ham satırdan (tüm kolonlar) bir kolonun değeri — kırılım/filtre herhangi bir kolonu kullanabilsin.
-  function renRawVal(r, col) { var raw = r && r.raw; var v = raw && col ? raw[col] : undefined; return v == null ? "" : String(v).trim(); }
+  // Kırılım/filtre için İZİNLİ renewal kolonları (diğer ham kolonlar kasıtlı gizli).
+  // Provider flag kolonları ("⚑ …") renCols() içinde dinamik eklenir.
+  var REN_DIM_COLS = [
+    "Yenileme Ayı", "PY", "Ekip", "Kategori", "Kategori Adı", "Ürün Adı",
+    "Şehir", "İlçe", "Müşteri Statüsü", "X Count", "PY Tahmin",
+    "Yenileme Durumu", "Tahmin Tutarlılık Kodu",
+  ];
+  // Bir kolonun değeri. "Yenileme Ayı" karışık formatlı → normalize ay (r.ay) döndürülür.
+  function renRawVal(r, col) {
+    if (col === "Yenileme Ayı") return r && r.ay ? r.ay : "";
+    var raw = r && r.raw; var v = raw && col ? raw[col] : undefined; return v == null ? "" : String(v).trim();
+  }
 
-  // Ham veriden tüm kolon başlıkları (kırılım + filtre açılırları). Bir kez hesapla/önbellekle.
+  // Kırılım + filtre kolon listesi: izinli renewal kolonları + provider flag kolonları
+  // ("⚑ …", eşleşme olmasa bile listede durur). Verilen sırayı korur (alfabetik sıralamaz).
   function renCols() {
-    if (S._renColsCache) return S._renColsCache;
-    var seen = {}, out = [];
-    (S._renewalRows || []).forEach(function (r) {
-      var raw = r.raw || {};
-      for (var k in raw) { if (raw.hasOwnProperty(k) && k && !seen[k]) { seen[k] = 1; out.push(k); } }
-    });
-    // Provider flag kolonları: hiç eşleşme olmasa bile listede dursun (seçilebilsin).
-    (S._renFlagCols || []).forEach(function (k) { if (k && !seen[k]) { seen[k] = 1; out.push(k); } });
-    out.sort(function (a, b) { return a.localeCompare(b, "tr"); });
-    S._renColsCache = out;
-    return out;
+    var cols = REN_DIM_COLS.slice();
+    (S._renFlagCols || []).forEach(function (k) { if (k && cols.indexOf(k) < 0) cols.push(k); });
+    return cols;
   }
   function renDistinct(col) {
     var set = {}; (S._renewalRows || []).forEach(function (r) { var v = renRawVal(r, col); if (v) set[v] = 1; });
@@ -312,7 +315,6 @@
         var keys0 = Object.keys(d.yenileme[0] || {});
         for (var ki = 0; ki < keys0.length; ki++) { if (/yenileme\s*mi/i.test(keys0[ki])) { eligKey = keys0[ki]; break; } }
         S._renEligKey = eligKey;
-        S._renColsCache = null; // yeni veri → kolon listesini tazele
 
         // ── Provider flag geçmişi (Provider_Flag_Old) → RÇİ + ay arama tablosu ──
         // Anahtar = normalize(Provider ID) + "|" + ay. Değerler "⚑ <kolon>" adıyla
