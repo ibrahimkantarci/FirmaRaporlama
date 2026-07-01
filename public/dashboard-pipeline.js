@@ -68,6 +68,14 @@
     "Şehir", "İlçe", "Müşteri Statüsü", "X Count", "PY Tahmin",
     "Yenileme Durumu", "Tahmin Tutarlılık Kodu",
   ];
+  // Kırılım/filtre için İZİNLİ provider flag kolonları (Provider_Flag_Old'daki DİĞER
+  // kolonlar — renk/isim/ekstra — gizli). Tab başlıklarıyla esnek eşleşir (boşluk /
+  // büyük-küçük harf / "Flag" son eki toleranslı).
+  var REN_FLAG_WHITELIST = [
+    "Provider Health", "Campaign Flag", "Gallery Flag", "Last Seen Flag",
+    "Lead Count Flag", "Response Rate Flag", "Response Time Flag", "Review Flag", "CR Flag",
+  ];
+  function renNormHdr(s) { return String(s == null ? "" : s).replace(/\s+/g, " ").trim().toLocaleLowerCase("tr"); }
   // Bir kolonun değeri. "Yenileme Ayı" karışık formatlı → normalize ay (r.ay) döndürülür.
   function renRawVal(r, col) {
     if (col === "Yenileme Ayı") return r && r.ay ? r.ay : "";
@@ -328,7 +336,18 @@
             if (!pidKey && /provider\s*id/i.test(fkeys[fi])) pidKey = fkeys[fi];
             if (!dtKey && /date|tarih/i.test(fkeys[fi])) dtKey = fkeys[fi];
           }
-          var flagCols = fkeys.filter(function (k) { return k !== pidKey && k !== dtKey; });
+          // Yalnız İZİNLİ flag kolonları (whitelist), tab başlığıyla esnek eşleşen.
+          // Whitelist sırasını korur; eşleşmeyen tab kolonları (renk/isim/ekstra) DIŞARIDA.
+          var flagCols = [], usedH = {};
+          REN_FLAG_WHITELIST.forEach(function (term) {
+            var t = renNormHdr(term);
+            for (var hi = 0; hi < fkeys.length; hi++) {
+              var h = fkeys[hi];
+              if (usedH[h] || h === pidKey || h === dtKey) continue;
+              var nh = renNormHdr(h);
+              if (nh === t || nh.indexOf(t) >= 0 || t.indexOf(nh) >= 0) { flagCols.push(h); usedH[h] = true; break; }
+            }
+          });
           S._renFlagCols = flagCols.map(function (k) { return "⚑ " + k; });
           if (pidKey && dtKey) {
             d.provider_flag.forEach(function (fr) {
