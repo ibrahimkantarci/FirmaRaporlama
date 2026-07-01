@@ -109,8 +109,23 @@ güncelle + `push.bat`; **Vercel'e dokunma**. (ID'ler gizli değil; sırlar API 
 - **Deploy:** `push.bat` (git add -A → commit → push; Vercel otomatik deploy).
   Silmeleri de stage'ler. Yeni env değişkenlerini Vercel'e de eklemeyi unutma.
 
-## Durum / sonraki adımlar
+## Durum / sonraki adımlar (2026-07-01)
 
-Üç araç da kurulu ve build temiz. Yeni Qlik objesi eklerken: kolon başlıkları
-`lib/fiyat.js` (COL) / `lib/qlik.js` (ENG_*) adaylarıyla eşlenir; eşleşmezse arayüzde
-"eşleşmeyen kolon" uyarısı çıkar — gerçek başlığı aday listesine ekle.
+Dört araç kurulu, build temiz, her şey commit+push edilmiş (Vercel'de).
+
+**Dashboard pipeline (aktif çalışma alanı):** `/dashboard` gömülü vendor HTML'i
+(`public/b2b-dashboard.html`) DEĞİŞTİRİLMEZ — tüm veri + özel render
+`public/dashboard-pipeline.js`'e (iframe'e enjekte, [app/dashboard/dashboard-panel.js](app/dashboard/dashboard-panel.js))
++ `app/api/dashboard/{run,data}` + `lib/dashboard-sources.js`'e konur. Bağlı kaynaklar:
+onboarding, firma (Providers-PY), çağrı (PY Sonitel, artımlı append), yenileme
+(harici canlı URL `RENEWAL_DATA`). Kalan: **Custom Pivot** (pivot obje, özel okuyucu gerekir).
+
+**⚠️ Kullanıcının yapması gerekenler / doğrulama:**
+1. Çağrı `Arama_Ham` sekmesi eski hatalı kodda kazara çift yüklendi → sekmeyi SİL/temizle
+   + "Qlik'ten yenile" → temiz tam yükleme (17.813). Fix deployda.
+2. Prod'da doğrula (Claude tarayıcı/creds ile test edemedi): Firma Raporlama,
+   Fiyat (yalnız güncel kampanya/katalog), dashboard yenile, **Genel Analiz yenileme paneli (YENİ, test edilmedi)**.
+
+**Not:** Qlik app/object ID'leri artık `lib/qlik-sources.js` + `lib/dashboard-sources.js`'te
+(env'de DEĞİL). Yeni Qlik objesi eklerken kolon başlıkları aday listeleriyle eşlenir;
+eşleşmezse "eşleşmeyen kolon" uyarısı — gerçek başlığı ekle. Detaylı devir: memory/[[handoff-current-state]].
