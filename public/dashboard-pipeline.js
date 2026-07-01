@@ -95,7 +95,8 @@
   function renCalc(rows, metric) {
     if (metric === "tutar") {
       var num = 0, den = 0;
-      for (var i = 0; i < rows.length; i++) { if (rows[i].yeniledi) { num += rows[i].sonrasi; den += rows[i].oncesi; } }
+      // Öncesi (payda): TÜM firmalar (yenilesin/yenilemesin). Yenilenen (pay): yalnız Yenilendi.
+      for (var i = 0; i < rows.length; i++) { den += rows[i].oncesi; if (rows[i].yeniledi) num += rows[i].sonrasi; }
       return { num: num, den: den, pct: den ? 100 * num / den : 0 };
     }
     var ren = 0, tot = 0;
@@ -119,11 +120,10 @@
       if (!S._renDim || cols.indexOf(S._renDim) < 0) S._renDim = cols.indexOf("Kategori") >= 0 ? "Kategori" : (cols[0] || "");
       dimSel.innerHTML = cols.map(function (c) { return '<option value="' + renEsc(c) + '"' + (S._renDim === c ? " selected" : "") + '>' + renEsc(c) + '</option>'; }).join("");
     }
-    var mHost = document.getElementById("ren-months-filter");
-    if (mHost) {
+    var mSel = document.getElementById("ren-months");
+    if (mSel) {
       var all = renMonthsAll(), sel = S._renMonths || [];
-      mHost.innerHTML = '<div class="chip' + (sel.length ? "" : " on") + '" onclick="renClearMonths()">Tümü</div>' +
-        all.map(function (mo) { return '<div class="chip' + (sel.indexOf(mo) >= 0 ? " on" : "") + '" onclick="renToggleMonth(\'' + mo + '\')">' + mo + '</div>'; }).join("");
+      mSel.innerHTML = all.map(function (mo) { return '<option value="' + mo + '"' + (sel.indexOf(mo) >= 0 ? " selected" : "") + '>' + mo + '</option>'; }).join("");
     }
     var fHost = document.getElementById("ren-filters");
     if (fHost) {
@@ -153,18 +153,20 @@
       panel.setAttribute("data-ren", "2");
       panel.innerHTML =
         '<div class="card" style="margin-bottom:14px">' +
-          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><span class="flbl">Görünüm</span>' +
-            '<div class="chip" id="rm-tutar" onclick="setRenMetric(\'tutar\')">Tutar · 1\'e 1 Hedef</div>' +
-            '<div class="chip" id="rm-adet" onclick="setRenMetric(\'adet\')">Adet · Yenileyen / Toplam</div></div>' +
-          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><span class="flbl">Kırılım</span>' +
-            '<select id="ren-dim" onchange="renSetDim(this.value)" style="font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:4px;max-width:260px"></select></div>' +
-          '<div style="margin-bottom:10px"><div class="flbl" style="margin-bottom:4px">Aylar (çoklu)</div><div id="ren-months-filter" style="display:flex;gap:6px;flex-wrap:wrap"></div></div>' +
+          '<div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px">' +
+            '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="flbl">Görünüm</span>' +
+              '<div class="chip" id="rm-tutar" onclick="setRenMetric(\'tutar\')">Tutar · 1\'e 1 Hedef</div>' +
+              '<div class="chip" id="rm-adet" onclick="setRenMetric(\'adet\')">Adet · Yenileyen / Toplam</div></div>' +
+            '<div style="display:flex;gap:8px;align-items:center"><span class="flbl">Kırılım</span>' +
+              '<select id="ren-dim" onchange="renSetDim(this.value)" style="font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:4px;max-width:220px"></select></div>' +
+            '<div style="display:flex;gap:8px;align-items:flex-start"><span class="flbl" style="margin-top:4px">Aylar</span>' +
+              '<select id="ren-months" multiple size="4" onchange="renSetMonths(this)" title="Boş bırak = tüm aylar (Ctrl/Cmd ile çoklu seç)" style="font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:3px;min-width:120px"></select></div>' +
+          '</div>' +
           '<div class="flbl" style="margin-bottom:4px">Filtreler</div><div id="ren-filters" style="display:flex;flex-direction:column;gap:6px"></div>' +
           '<div style="margin-top:8px"><button onclick="addRenFilter()" style="font-size:12px;padding:5px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#185FA5">+ Filtre ekle</button> <span id="ren-info" style="font-size:11px;color:#a1a1aa;margin-left:6px"></span></div>' +
         '</div>' +
         '<div class="mg" id="ren-cards"></div>' +
-        '<div class="card"><div class="card-head"><span class="ct" id="ren-brk-title">Kırılım</span><span id="ren-brk-cnt" style="font-size:11px;color:#a1a1aa"></span></div><div id="ren-breakdown"></div></div>' +
-        '<div class="card"><div class="card-head"><span class="ct">Detay</span><span id="ren-tcnt" style="font-size:11px;color:#a1a1aa"></span></div><div class="tw"><table><thead><tr><th>Firma</th><th id="ren-th-dim">Kırılım</th><th>Ay</th><th>Öncesi</th><th>Yenilenen</th><th>Durum</th></tr></thead><tbody id="ren-tbl"></tbody></table></div></div>';
+        '<div class="card"><div class="card-head"><span class="ct" id="ren-brk-title">Kırılım</span><span id="ren-brk-cnt" style="font-size:11px;color:#a1a1aa"></span></div><div id="ren-breakdown"></div></div>';
     }
     document.getElementById("rm-tutar").classList.toggle("on", S._renMetric === "tutar");
     document.getElementById("rm-adet").classList.toggle("on", S._renMetric === "adet");
@@ -195,7 +197,6 @@
     // ── Kırılım (seçilen kolonun her değeri için metrik) ──
     var dim = S._renDim;
     document.getElementById("ren-brk-title").textContent = (dim || "Kırılım") + " kırılımı — " + (isT ? "1'e 1 oranı" : "yenileme oranı");
-    document.getElementById("ren-th-dim").textContent = dim || "Kırılım";
     var groups = {};
     data.forEach(function (r) { var g = renRawVal(r, dim) || "—"; (groups[g] || (groups[g] = [])).push(r); });
     var gkeys = Object.keys(groups).map(function (g) { return { g: g, m: renCalc(groups[g], metric) }; })
@@ -211,18 +212,10 @@
         return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:600">' + renEsc(x.g) + '</span><span style="color:#71717a">' + sub + ' · <b style="color:' + c + '">%' + x.m.pct.toFixed(1) + '</b></span></div><div style="background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, x.m.pct) + '%;background:' + c + ';border-radius:5px"></div></div></div>';
       }).join("") + (gkeys.length > 40 ? '<div style="color:#a1a1aa;font-size:11px;padding:4px 0">…+' + (gkeys.length - 40) + ' değer daha (filtreyle daralt)</div>' : "");
     }
-
-    // ── Detay tablosu (yenileyen + Yenileme-eligible satırlar) ──
-    var detail = data.filter(function (r) { return r.elig || r.yeniledi; });
-    document.getElementById("ren-tcnt").textContent = detail.length + " satır";
-    document.getElementById("ren-tbl").innerHTML = detail.slice(0, 300).map(function (r) {
-      return "<tr><td style=\"font-size:12px\">" + renEsc(r.musteri_adi || r.firma_id) + "</td><td style=\"font-size:11px;color:#71717a\">" + renEsc(renRawVal(r, dim)) + "</td><td style=\"font-size:11px\">" + renEsc(r.ay) + "</td><td style=\"font-size:12px\">" + (r.oncesi ? renTL(r.oncesi) : "—") + "</td><td style=\"font-size:12px\">" + (r.sonrasi ? renTL(r.sonrasi) : "—") + "</td><td>" + (r.yeniledi ? '<span class="badge ok">Yenilendi</span>' : (r.decided ? '<span class="badge crit">Yenilemedi</span>' : '<span class="badge">Bekliyor</span>')) + "</td></tr>";
-    }).join("") || '<tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:16px">Sonuç yok</td></tr>';
   }
   window.setRenMetric = function (m) { S._renMetric = m; renderRenewalAnaliz(); };
   window.renSetDim = function (c) { S._renDim = c; renderRenewalAnaliz(); };
-  window.renToggleMonth = function (mo) { var s = S._renMonths || (S._renMonths = []); var i = s.indexOf(mo); if (i >= 0) s.splice(i, 1); else s.push(mo); renderRenewalAnaliz(); };
-  window.renClearMonths = function () { S._renMonths = []; renderRenewalAnaliz(); };
+  window.renSetMonths = function (sel) { var v = []; for (var o = 0; o < sel.options.length; o++) if (sel.options[o].selected) v.push(sel.options[o].value); S._renMonths = v; renderRenewalAnaliz(); };
   window.addRenFilter = function () { (S._renFilters = S._renFilters || []).push({ col: "", values: [] }); renderRenewalAnaliz(); };
   window.renRemoveFilter = function (i) { S._renFilters.splice(i, 1); renderRenewalAnaliz(); };
   window.renSetCol = function (i, col) { S._renFilters[i].col = col; S._renFilters[i].values = []; renderRenewalAnaliz(); };
