@@ -2,8 +2,14 @@
 // Dashboard pipeline (yazma): yapılandırılmış Qlik objelerini oku → Sheet sekmelerine yaz.
 // Tek tek (?only=onboarding) veya tümü çalıştırılabilir. /api/fiyat/run ile aynı desen.
 import { withAccess } from "../../../../lib/api";
-import { withQlikDoc, fetchObjectData, selectExact, selectLatestDate } from "../../../../lib/qlik";
-import { overwriteSheetTab } from "../../../../lib/sheets";
+import {
+  withQlikDoc,
+  fetchObjectData,
+  selectExact,
+  selectLatestDate,
+  selectFieldGreaterThan,
+} from "../../../../lib/qlik";
+import { overwriteSheetTab, readMatrixFromSheet, writeMatrixToSheet } from "../../../../lib/sheets";
 import { DASHBOARD_SOURCES } from "../../../../lib/dashboard-sources";
 
 export const runtime = "nodejs";
@@ -23,6 +29,50 @@ async function runPipeline(request) {
   const out = { ok: true, updatedAt: new Date().toISOString() };
   try {
     for (const src of sources) {
+      // ── ARTIMLI EKLEME (append): yalnız yeni satırları çek + Sheet'e EKLE ──────
+      if (src.appendById) {
+        let existing = [];
+        try {
+          existing = await readMatrixFromSheet({ tab: src.tab });
+        } catch {
+          existing = [];
+        }
+        const header = existing.length ? existing[0].map((h) => String(h ?? "").trim()) : null;
+
+        // Mevcut sekmedeki en büyük id (yüksek-su-işareti).
+        let maxId = 0;
+        if (header) {
+          const idc = header.indexOf(src.appendById);
+          if (idc >= 0) {
+            for (let r = 1; r < existing.length; r++) {
+              const n = Number(existing[r]?.[idc]);
+              if (Number.isFinite(n) && n > maxId) maxId = n;
+            }
+          }
+        }
+
+        // Qlik: yalnız id > maxId olan (yeni) satırları oku. maxId=0 → ilk tam yükleme.
+        const fresh = await withQlikDoc(src.appId, async ({ doc }) => {
+          await doc.clearAll(false);
+          if (maxId > 0) await selectFieldGreaterThan(doc, src.appendById, maxId);
+          return fetchObjectData(doc, src.objectId);
+        });
+
+        if (!header) {
+          // Sekme boş/yok → başlık + tüm satırlar (overwrite ile kur).
+          const sheet = await overwriteSheetTab([fresh.columns, ...fresh.rows], { tab: src.tab });
+          out[src.key] = { mode: "full", rows: fresh.rows.length, tab: src.tab, sheetUrl: sheet.sheetUrl };
+        } else {
+          // Mevcut BAŞLIK sırasına hizala (kullanıcının fetch kolon sırası farklı olabilir), EKLE.
+          const colIdx = header.map((h) => fresh.columns.indexOf(h));
+          const aligned = fresh.rows.map((row) => colIdx.map((ci) => (ci >= 0 ? row[ci] : "")));
+          if (aligned.length) await writeMatrixToSheet(aligned, { tab: src.tab });
+          out[src.key] = { mode: "append", rows: aligned.length, maxIdBefore: maxId, tab: src.tab };
+        }
+        continue;
+      }
+
+      // ── TAM YAZMA (overwrite): kaynağın tamamını çekip sekmenin üzerine yaz ────
       const data = await withQlikDoc(src.appId, async ({ doc }) => {
         // Temiz durumdan başla: clearAll işaretliyse, seçim VEYA en-yeni-tarih varsa.
         if (src.clearAll || src.selections?.length || src.latestDateField) {
