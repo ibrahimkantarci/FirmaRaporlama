@@ -33,6 +33,19 @@
         loaded.push("onboarding: " + S.onboarding.length);
       }
 
+      // ── Firma performans (Providers-PY → S.firmalar) ────────────────────
+      // Performans + Alarm + Yenileme (fallback) + Genel Analiz panellerini besler.
+      // applyImport ile aynı: mapRow(FIRMA_MAP) + calcFlag(flag_rengi).
+      if (Array.isArray(d.firma) && d.firma.length) {
+        S.firmalar = d.firma.map(function (row) {
+          var m = mapRow(row, FIRMA_MAP);
+          m.flag_rengi = calcFlag(m);
+          return m;
+        });
+        S.loaded.firma_performans = true;
+        loaded.push("firma: " + S.firmalar.length);
+      }
+
       // (Diğer sayfalar eklendikçe buraya benzer bloklar gelecek.)
 
       if (!loaded.length) return;

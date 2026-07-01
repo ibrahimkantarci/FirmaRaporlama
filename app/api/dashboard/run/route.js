@@ -2,7 +2,7 @@
 // Dashboard pipeline (yazma): yapılandırılmış Qlik objelerini oku → Sheet sekmelerine yaz.
 // Tek tek (?only=onboarding) veya tümü çalıştırılabilir. /api/fiyat/run ile aynı desen.
 import { withAccess } from "../../../../lib/api";
-import { withQlikDoc, fetchObjectData, selectExact } from "../../../../lib/qlik";
+import { withQlikDoc, fetchObjectData, selectExact, selectLatestDate } from "../../../../lib/qlik";
 import { overwriteSheetTab } from "../../../../lib/sheets";
 import { DASHBOARD_SOURCES } from "../../../../lib/dashboard-sources";
 
@@ -24,15 +24,38 @@ async function runPipeline(request) {
   try {
     for (const src of sources) {
       const data = await withQlikDoc(src.appId, async ({ doc }) => {
-        if (src.selections?.length) {
+        // Temiz durumdan başla: clearAll işaretliyse, seçim VEYA en-yeni-tarih varsa.
+        if (src.clearAll || src.selections?.length || src.latestDateField) {
           await doc.clearAll(false);
+        }
+        // En güncel snapshot'a sabitle (kararsız satır sayısını önler).
+        if (src.latestDateField) await selectLatestDate(doc, src.latestDateField);
+        if (src.selections?.length) {
           for (const sel of src.selections) await selectExact(doc, sel.field, sel.value);
         }
-        return fetchObjectData(doc, src.objectId);
+        return fetchObjectData(doc, src.objectId, { withNum: !!src.numeric });
       });
-      const sheet = await overwriteSheetTab([data.columns, ...data.rows], { tab: src.tab });
+
+      // numeric kaynak: saf sayı hücrelerini ham qNum ile yaz (biçimli "11,332" → 11332),
+      // böylece dashboard num() 1000× hatası yapmaz. Tarih ("2026-07-01") ve yüzdeli
+      // ("73 (44.24%)") değerler qText kalır (parseTarih/getDonusOran için).
+      let rows = data.rows;
+      if (src.numeric && data.rowsNum) {
+        const NUMLIKE = /^-?[\d.,]+$/;
+        rows = data.rows.map((row, ri) =>
+          row.map((text, ci) => {
+            const n = data.rowsNum[ri]?.[ci];
+            // Saf sayı → ham qNum (2 ondalığa yuvarla: temiz görünüm, doğru matematik).
+            return Number.isFinite(n) && NUMLIKE.test(String(text ?? "").trim())
+              ? Math.round(n * 100) / 100
+              : text;
+          })
+        );
+      }
+
+      const sheet = await overwriteSheetTab([data.columns, ...rows], { tab: src.tab });
       out[src.key] = {
-        rows: data.rows.length,
+        rows: rows.length,
         columns: data.columns.length,
         tab: src.tab,
         sheetUrl: sheet.sheetUrl,

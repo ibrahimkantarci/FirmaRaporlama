@@ -33,8 +33,11 @@ export default function DashboardPanel() {
       const r = await fetch("/api/dashboard/run", { method: "POST" });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error || "Bilinmeyen hata");
-      const n = d.onboarding?.rows;
-      setMsg("Yenilendi" + (n != null ? ` · ${n} onboarding firma` : ""));
+      // Her kaynağın satır sayısını özetle (onboarding, firma, …).
+      const parts = Object.keys(d)
+        .filter((k) => d[k] && typeof d[k] === "object" && d[k].rows != null)
+        .map((k) => `${k}: ${d[k].rows}`);
+      setMsg("Yenilendi" + (parts.length ? " · " + parts.join(" · ") : ""));
       const w = ref.current?.contentWindow;
       if (w) w.location.reload(); // reload → onLoad → injectPipeline → /api/dashboard/data
     } catch (e) {
