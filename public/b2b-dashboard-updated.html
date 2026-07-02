@@ -1673,6 +1673,15 @@ function renderObCagriDegerlendirme(){
     return;
   }
 
+  // Aranan / aranmayan firma sayısı (paket başlangıcından beri en az bir Touch = aranan)
+  const aranmaDurum=aktif.map(f=>{
+    const fid=String(f.ob_id||'').trim();
+    const calls=S.cagrilar.filter(c=>String(c.firma_id||'').trim()===fid&&(!f.baslangic||!c.tarih||c.tarih>=f.baslangic));
+    return calls.some(c=>c.durum==='Touch');
+  });
+  const arananSayi=aranmaDurum.filter(Boolean).length;
+  const aranmayanSayi=aranmaDurum.length-arananSayi;
+
   // Günlük Touch/Attempt çizgi grafiği — yalnızca onboarding firmalarına ait çağrılar
   // (Çağrı Analizi sayfasındaki grafikle aynı görsel dil, bağımsız veri kapsamı).
   if(trendChartEl){
@@ -1686,7 +1695,8 @@ function renderObCagriDegerlendirme(){
       const totalT=grouped.touch.reduce((a,b)=>a+b,0);
       const totalA=grouped.attempt.reduce((a,b)=>a+b,0);
       const birim=gran==='ay'?'ay':gran==='hafta'?'hafta':'gün';
-      trendInfoEl.textContent=grouped.keys.length?`${grouped.keys.length} ${birim} · ${totalT} touch · ${totalA} attempt`:'';
+      const donemStr=grouped.keys.length?`${grouped.keys.length} ${birim} · ${totalT} touch · ${totalA} attempt · `:'';
+      trendInfoEl.innerHTML=`${donemStr}<b style="color:#16a34a">${arananSayi}</b> aranan · <b style="color:#dc2626">${aranmayanSayi}</b> aranmayan`;
     }
   }
 
@@ -2782,8 +2792,10 @@ function onCagriAyChange(){
 }
 
 function getCagriFiltered(){
-  if(!S._cagriSecilenAy) return S.cagrilar;
-  return S.cagrilar.filter(c=>cagriPeriodKey(c.tarih)===S._cagriSecilenAy);
+  let arr=S.cagrilar;
+  if(S._cagriSecilenAy) arr=arr.filter(c=>cagriPeriodKey(c.tarih)===S._cagriSecilenAy);
+  if(S._secilenCagriPY&&S._secilenCagriPY!=='tümü') arr=arr.filter(c=>c.py_adi===S._secilenCagriPY);
+  return arr;
 }
 
 function buildCagriMaps(){
@@ -2821,6 +2833,16 @@ function fmtSure(v){
   return `${sn}sn`;
 }
 
+// Toplam süre için saat cinsinden format (saniye girdisi → "12sa 34dk" / "1,2 saat")
+function fmtSureSaat(v){
+  if(!v||v<=0) return '—';
+  const saat=Math.floor(v/3600);
+  const dk=Math.round((v%3600)/60);
+  if(saat>0&&dk>0) return `${saat}sa ${dk}dk`;
+  if(saat>0) return `${saat}sa`;
+  return `${dk}dk`;
+}
+
 function fmtSureAvg(toplam, adet){
   if(!adet||!toplam) return '—';
   return fmtSure(Math.round(toplam/adet));
@@ -2845,7 +2867,7 @@ function renderCA(){
   document.getElementById('ca-cevaps').textContent=cevaps;
   document.getElementById('ca-oran').textContent=(bas+cevaps)?Math.round(bas/(bas+cevaps)*100)+'%':'—';
   const toplamSure=sures.reduce((a,b)=>a+b,0);
-  document.getElementById('ca-sure').textContent=toplamSure?fmtSure(toplamSure):'—';
+  document.getElementById('ca-sure').textContent=toplamSure?fmtSureSaat(toplamSure):'—';
 
   // Aktif günler
   const gunSet=new Set(data.filter(c=>c.tarih&&c.tarih!=='-').map(c=>c.tarih.slice(0,10)));
@@ -2936,8 +2958,16 @@ function renderCA(){
   Object.values(pm).forEach(d2=>Object.assign(allValues,d2.firmaValues||{}));
   const toplamCoverage=Object.values(allValues).reduce((a,b)=>a+b,0);
   // ca-coverage artık renderCoverage() tarafından yönetiliyor
-  const toplamMusteri=Object.values(pm).reduce((a,d2)=>a+d2.musteri,0);
-  const toplamYip=Object.values(pm).reduce((a,d2)=>a+d2.yip_musteri,0);
+  // Executive Employee oranı — seçili PY'ye göre (tümü ise tüm PY toplamı)
+  const secPY=S._secilenCagriPY;
+  let toplamMusteri, toplamYip;
+  if(secPY&&secPY!=='tümü'&&pm[secPY]){
+    toplamMusteri=pm[secPY].musteri;
+    toplamYip=pm[secPY].yip_musteri;
+  }else{
+    toplamMusteri=Object.values(pm).reduce((a,d2)=>a+d2.musteri,0);
+    toplamYip=Object.values(pm).reduce((a,d2)=>a+d2.yip_musteri,0);
+  }
   const yipOran2=toplamMusteri>0?Math.round(toplamYip/toplamMusteri*100):null;
   document.getElementById('ca-yip-oran').textContent=yipOran2!==null?'%'+yipOran2:'—';
   document.getElementById('ca-yip-sub').textContent=toplamMusteri>0?`${toplamYip} / ${toplamMusteri} executive`:'';
@@ -3455,15 +3485,16 @@ function drawCagriTrendChart(containerId,days,touchArr,attemptArr){
     el.innerHTML='<div class="empty-state" style="padding:26px 0"><div>📈</div><div class="et">Veri yok</div><div class="es">Seçili filtrelerde çağrı bulunamadı</div></div>';
     return;
   }
-  const w=920,h=220,padL=34,padR=14,padT=22,padB=26;
+  const n=days.length;
+  const w=920,h=230,padL=34,padR=14,padT=18,padB=28;
   const maxY=Math.max(1,...touchArr,...attemptArr);
   const innerW=w-padL-padR,innerH=h-padT-padB;
-  const stepX=days.length>1?innerW/(days.length-1):0;
+  const stepX=n>1?innerW/(n-1):0;
   const scaleY=v=>padT+innerH-(v/maxY)*innerH;
   const scaleX=i=>padL+i*stepX;
-
   const pathFor=arr=>arr.map((v,i)=>(i===0?'M':'L')+scaleX(i).toFixed(1)+','+scaleY(v).toFixed(1)).join(' ');
 
+  // Yatay ızgara + Y ekseni etiketleri
   let grid='';
   const ticks=4;
   for(let t=0;t<=ticks;t++){
@@ -3473,28 +3504,77 @@ function drawCagriTrendChart(containerId,days,touchArr,attemptArr){
     grid+=`<text x="${padL-6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#a1a1aa" text-anchor="end">${val}</text>`;
   }
 
-  const labelEvery=Math.max(1,Math.ceil(days.length/12));
+  // X ekseni: en çok ~10 etiket, çakışmayı önlemek için seyreltilir
+  const maxLabels=10;
+  const labelEvery=Math.max(1,Math.ceil(n/maxLabels));
   let xLabels='';
   days.forEach((d,i)=>{
-    if(i%labelEvery===0||i===days.length-1){
-      xLabels+=`<text x="${scaleX(i).toFixed(1)}" y="${h-8}" font-size="9" fill="#a1a1aa" text-anchor="middle">${d.slice(5)}</text>`;
+    if(i%labelEvery===0||i===n-1){
+      xLabels+=`<text x="${scaleX(i).toFixed(1)}" y="${h-9}" font-size="9" fill="#a1a1aa" text-anchor="middle">${d.slice(5)}</text>`;
     }
   });
 
-  const touchDots=touchArr.map((v,i)=>`<circle cx="${scaleX(i).toFixed(1)}" cy="${scaleY(v).toFixed(1)}" r="2.6" fill="#185FA5"><title>${days[i]} · Touch: ${v}</title></circle>`).join('');
-  const attemptDots=attemptArr.map((v,i)=>`<circle cx="${scaleX(i).toFixed(1)}" cy="${scaleY(v).toFixed(1)}" r="2.6" fill="#dc2626"><title>${days[i]} · Attempt: ${v}</title></circle>`).join('');
-  // Net sayı etiketleri: Touch değeri noktanın üstünde, Attempt değeri noktanın altında (0 olanlar gizlenir — karmaşayı azaltmak için)
-  const touchLabels=touchArr.map((v,i)=>v>0?`<text x="${scaleX(i).toFixed(1)}" y="${(scaleY(v)-6).toFixed(1)}" font-size="9" font-weight="700" fill="#185FA5" text-anchor="middle">${v}</text>`:'').join('');
-  const attemptLabels=attemptArr.map((v,i)=>v>0?`<text x="${scaleX(i).toFixed(1)}" y="${(scaleY(v)+13).toFixed(1)}" font-size="9" font-weight="700" fill="#dc2626" text-anchor="middle">${v}</text>`:'').join('');
+  // Noktalar yalnızca veri az olduğunda (≤31) gösterilir
+  const showDots=n<=31;
+  const dotR=n<=15?3:2.2;
+  const mkDots=(arr,color)=>showDots?arr.map((v,i)=>`<circle cx="${scaleX(i).toFixed(1)}" cy="${scaleY(v).toFixed(1)}" r="${dotR}" fill="${color}"/>`).join(''):'';
+  const touchDots=mkDots(touchArr,'#185FA5');
+  const attemptDots=mkDots(attemptArr,'#dc2626');
 
-  el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px;display:block">
-    ${grid}
-    <path d="${pathFor(touchArr)}" fill="none" stroke="#185FA5" stroke-width="2"/>
-    <path d="${pathFor(attemptArr)}" fill="none" stroke="#dc2626" stroke-width="2"/>
-    ${touchDots}${attemptDots}
-    ${touchLabels}${attemptLabels}
-    ${xLabels}
-  </svg>`;
+  // Sadece uç noktalara (ilk/son/tepe) değer yaz
+  const tepeI=touchArr.indexOf(Math.max(...touchArr));
+  const keyPts=new Set([0,n-1,tepeI]);
+  let keyLabels='';
+  keyPts.forEach(i=>{
+    if(touchArr[i]>0) keyLabels+=`<text x="${scaleX(i).toFixed(1)}" y="${(scaleY(touchArr[i])-7).toFixed(1)}" font-size="9.5" font-weight="700" fill="#185FA5" text-anchor="middle">${touchArr[i]}</text>`;
+  });
+
+  el.innerHTML=`<div style="position:relative">
+    <svg class="ca-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:${h}px;display:block">
+      ${grid}
+      <path d="${pathFor(touchArr)}" fill="none" stroke="#185FA5" stroke-width="2"/>
+      <path d="${pathFor(attemptArr)}" fill="none" stroke="#dc2626" stroke-width="2"/>
+      ${touchDots}${attemptDots}
+      ${keyLabels}
+      ${xLabels}
+      <line class="ca-cross" x1="0" y1="${padT}" x2="0" y2="${padT+innerH}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
+      <circle class="ca-hd-t" r="4" fill="#185FA5" stroke="#fff" stroke-width="1.5" style="opacity:0"/>
+      <circle class="ca-hd-a" r="4" fill="#dc2626" stroke="#fff" stroke-width="1.5" style="opacity:0"/>
+      <rect class="ca-hit" x="${padL}" y="${padT}" width="${innerW}" height="${innerH}" fill="transparent" style="cursor:crosshair"/>
+    </svg>
+    <div class="ca-tip" style="position:absolute;pointer-events:none;opacity:0;transition:opacity .08s;background:#111827;color:#fff;border-radius:8px;padding:7px 10px;font-size:11.5px;line-height:1.5;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:10;transform:translate(-50%,-100%)"></div>
+  </div>`;
+
+  // ── İnteraktif tooltip ────────────────────────────────────────────────
+  const svg=el.querySelector('.ca-chart-svg');
+  const hit=el.querySelector('.ca-hit');
+  const cross=el.querySelector('.ca-cross');
+  const hdT=el.querySelector('.ca-hd-t');
+  const hdA=el.querySelector('.ca-hd-a');
+  const tip=el.querySelector('.ca-tip');
+
+  function move(ev){
+    const rect=svg.getBoundingClientRect();
+    const relX=(ev.clientX-rect.left)/rect.width*w;      // SVG koordinatına çevir
+    let i=Math.round((relX-padL)/(stepX||1));
+    i=Math.max(0,Math.min(n-1,i));
+    const cx=scaleX(i);
+    cross.setAttribute('x1',cx);cross.setAttribute('x2',cx);cross.style.opacity='1';
+    hdT.setAttribute('cx',cx);hdT.setAttribute('cy',scaleY(touchArr[i]));hdT.style.opacity='1';
+    hdA.setAttribute('cx',cx);hdA.setAttribute('cy',scaleY(attemptArr[i]));hdA.style.opacity='1';
+    // tooltip konumu (piksel cinsinden, kabın içinde)
+    const px=cx/w*rect.width;
+    const py=Math.min(scaleY(touchArr[i]),scaleY(attemptArr[i]))/h*rect.height;
+    tip.innerHTML=`<div style="font-weight:700;margin-bottom:2px">${days[i]}</div>`+
+      `<div style="color:#93c5fd">● Touch: <b style="color:#fff">${touchArr[i]}</b></div>`+
+      `<div style="color:#fca5a5">● Attempt: <b style="color:#fff">${attemptArr[i]}</b></div>`;
+    tip.style.left=Math.max(40,Math.min(rect.width-40,px))+'px';
+    tip.style.top=Math.max(4,py-10)+'px';
+    tip.style.opacity='1';
+  }
+  function leave(){cross.style.opacity='0';hdT.style.opacity='0';hdA.style.opacity='0';tip.style.opacity='0';}
+  hit.addEventListener('mousemove',move);
+  hit.addEventListener('mouseleave',leave);
 }
 
 function buildAlarmStrip(){
