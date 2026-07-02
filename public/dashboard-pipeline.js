@@ -303,6 +303,134 @@
   }
   window.renderLeadDist = renderSegmentLeadDist;
 
+  // ══ Çağrı Analizi — executive top kart + coverage rework + PY detayı dönem seçici ══
+  // Vendor renderCA/calcPYCoverage'ı sarmalar (her iki dashboard'a uygulanır).
+  //  • Executive Employee oranı (üst kart): üst filtre döneminde UNIQUE dokunulan
+  //    müşteriler içinde Kullanıcı Tipi 'Executive' olanların oranı (Arama_Ham).
+  //  • Coverage (PY detayı): PY portföyü (S.firmalar, Sorumlu PY) × KENDİ döneminde
+  //    (Gün/Hafta/Ay, default bu ay) touch alan firmalar (herhangi biri, UNIQUE).
+  //    Value = Satış Fiyatı / 12; oran = touch value / toplam value, count sayısal.
+  if (typeof window.renderCA === "function" && !window.__caPatched) {
+    window.__caPatched = true;
+
+    function covPeriodKey(tarih) {
+      if (!tarih || tarih === "-") return "";
+      var g = S._covGran || "ay";
+      if (g === "gun") return String(tarih).slice(0, 10);
+      if (g === "hafta" && typeof getISOWeek === "function") return getISOWeek(new Date(tarih));
+      return String(tarih).slice(0, 7);
+    }
+    function covCurrentPeriod() {
+      var now = new Date(), g = S._covGran || "ay";
+      var y = now.getFullYear(), mo = String(now.getMonth() + 1);
+      if (mo.length < 2) mo = "0" + mo;
+      if (g === "gun") { var dd = String(now.getDate()); if (dd.length < 2) dd = "0" + dd; return y + "-" + mo + "-" + dd; }
+      if (g === "hafta" && typeof getISOWeek === "function") return getISOWeek(now);
+      return y + "-" + mo;
+    }
+    function covPeriodsMap() {
+      var pm = {}; (S.cagrilar || []).forEach(function (c) { if (c.durum !== "Touch") return; var k = covPeriodKey(c.tarih); if (k) pm[k] = (pm[k] || 0) + 1; }); return pm;
+    }
+    function ensureCovDefaults() {
+      if (!S._covGran) S._covGran = "ay";
+      var pm = covPeriodsMap();
+      if (S._covPeriod && pm[S._covPeriod]) return;
+      var cur = covCurrentPeriod();
+      if (pm[cur]) { S._covPeriod = cur; return; }
+      var ps = Object.keys(pm).sort();
+      S._covPeriod = ps.length ? ps[ps.length - 1] : "";
+    }
+    function covTouchedSet() {
+      var key = (S._covGran || "ay") + "|" + (S._covPeriod || "");
+      if (S._covTouchedKey === key && S._covTouched) return S._covTouched;
+      var set = {};
+      (S.cagrilar || []).forEach(function (c) {
+        if (c.durum !== "Touch") return;
+        if (S._covPeriod && covPeriodKey(c.tarih) !== S._covPeriod) return;
+        var cid = String(c.firma_id == null ? "" : c.firma_id).trim();
+        if (cid) set[cid] = 1;
+      });
+      S._covTouched = set; S._covTouchedKey = key; return set;
+    }
+
+    // Coverage: PY portföyü × dönemde touch (herhangi biri, unique). Value = Satış Fiyatı/12.
+    window.calcPYCoverage = function (pyName) {
+      var firms = S.firmalar || [];
+      var payda = firms.filter(function (f) { return pyName === "tümü" || String(f.py_adi || "") === pyName; });
+      if (!payda.length) return { valueOran: null, countOran: null, aranan: 0, toplam: 0, aranValue: 0, toplamValue: 0 };
+      var touched = covTouchedSet();
+      var toplamValue = 0, aranValue = 0, aranan = 0;
+      payda.forEach(function (f) {
+        var val = renNum(f.satis_fiyati) / 12;
+        toplamValue += val;
+        var cid = String(f.firma_id == null ? "" : f.firma_id).trim();
+        if (cid && touched[cid]) { aranValue += val; aranan++; }
+      });
+      return {
+        valueOran: toplamValue ? Math.round(aranValue / toplamValue * 100) : 0,
+        countOran: Math.round(aranan / payda.length * 100),
+        aranan: aranan, toplam: payda.length, aranValue: aranValue, toplamValue: toplamValue,
+      };
+    };
+
+    // Executive top kart: üst filtre döneminde UNIQUE dokunulan müşteri bazında executive oranı.
+    function patchExecCard() {
+      var el = document.getElementById("ca-yip-oran"); if (!el) return;
+      var data = (typeof getCagriFiltered === "function") ? getCagriFiltered() : (S.cagrilar || []);
+      var byCust = {};
+      data.forEach(function (c) {
+        if (c.durum !== "Touch") return;
+        var cid = String(c.musteri_id || c.firma_id || c.customer_name || "").trim(); if (!cid) return;
+        var o = byCust[cid] || (byCust[cid] = { hasType: false, exec: false });
+        var t = String(c.kullanici_tipi || "").trim();
+        if (t) { o.hasType = true; if (/executive/i.test(t)) o.exec = true; }
+      });
+      var total = 0, exec = 0, noType = 0;
+      for (var k in byCust) { total++; if (byCust[k].exec) exec++; if (!byCust[k].hasType) noType++; }
+      var oran = total ? Math.round(100 * exec / total) : null;
+      el.textContent = oran !== null ? "%" + oran : "—";
+      var sub = document.getElementById("ca-yip-sub");
+      if (sub) sub.textContent = total ? (exec + " / " + total + " unique müşteri" + (noType ? " · " + noType + " tipsiz" : "")) : "";
+    }
+
+    // PY detayı içine kendi dönem seçicisi (Gün/Hafta/Ay + dönem, default bu ay).
+    function injectCovBar() {
+      var blocks = document.getElementById("py-cagri-blocks"); if (!blocks || !blocks.parentNode) return;
+      var bar = document.getElementById("cov-period-bar");
+      if (!bar) {
+        bar = document.createElement("div");
+        bar.id = "cov-period-bar";
+        bar.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid #f4f4f5;background:#fafafa";
+        bar.innerHTML =
+          '<span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">Coverage dönemi</span>' +
+          '<div class="chip" id="cov-g-gun" onclick="setCovGran(\'gun\')" style="font-size:11px">Gün</div>' +
+          '<div class="chip" id="cov-g-hafta" onclick="setCovGran(\'hafta\')" style="font-size:11px">Hafta</div>' +
+          '<div class="chip" id="cov-g-ay" onclick="setCovGran(\'ay\')" style="font-size:11px">Ay</div>' +
+          '<select id="cov-period-select" onchange="setCovPeriod(this.value)" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;background:#fff;cursor:pointer"></select>' +
+          '<span id="cov-period-info" style="font-size:11px;color:#a1a1aa"></span>';
+        blocks.parentNode.insertBefore(bar, blocks);
+      }
+      ["gun", "hafta", "ay"].forEach(function (g) { var c = document.getElementById("cov-g-" + g); if (c) c.classList.toggle("on", (S._covGran || "ay") === g); });
+      var pm = covPeriodsMap(); var periods = Object.keys(pm).sort();
+      var sel = document.getElementById("cov-period-select");
+      if (sel) sel.innerHTML = periods.length ? periods.map(function (p) { return '<option value="' + p + '"' + (p === S._covPeriod ? " selected" : "") + '>' + p + " (" + pm[p] + ")</option>"; }).join("") : '<option value="">— touch verisi yok —</option>';
+      var info = document.getElementById("cov-period-info");
+      if (info) info.textContent = S._covPeriod ? ("dönemde " + Object.keys(covTouchedSet()).length + " unique müşteriye touch") : "";
+    }
+
+    window.setCovGran = function (g) { S._covGran = g; S._covPeriod = ""; S._covTouched = null; ensureCovDefaults(); renderCA(); };
+    window.setCovPeriod = function (v) { S._covPeriod = v; S._covTouched = null; renderCA(); };
+
+    var _origRenderCA = window.renderCA;
+    window.renderCA = function () {
+      ensureCovDefaults();
+      var r = _origRenderCA.apply(this, arguments);
+      try { injectCovBar(); } catch (e) {}
+      try { patchExecCard(); } catch (e) {}
+      return r;
+    };
+  }
+
   fetch("/api/dashboard/data", { credentials: "same-origin" })
     .then(function (r) { return r.json(); })
     .then(function (d) {
