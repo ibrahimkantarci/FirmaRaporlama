@@ -267,7 +267,15 @@ tbody tr:hover td{background:#fafafa}
       <div class="card">
         <div class="card-head">
           <span class="ct">📞 Onboarding Çağrı Değerlendirmesi — Günlük Touch / Attempt</span>
-          <span id="ob-cagri-trend-info" style="font-size:11px;color:#a1a1aa"></span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:10.5px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px">Dönem</span>
+            <select id="ob-cagri-gran" onchange="setObCagriGran(this.value)" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+              <option value="gun">Günlük</option>
+              <option value="hafta">Haftalık</option>
+              <option value="ay">Aylık</option>
+            </select>
+            <span id="ob-cagri-trend-info" style="font-size:11px;color:#a1a1aa"></span>
+          </div>
         </div>
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#52525b"><span style="width:14px;height:3px;background:#185FA5;border-radius:2px;display:inline-block"></span>Touch</span>
@@ -632,7 +640,15 @@ tbody tr:hover td{background:#fafafa}
       <div class="card">
         <div class="card-head" style="flex-wrap:wrap;gap:8px">
           <span class="ct">📈 Günlük Çağrı Trendi — Touch / Attempt</span>
-          <span style="font-size:11px;color:#a1a1aa" id="ca-trend-info"></span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:10.5px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px">Dönem</span>
+            <select id="ca-trend-gran" onchange="setCaTrendGran(this.value)" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+              <option value="gun">Günlük</option>
+              <option value="hafta">Haftalık</option>
+              <option value="ay">Aylık</option>
+            </select>
+            <span style="font-size:11px;color:#a1a1aa" id="ca-trend-info"></span>
+          </div>
         </div>
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px">
           <div style="display:flex;align-items:center;gap:6px">
@@ -771,43 +787,63 @@ tbody tr:hover td{background:#fafafa}
       <div class="mg">
         <div class="mc"><div class="mc-label">Toplam venue firma</div><div class="mc-val" id="oz-top">—</div><div class="mc-sub">Aktif özel fiyat projesi</div></div>
         <div class="mc blue"><div class="mc-label">Toplam value</div><div class="mc-val" id="oz-aylik-top">—</div><div class="mc-sub">Tüm portföy (yıllık)</div></div>
-        <div class="mc"><div class="mc-label">Aylık value (ort.)</div><div class="mc-val" id="oz-aylik-ort">—</div><div class="mc-sub">Firma başına · yıllık/12</div></div>
-        <div class="mc orange"><div class="mc-label">30 günde bitiyor</div><div class="mc-val" id="oz-bitis30">—</div></div>
       </div>
 
       <div class="two-col">
         <div class="card">
-          <div class="card-head"><span class="ct">İllere göre dağılım</span></div>
+          <div class="card-head">
+            <span class="ct">İllere göre dağılım</span>
+            <div style="display:flex;gap:4px">
+              <div class="chip on" id="oz-sehir-adet" onclick="setOzDistMode('sehir','adet')">Adet</div>
+              <div class="chip" id="oz-sehir-value" onclick="setOzDistMode('sehir','value')">Value</div>
+            </div>
+          </div>
           <div id="oz-sehir-dist"></div>
         </div>
+
         <div class="card">
-          <div class="card-head"><span class="ct">Paket bitiş — value dağılımı</span></div>
-          <div id="oz-bitis-dist"></div>
+          <div class="card-head">
+            <span class="ct">Kategorilere göre dağılım</span>
+            <div style="display:flex;gap:4px">
+              <div class="chip on" id="oz-kategori-adet" onclick="setOzDistMode('kategori','adet')">Adet</div>
+              <div class="chip" id="oz-kategori-value" onclick="setOzDistMode('kategori','value')">Value</div>
+            </div>
+          </div>
+          <div id="oz-kategori-dist"></div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-head">
-          <span class="ct">Firma listesi</span>
-          <span id="oz-cnt" style="font-size:11px;color:#a1a1aa"></span>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head">
+            <span class="ct">Paket bitiş — dağılım</span>
+            <div style="display:flex;gap:4px">
+              <div class="chip on" id="oz-bitis-adet" onclick="setOzDistMode('bitis','adet')">Adet</div>
+              <div class="chip" id="oz-bitis-value" onclick="setOzDistMode('bitis','value')">Value</div>
+            </div>
+          </div>
+          <div id="oz-bitis-dist"></div>
         </div>
-        <div class="tw"><table>
-          <thead><tr>
-            <th onclick="srtOZ('firma_id')">Firma ID ↕</th>
-            <th onclick="srtOZ('musteri_adi')">Firma ↕</th>
-            <th onclick="srtOZ('urun_adi')">Ürün</th>
-            <th onclick="srtOZ('sehir')">Şehir ↕</th>
-            <th onclick="srtOZ('kategori_adi')">Kategori</th>
-            <th onclick="srtOZ('py_adi')">PY</th>
-            <th onclick="srtOZ('flag_rengi')">Flag ↕</th>
-            <th onclick="srtOZ('bitis_tarihi')">Bitiş ↕</th>
-            <th onclick="srtOZ('aylik_value')">Aylık value ↕</th>
-            <th onclick="srtOZ('teklif')">Teklif ↕</th>
-            <th onclick="srtOZ('donus_oran')">Dönüş oranı ↕</th>
-            <th>Geri dönüş</th>
-          </tr></thead>
-          <tbody id="oz-tbl"><tr><td colspan="11" style="text-align:center;color:#a1a1aa;padding:20px">Firma verisi yüklenmedi</td></tr></tbody>
-        </table></div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="ct">📞 Pelda Şahin — Günlük Çağrı Trendi (Touch / Attempt)</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:10.5px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px">Dönem</span>
+              <select id="oz-cagri-gran" onchange="setOzCagriGran(this.value)" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+                <option value="gun">Günlük</option>
+                <option value="hafta">Haftalık</option>
+                <option value="ay">Aylık</option>
+              </select>
+              <span id="oz-cagri-info" style="font-size:11px;color:#a1a1aa"></span>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
+            <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#52525b"><span style="width:14px;height:3px;background:#185FA5;border-radius:2px;display:inline-block"></span>Touch</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#52525b"><span style="width:14px;height:3px;background:#dc2626;border-radius:2px;display:inline-block"></span>Attempt</span>
+          </div>
+          <div id="oz-cagri-chart"></div>
+        </div>
       </div>
     </div>
 
@@ -1562,22 +1598,14 @@ function renderObCagriDegerlendirme(){
   if(trendChartEl){
     const obIds=new Set(aktif.map(f=>String(f.ob_id||'').trim()).filter(Boolean));
     const obCalls=S.cagrilar.filter(c=>obIds.has(String(c.firma_id||'').trim()));
-    const dayMap={};
-    obCalls.forEach(c=>{
-      if(!c.tarih||c.tarih==='-') return;
-      const g=c.tarih.slice(0,10);
-      if(!dayMap[g]) dayMap[g]={touch:0,attempt:0};
-      if(c.durum==='Touch') dayMap[g].touch++;
-      else if(c.durum==='Attempt') dayMap[g].attempt++;
-    });
-    const days=Object.keys(dayMap).sort();
-    const touchArr=days.map(d=>dayMap[d].touch);
-    const attemptArr=days.map(d=>dayMap[d].attempt);
-    drawCagriTrendChart('ob-cagri-trend-chart',days,touchArr,attemptArr);
+    const gran=S._obCagriGran||'gun';
+    const grouped=cagriGroupByPeriod(obCalls,gran);
+    drawCagriTrendChart('ob-cagri-trend-chart',grouped.keys,grouped.touch,grouped.attempt);
     if(trendInfoEl){
-      const totalT=touchArr.reduce((a,b)=>a+b,0);
-      const totalA=attemptArr.reduce((a,b)=>a+b,0);
-      trendInfoEl.textContent=days.length?`${days.length} gün · ${totalT} touch · ${totalA} attempt`:'';
+      const totalT=grouped.touch.reduce((a,b)=>a+b,0);
+      const totalA=grouped.attempt.reduce((a,b)=>a+b,0);
+      const birim=gran==='ay'?'ay':gran==='hafta'?'hafta':'gün';
+      trendInfoEl.textContent=grouped.keys.length?`${grouped.keys.length} ${birim} · ${totalT} touch · ${totalA} attempt`:'';
     }
   }
 
@@ -3191,18 +3219,12 @@ function renderCagriTrend(){
   if(S._trendPY!=='Tümü') data=data.filter(c=>c.py_adi===S._trendPY);
   if(S._trendFlag!=='Tümü') data=data.filter(c=>firmaFlagMap[String(c.firma_id||'').trim()]===S._trendFlag);
 
-  // Günlük Touch/Attempt sayımı
-  const dayMap={};
-  data.forEach(c=>{
-    if(!c.tarih||c.tarih==='-') return;
-    const g=c.tarih.slice(0,10);
-    if(!dayMap[g]) dayMap[g]={touch:0,attempt:0};
-    if(c.durum==='Touch') dayMap[g].touch++;
-    else if(c.durum==='Attempt') dayMap[g].attempt++;
-  });
-  const days=Object.keys(dayMap).sort();
-  const touchArr=days.map(d=>dayMap[d].touch);
-  const attemptArr=days.map(d=>dayMap[d].attempt);
+  // Dönem gruplaması (Günlük/Haftalık/Aylık)
+  const gran=S._caTrendGran||'gun';
+  const grouped=cagriGroupByPeriod(data,gran);
+  const days=grouped.keys;
+  const touchArr=grouped.touch;
+  const attemptArr=grouped.attempt;
 
   drawCagriTrendChart('ca-trend-chart',days,touchArr,attemptArr);
 
@@ -3210,11 +3232,52 @@ function renderCagriTrend(){
   if(info){
     const totalT=touchArr.reduce((a,b)=>a+b,0);
     const totalA=attemptArr.reduce((a,b)=>a+b,0);
-    info.textContent=days.length?`${days.length} gün · ${totalT} touch · ${totalA} attempt`:'';
+    const birim=gran==='ay'?'ay':gran==='hafta'?'hafta':'gün';
+    info.textContent=days.length?`${days.length} ${birim} · ${totalT} touch · ${totalA} attempt`:'';
   }
 }
 
 // Bağımlılıksız (kütüphanesiz) satır içi SVG çizgi grafiği.
+// Çağrı grafikleri için ortak dönem gruplama.
+// gran: 'gun' (günlük), 'hafta' (ISO hafta başı - Pazartesi), 'ay' (YYYY-MM)
+function cagriPeriodKey(dateStr,gran){
+  const s=String(dateStr||'').slice(0,10);
+  if(!s) return s;
+  if(gran==='ay') return s.slice(0,7);
+  if(gran==='hafta'){
+    const d=new Date(s);
+    if(isNaN(d)) return s;
+    const off=(d.getDay()+6)%7; // Pazartesi=0
+    d.setDate(d.getDate()-off);
+    return d.toISOString().slice(0,10);
+  }
+  return s; // günlük
+}
+// Çağrı listesini seçili döneme göre {period:{touch,attempt}} olarak grupla.
+function cagriGroupByPeriod(calls,gran){
+  const m={};
+  calls.forEach(c=>{
+    if(!c.tarih||c.tarih==='-') return;
+    const k=cagriPeriodKey(c.tarih,gran);
+    if(!k) return;
+    if(!m[k]) m[k]={touch:0,attempt:0};
+    if(c.durum==='Touch') m[k].touch++;
+    else if(c.durum==='Attempt') m[k].attempt++;
+  });
+  const keys=Object.keys(m).sort();
+  return {keys,touch:keys.map(k=>m[k].touch),attempt:keys.map(k=>m[k].attempt)};
+}
+// Bir kart başlığına yerleştirilecek dönem seçici (Günlük/Haftalık/Aylık).
+function cagriGranSelectHTML(id,handler,current){
+  const opts=[['gun','Günlük'],['hafta','Haftalık'],['ay','Aylık']];
+  return `<select id="${id}" onchange="${handler}(this.value)" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">`+
+    opts.map(([v,l])=>`<option value="${v}"${current===v?' selected':''}>${l}</option>`).join('')+`</select>`;
+}
+
+function setCaTrendGran(v){S._caTrendGran=v;renderCagriTrend();}
+function setObCagriGran(v){S._obCagriGran=v;renderObCagriDegerlendirme();}
+function setOzCagriGran(v){S._ozCagriGran=v;renderOzCagriTrend();}
+
 function drawCagriTrendChart(containerId,days,touchArr,attemptArr){
   const el=document.getElementById(containerId);
   if(!el) return;
@@ -3296,12 +3359,13 @@ function renderOZ(){
   if(S.loaded.ozel && S.ozelFiyat.length){
     data=S.ozelFiyat;
   } else {
-    ['oz-top','oz-aylik-top','oz-aylik-ort','oz-bitis30','oz-cnt'].forEach(id=>{
+    ['oz-top','oz-aylik-top'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.textContent='—';
     });
     document.getElementById('oz-sehir-dist').innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:16px 0;text-align:center">Özel Fiyat listesi yüklenmedi</div>';
+    const kd=document.getElementById('oz-kategori-dist');if(kd)kd.innerHTML='';
     document.getElementById('oz-bitis-dist').innerHTML='';
-    document.getElementById('oz-tbl').innerHTML='<tr><td colspan="12" style="text-align:center;color:#a1a1aa;padding:20px">Özel Fiyat listesi yüklenmedi</td></tr>';
+    renderOzCagriTrend();
     return;
   }
   if(!data.length) return;
@@ -3313,33 +3377,21 @@ function renderOZ(){
   const withValue=data.map(f=>({...f, aylik_value:ozAylikValue(f), donus_oran:ozDonusOran(f)}));
 
   const topAylik=withValue.reduce((s,f)=>s+f.aylik_value,0);
-  const ortAylik=withValue.length?Math.round(topAylik/withValue.length):0;
-  const bitis30=withValue.filter(f=>{
-    if(!f.bitis_tarihi) return false;
-    const d=Math.ceil((new Date(f.bitis_tarihi)-today)/864e5);
-    return d>=0&&d<=30;
-  }).length;
 
   document.getElementById('oz-top').textContent=data.length;
   document.getElementById('oz-aylik-top').textContent=topAylik?'₺'+Math.round(topAylik).toLocaleString('tr-TR'):'—';
-  const ortAylikVal=withValue.length?Math.round(withValue.reduce((s,f)=>s+f.aylik_value,0)/withValue.length):0;
-  document.getElementById('oz-aylik-ort').textContent=ortAylikVal?'₺'+ortAylikVal.toLocaleString('tr-TR'):'—';
-  document.getElementById('oz-bitis30').textContent=bitis30;
 
-  // İl dağılımı
+  // İl dağılımı — adet ve value birlikte hesaplanır, moda göre çizilir
   const sehirMap={};
-  withValue.forEach(f=>{const s=f.sehir||'Bilinmiyor';sehirMap[s]=(sehirMap[s]||0)+1;});
-  const sehirSorted=Object.entries(sehirMap).sort((a,b)=>b[1]-a[1]);
-  const sehirMax=sehirSorted[0]?.[1]||1;
-  document.getElementById('oz-sehir-dist').innerHTML=sehirSorted.map(([s,c],i)=>`
-    <div class="pg-row">
-      <span class="pg-lbl" style="width:90px">${s}</span>
-      <div class="pg-track"><div class="pg-fill" style="width:${Math.round(c/sehirMax*100)}%;background:${colors[i%10]}"></div></div>
-      <span class="pg-pct" style="color:${colors[i%10]}">${c}</span>
-    </div>`).join('');
+  withValue.forEach(f=>{const s=f.sehir||'Bilinmiyor';if(!sehirMap[s])sehirMap[s]={adet:0,value:0};sehirMap[s].adet++;sehirMap[s].value+=f.aylik_value;});
+  S._ozSehirData=sehirMap;
 
-  // Paket bitiş × aylık value dağılımı — aya göre grupla
-  const flagIcons={'Yeşil':'🟢','Sarı':'🟡','Turuncu':'🟠','Kırmızı':'🔴'};
+  // Kategori dağılımı
+  const katMap={};
+  withValue.forEach(f=>{const k=f.kategori_adi||'Bilinmiyor';if(!katMap[k])katMap[k]={adet:0,value:0};katMap[k].adet++;katMap[k].value+=f.aylik_value;});
+  S._ozKatData=katMap;
+
+  // Paket bitiş dağılımı — aya göre grupla (flag kırılımı korunur)
   const bitisMap={};
   withValue.forEach(f=>{
     if(!f.bitis_tarihi) return;
@@ -3352,62 +3404,94 @@ function renderOZ(){
     if(bitisMap[key].flags[fl]!==undefined) bitisMap[key].flags[fl]++;
     else bitisMap[key].flags['Diğer']++;
   });
-  const bitisSorted=Object.entries(bitisMap).sort((a,b)=>a[0]>b[0]?1:-1);
-  const bitisMaxVal=Math.max(...bitisSorted.map(([,v])=>v.value),1);
-  document.getElementById('oz-bitis-dist').innerHTML=bitisSorted.length?bitisSorted.map(([ay,v],i)=>{
+  S._ozBitisData=bitisMap;
+
+  drawOzSimpleDist('sehir');
+  drawOzSimpleDist('kategori');
+  drawOzBitisDist();
+
+  renderOzCagriTrend();
+}
+
+// Özel Fiyat dağılım kartları — Adet / Value sekme durumu
+S._ozDistMode=S._ozDistMode||{sehir:'adet',kategori:'adet',bitis:'adet'};
+function setOzDistMode(which,mode){
+  S._ozDistMode[which]=mode;
+  ['adet','value'].forEach(m=>{
+    const c=document.getElementById('oz-'+which+'-'+m);
+    if(c) c.classList.toggle('on',m===mode);
+  });
+  if(which==='bitis') drawOzBitisDist(); else drawOzSimpleDist(which);
+}
+
+// İl / Kategori dağılımı — seçili moda (adet|value) göre yatay bar çizer.
+function drawOzSimpleDist(which){
+  const map=which==='sehir'?S._ozSehirData:S._ozKatData;
+  const el=document.getElementById('oz-'+which+'-dist');
+  if(!el) return;
+  const mode=S._ozDistMode[which]||'adet';
+  const colors=['#E5002A','#f76707','#f0b429','#27a060','#185FA5','#7c3aed','#db2777','#0891b2','#65a30d','#a16207'];
+  if(!map||!Object.keys(map).length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri yok</div>';return;}
+  const rows=Object.entries(map).map(([k,v])=>[k,v.adet,v.value]).sort((a,b)=>mode==='value'?b[2]-a[2]:b[1]-a[1]);
+  const max=Math.max(...rows.map(r=>mode==='value'?r[2]:r[1]),1);
+  el.innerHTML=rows.map(([k,adet,value],i)=>{
+    const val=mode==='value'?value:adet;
+    const disp=mode==='value'?'₺'+Math.round(value).toLocaleString('tr-TR'):adet;
+    return `<div class="pg-row">
+      <span class="pg-lbl" style="width:90px" title="${k}">${k}</span>
+      <div class="pg-track"><div class="pg-fill" style="width:${Math.round(val/max*100)}%;background:${colors[i%10]}"></div></div>
+      <span class="pg-pct" style="color:${colors[i%10]};min-width:60px;text-align:right">${disp}</span>
+    </div>`;
+  }).join('');
+}
+
+// Paket bitiş dağılımı — aya göre; moda göre bar adet veya value'yu temsil eder.
+function drawOzBitisDist(){
+  const map=S._ozBitisData;
+  const el=document.getElementById('oz-bitis-dist');
+  if(!el) return;
+  const mode=S._ozDistMode.bitis||'adet';
+  const colors=['#E5002A','#f76707','#f0b429','#27a060','#185FA5','#7c3aed','#db2777','#0891b2','#65a30d','#a16207'];
+  const flagIcons={'Yeşil':'🟢','Sarı':'🟡','Turuncu':'🟠','Kırmızı':'🔴'};
+  if(!map||!Object.keys(map).length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Bitiş tarihi verisi yok</div>';return;}
+  const sorted=Object.entries(map).sort((a,b)=>a[0]>b[0]?1:-1);
+  const max=Math.max(...sorted.map(([,v])=>mode==='value'?v.value:v.adet),1);
+  el.innerHTML=sorted.map(([ay,v],i)=>{
+    const barVal=mode==='value'?v.value:v.adet;
     const flagStr=['Yeşil','Sarı','Turuncu','Kırmızı'].filter(r=>v.flags[r]>0).map(r=>`${flagIcons[r]}${v.flags[r]}`).join(' ');
+    const disp=mode==='value'?`₺${Math.round(v.value).toLocaleString('tr-TR')}/ay`:`${v.adet} firma`;
     return`<div style="margin-bottom:10px">
       <div class="pg-row" style="margin-bottom:3px">
         <span class="pg-lbl" style="width:80px;font-size:11px;font-weight:600">${ay}</span>
-        <div class="pg-track"><div class="pg-fill" style="width:${Math.round(v.value/bitisMaxVal*100)}%;background:${colors[i%10]}"></div></div>
-        <span style="font-size:11px;color:${colors[i%10]};width:150px;text-align:right;flex-shrink:0">${v.adet} firma · ₺${Math.round(v.value).toLocaleString('tr-TR')}/ay</span>
+        <div class="pg-track"><div class="pg-fill" style="width:${Math.round(barVal/max*100)}%;background:${colors[i%10]}"></div></div>
+        <span style="font-size:11px;color:${colors[i%10]};width:150px;text-align:right;flex-shrink:0">${disp}</span>
       </div>
       ${flagStr?`<div style="padding-left:88px;font-size:11px;color:#52525b">${flagStr}</div>`:''}
     </div>`;
-  }).join(''):'<div style="color:#a1a1aa;font-size:12px;padding:8px">Bitiş tarihi verisi yok</div>';
+  }).join('');
+}
 
-  // Sıralama
-  const numF=['aylik_value','teklif','donus_oran','bitis_tarihi'];
-  let sorted=[...withValue];
-  if(S.ozSortKey) sorted.sort((a,b)=>{
-    let av=numF.includes(S.ozSortKey)?num(a[S.ozSortKey])||a[S.ozSortKey]||0:a[S.ozSortKey]||'';
-    let bv=numF.includes(S.ozSortKey)?num(b[S.ozSortKey])||b[S.ozSortKey]||0:b[S.ozSortKey]||'';
-    if(S.ozSortKey==='donus_oran'){av=a.donus_oran||0;bv=b.donus_oran||0;}
-    if(S.ozSortKey==='aylik_value'){av=a.aylik_value||0;bv=b.aylik_value||0;}
-    return av>bv?S.ozSortDir:av<bv?-S.ozSortDir:0;
-  });
-  document.getElementById('oz-cnt').textContent=sorted.length+' firma';
-
-  function gdfBadge(gdf){
-    if(!gdf) return '<span style="color:#a1a1aa;font-size:11px">—</span>';
-    if(gdf.includes('75-100')) return '<span class="badge ok">%75–100</span>';
-    if(gdf.includes('50-75'))  return '<span class="badge watch">%50–75</span>';
-    if(gdf.includes('25-50'))  return '<span class="badge warn">%25–50</span>';
-    return `<span style="font-size:11px;color:#71717a">${gdf}</span>`;
+// Özel Fiyat sayfası — Pelda Şahin'in çağrı trendi.
+// Pelda tek özel fiyat sorumlusu olduğu için, çağrı loglarından yalnızca ona ait
+// (py_adi Pelda içeren) kayıtlar günlük Touch/Attempt olarak çizilir.
+function renderOzCagriTrend(){
+  const el=document.getElementById('oz-cagri-chart');
+  const info=document.getElementById('oz-cagri-info');
+  if(!el) return;
+  if(!S.cagrilar.length){
+    el.innerHTML='<div class="empty-state" style="padding:20px 0"><div>📞</div><div class="et">Çağrı verisi bekleniyor</div><div class="es">Çağrı loglarını yükleyin</div></div>';
+    if(info) info.textContent='';
+    return;
   }
-
-  document.getElementById('oz-tbl').innerHTML=sorted.map(f=>{
-    const diff=f.bitis_tarihi?Math.ceil((new Date(f.bitis_tarihi)-today)/864e5):999;
-    const kalanEl=diff<999?`<span class="days ${diff<=7?'hot':diff<=14?'warm':'ok'}">${diff}g</span>`:`<span style="font-size:11px;color:#a1a1aa">—</span>`;
-    const fl=f.flag_rengi||'—'; const flk=flagClass(fl);
-    const dr=f.donus_oran;
-    const drEl=dr!==null?`<span style="font-size:12px;font-weight:600;color:${dr>=80?'#16a34a':dr>=50?'#ea580c':'#dc2626'}">${dr.toFixed(1)}%</span>`:'<span style="color:#a1a1aa;font-size:11px">—</span>';
-    const ad=f.musteri_adi||f.firma_id||'—';
-    return`<tr>
-      <td style="font-size:11px;color:#71717a">${f.firma_id||'—'}</td>
-      <td style="font-weight:500;font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${ad}">${ad}</td>
-      <td style="font-size:11px;color:#71717a;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.urun_adi||'—'}</td>
-      <td style="font-size:11px;color:#71717a">${f.sehir||'—'}</td>
-      <td style="font-size:11px;color:#71717a">${f.kategori_adi||'—'}</td>
-      <td style="font-size:11px">${f.py_adi||'—'}</td>
-      <td><span class="flag ${flk}">${fl}</span></td>
-      <td>${kalanEl}</td>
-      <td style="font-size:12px;font-weight:600;color:#185FA5">${f.aylik_value?'₺'+f.aylik_value.toLocaleString('tr-TR'):'—'}</td>
-      <td style="font-size:12px;text-align:center">${num(f.teklif)||'—'}</td>
-      <td style="text-align:center">${drEl}</td>
-      <td>${gdfBadge(f.geri_donus_flagi)}</td>
-    </tr>`;
-  }).join('')||'<tr><td colspan="12" style="text-align:center;color:#a1a1aa;padding:20px">Sonuç bulunamadı</td></tr>';
+  const peldaCalls=S.cagrilar.filter(c=>String(c.py_adi||'').toLocaleLowerCase('tr').includes('pelda'));
+  const gran=S._ozCagriGran||'gun';
+  const grouped=cagriGroupByPeriod(peldaCalls,gran);
+  drawCagriTrendChart('oz-cagri-chart',grouped.keys,grouped.touch,grouped.attempt);
+  if(info){
+    const tT=grouped.touch.reduce((a,b)=>a+b,0),tA=grouped.attempt.reduce((a,b)=>a+b,0);
+    const birim=gran==='ay'?'ay':gran==='hafta'?'hafta':'gün';
+    info.textContent=grouped.keys.length?`${grouped.keys.length} ${birim} · ${tT} touch · ${tA} attempt`:'Pelda için çağrı kaydı bulunamadı';
+  }
 }
 
 // ── BADGES ────────────────────────────────────────────────────────────────────
