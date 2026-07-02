@@ -43,26 +43,6 @@ async function runPipeline(request) {
         continue;
       }
 
-      // ── ALAN kaynağı (nesne değil): veri modelinden belirli ALANLARı çek.
-      // Seçimleri uygula (ör. is_currently_listing=1) → 2 alanlık cube → sekmeye yaz.
-      if (src.fields) {
-        const data = await withQlikDoc(src.appId, async ({ doc }) => {
-          await doc.clearAll(false);
-          if (src.selections?.length) {
-            for (const sel of src.selections) await selectExact(doc, sel.field, sel.value);
-          }
-          return fetchFieldsData(doc, src.fields);
-        });
-        const sheet = await overwriteSheetTab([data.columns, ...data.rows], { tab: src.tab });
-        out[src.key] = {
-          rows: data.rows.length,
-          columns: data.columns.length,
-          tab: src.tab,
-          sheetUrl: sheet.sheetUrl,
-        };
-        continue;
-      }
-
       // ── ARTIMLI EKLEME (append): yalnız yeni satırları çek + Sheet'e EKLE ──────
       if (src.appendById) {
         let existing = [];
@@ -151,10 +131,36 @@ async function runPipeline(request) {
         );
       }
 
-      const sheet = await overwriteSheetTab([data.columns, ...rows], { tab: src.tab });
+      // ── ALAN JOIN (joinFields): başka bir app'ten 2 alanı çek, anahtar kolonla
+      // eşleyip EK KOLON olarak ekle. Örn: provider_segment → Dashboard_Firma (ayrı sheet yok).
+      let columns = data.columns;
+      if (src.joinFields) {
+        const jf = src.joinFields;
+        const lookup = await withQlikDoc(jf.appId, async ({ doc }) => {
+          await doc.clearAll(false);
+          if (jf.selections?.length) {
+            for (const sel of jf.selections) await selectExact(doc, sel.field, sel.value);
+          }
+          const fd = await fetchFieldsData(doc, [jf.keyField, jf.valueField]);
+          const map = {};
+          for (const r of fd.rows) {
+            const k = String(r[0] ?? "").trim().replace(/\.0+$/, "");
+            if (k) map[k] = r[1];
+          }
+          return map;
+        });
+        const keyIdx = columns.indexOf(jf.joinOn);
+        columns = [...columns, jf.asColumn];
+        rows = rows.map((row) => {
+          const k = keyIdx >= 0 ? String(row[keyIdx] ?? "").trim().replace(/\.0+$/, "") : "";
+          return [...row, k && lookup[k] != null ? lookup[k] : ""];
+        });
+      }
+
+      const sheet = await overwriteSheetTab([columns, ...rows], { tab: src.tab });
       out[src.key] = {
         rows: rows.length,
-        columns: data.columns.length,
+        columns: columns.length,
         tab: src.tab,
         sheetUrl: sheet.sheetUrl,
       };

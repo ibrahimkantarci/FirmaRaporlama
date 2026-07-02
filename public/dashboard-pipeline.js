@@ -65,7 +65,7 @@
   // Provider flag kolonları ("⚑ …") renCols() içinde dinamik eklenir.
   var REN_DIM_COLS = [
     "Yenileme Ayı", "PY", "Ekip", "Kategori", "Kategori Adı", "Ürün Adı",
-    "Şehir", "İlçe", "Müşteri Statüsü", "X Count", "PY Tahmin",
+    "Şehir", "İlçe", "Müşteri Statüsü", "Provider Segment", "X Count", "PY Tahmin",
     "Yenileme Durumu", "Tahmin Tutarlılık Kodu",
   ];
   // Kırılım/filtre için İZİNLİ provider flag kolonları — Provider_Flag_Old GERÇEK
@@ -242,6 +242,48 @@
   window.renSetCol = function (i, col) { S._renFilters[i].col = col; S._renFilters[i].values = []; renderRenewalAnaliz(); };
   window.renSetVals = function (i, sel) { var v = []; for (var o = 0; o < sel.options.length; o++) if (sel.options[o].selected) v.push(sel.options[o].value); S._renFilters[i].values = v; renderRenewalAnaliz(); };
 
+  // ── Performans → "Segment bazlı lead dağılımı" (#pf-lead-dist) ────────────
+  // Vendor placeholder'ını provider_segment (A+/A/B/C/D) kırılımına bağlar.
+  // Lead metriği = firma "teklif". Segment iyiden kötüye sıralanır.
+  var SEG_ORDER = { "A+": 0, "A": 1, "B": 2, "C": 3, "D": 4 };
+  function segNum(v) {
+    if (v == null || v === "") return 0;
+    if (typeof v === "number") return isFinite(v) ? v : 0;
+    var t = String(v).replace(/[^\d.,-]/g, ""); var hasC = t.indexOf(",") >= 0, hasD = t.indexOf(".") >= 0;
+    if (hasC && hasD) t = t.replace(/\./g, "").replace(",", "."); else if (hasC) t = t.replace(",", ".");
+    var f = parseFloat(t); return isFinite(f) ? f : 0;
+  }
+  function renderSegmentLeadDist() {
+    var el = document.getElementById("pf-lead-dist"); if (!el) return;
+    var f = S.firmalar || [];
+    if (!f.length) { el.innerHTML = '<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri bekleniyor</div>'; return; }
+    var groups = {};
+    f.forEach(function (x) {
+      var s = String(x.provider_segment == null ? "" : x.provider_segment).trim() || "—";
+      var gr = groups[s] || (groups[s] = { seg: s, adet: 0, lead: 0 });
+      gr.adet++; gr.lead += segNum(x.teklif);
+    });
+    var arr = Object.keys(groups).map(function (k) { return groups[k]; });
+    arr.sort(function (a, b) {
+      var oa = a.seg === "—" ? 99 : (a.seg in SEG_ORDER ? SEG_ORDER[a.seg] : 98);
+      var ob = b.seg === "—" ? 99 : (b.seg in SEG_ORDER ? SEG_ORDER[b.seg] : 98);
+      return oa - ob;
+    });
+    var totLead = arr.reduce(function (s, gr) { return s + gr.lead; }, 0) || 1;
+    var totAdet = f.length || 1;
+    var cols = ["#16a34a", "#4d7c0f", "#ca8a04", "#ea580c", "#dc2626", "#a1a1aa"];
+    el.innerHTML = arr.map(function (gr, i) {
+      var pct = 100 * gr.lead / totLead;
+      var apct = Math.round(100 * gr.adet / totAdet);
+      var c = cols[Math.min(i, cols.length - 1)];
+      return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">' +
+        '<span style="font-weight:600">' + renEsc(gr.seg) + '</span>' +
+        '<span style="color:#71717a">' + gr.adet + ' firma (%' + apct + ') · ' + Math.round(gr.lead).toLocaleString("tr-TR") + ' teklif · <b style="color:' + c + '">%' + pct.toFixed(1) + '</b></span></div>' +
+        '<div style="background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, pct) + '%;background:' + c + ';border-radius:5px"></div></div></div>';
+    }).join("");
+  }
+  window.renderLeadDist = renderSegmentLeadDist;
+
   fetch("/api/dashboard/data", { credentials: "same-origin" })
     .then(function (r) { return r.json(); })
     .then(function (d) {
@@ -266,20 +308,15 @@
       // Performans + Alarm + Yenileme (fallback) + Genel Analiz panellerini besler.
       // applyImport ile aynı: mapRow(FIRMA_MAP) + calcFlag(flag_rengi).
       if (Array.isArray(d.firma) && d.firma.length) {
-        // provider_segment (All Provider, aktif) → provider_id_master ile arama tablosu.
-        var segByPid = {};
-        if (Array.isArray(d.provider_segment) && d.provider_segment.length) {
-          d.provider_segment.forEach(function (r) {
-            var pid = String(r["provider_id_master"] == null ? "" : r["provider_id_master"]).trim().replace(/\.0+$/, "");
-            if (pid) segByPid[pid] = String(r["provider_segment"] == null ? "" : r["provider_segment"]).trim();
-          });
-        }
+        // provider_segment artık Dashboard_Firma'da bir KOLON (run route join). Ayrıca
+        // RÇİ → segment arama tablosu kur (yenileme/Genel Analiz kırılımı bunu kullanır).
+        S._segByRci = {};
         S.firmalar = d.firma.map(function (row) {
           var m = mapRow(row, FIRMA_MAP);
           m.flag_rengi = calcFlag(m);
-          // provider_segment: RÇİ (henüz m.firma_id) = provider_id_master ile eşleşir.
-          var rci = String(m.firma_id == null ? "" : m.firma_id).trim().replace(/\.0+$/, "");
-          m.provider_segment = segByPid[rci] || "";
+          m.provider_segment = String(row["provider_segment"] == null ? "" : row["provider_segment"]).trim();
+          var rci = String(m.firma_id == null ? "" : m.firma_id).trim().replace(/\.0+$/, ""); // RÇİ (override öncesi)
+          if (rci) S._segByRci[rci] = m.provider_segment;
           // Çağrılar MÜŞTERİ (account) seviyesinde → firma-çağrı eşleşmesi için
           // firma_id'yi Müşteri İD'ye hizala (kullanıcı kararı). RÇİ sheet'te durur;
           // yalnız bellek içi join anahtarı değişir. c.firma_id da Müşteri ID.
@@ -287,7 +324,7 @@
           return m;
         });
         S.loaded.firma_performans = true;
-        loaded.push("firma: " + S.firmalar.length + " (segment: " + Object.keys(segByPid).length + ")");
+        loaded.push("firma: " + S.firmalar.length);
       }
 
       // ── Çağrı ham veri (PY Sonitel → S.cagrilar) ────────────────────────
@@ -382,6 +419,8 @@
           var pid = renNormId(r["RÇİ"]);
           var frec = (pid && ay) ? flagByKey[pid + "|" + ay] : null;
           if (frec) for (var fk in frec) { if (frec.hasOwnProperty(fk)) r[fk] = frec[fk]; }
+          // provider_segment (firma'dan RÇİ ile) → raw kolonu (Kırılım/filtre "Provider Segment").
+          r["Provider Segment"] = (S._segByRci && S._segByRci[pid]) || "";
           return {
             raw: r,
             ay: ay,
