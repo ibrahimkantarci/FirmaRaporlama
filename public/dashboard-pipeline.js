@@ -300,6 +300,7 @@
       arr.map(function (gr, i) {
         var pct = 100 * gr.lead / totLead;
         var apct = Math.round(100 * gr.adet / totAdet);
+        var ort = gr.adet ? (gr.lead / gr.adet) : 0;
         var c = cols[Math.min(i, cols.length - 1)];
         var soft = softs[Math.min(i, softs.length - 1)];
         return '<div style="background:' + soft + ';border:1px solid ' + c + '33;border-radius:10px;padding:12px 14px">' +
@@ -309,7 +310,7 @@
           '</div>' +
           '<div style="font-size:22px;font-weight:700;color:#18181b;line-height:1">' + gr.adet + '</div>' +
           '<div style="font-size:11px;color:#71717a;margin-top:2px">firma · toplam %' + apct + '</div>' +
-          '<div style="font-size:11px;color:#52525b;margin-top:6px;padding-top:6px;border-top:1px solid ' + c + '22">' + Math.round(gr.lead).toLocaleString("tr-TR") + ' teklif</div>' +
+          '<div style="font-size:11px;color:#52525b;margin-top:6px;padding-top:6px;border-top:1px solid ' + c + '22">' + Math.round(gr.lead).toLocaleString("tr-TR") + ' teklif · <b>' + ort.toFixed(1) + '</b> firma başı</div>' +
         '</div>';
       }).join("") + '</div>';
   }

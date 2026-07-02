@@ -197,6 +197,42 @@ tbody tr:hover td{background:#fafafa}
 .score-bar{display:inline-flex;align-items:center;gap:6px;width:100%}
 .score-track{flex:1;background:#f4f4f5;border-radius:3px;height:5px;overflow:hidden;min-width:40px}
 .score-fill{height:5px;border-radius:3px}
+/* ============ DARK MODE ============ */
+body.dark{background:#0f1115;color:#e4e6eb}
+body.dark .sidebar{background:#161a20;border-right-color:#252a33}
+body.dark .logo{border-bottom-color:#252a33}
+body.dark .topbar{background:#161a20;border-bottom-color:#252a33}
+body.dark .alarm-strip{background:#161a20;border-bottom-color:#252a33}
+body.dark .card,body.dark .mc{background:#171b22;border-color:#252a33}
+body.dark .nav-item{color:#b6bcc7}
+body.dark .nav-item:hover{background:#1e232b;color:#fff}
+body.dark .nav-item.active{background:#2a1417;color:#ff6b7d;border-color:#5b2027}
+body.dark .nav-group{color:#8b93a1}
+body.dark .nav-badge{background:#1e232b;color:#9aa2ad}
+body.dark .pill{background:#1e232b;border-color:#2f3540;color:#9aa2ad}
+body.dark .pill.loaded{background:#0f2417;border-color:#1c4a2e;color:#4ade80}
+body.dark .ct,body.dark .mc-val,body.dark h1,body.dark h2,body.dark h3{color:#f0f2f5}
+body.dark .mc-label,body.dark .mc-sub,body.dark .muted,body.dark .logo-sub{color:#8b93a1}
+body.dark table{color:#d4d7dd}
+body.dark thead th{background:#1c2129;color:#9aa2ad;border-color:#252a33}
+body.dark tbody td{border-color:#222831}
+body.dark tbody tr:hover{background:#1c2129}
+body.dark .tw{border-color:#252a33}
+body.dark select,body.dark input,body.dark .chip{background:#1e232b;border-color:#2f3540;color:#d4d7dd}
+body.dark .ca-toolbar{background:#1a1f27;border-color:#2f3540}
+body.dark .ca-toolbar select,body.dark .ca-toolbar input{color:#d4d7dd}
+body.dark .ca-toolbar .seg+.seg{border-left-color:#2f3540}
+body.dark .ca-info,body.dark .ca-toolbar label{color:#8b93a1}
+body.dark .pg-track{background:#20262f}
+body.dark .modal,body.dark .modal-content{background:#171b22;color:#e4e6eb;border-color:#252a33}
+body.dark .modal-overlay{background:rgba(0,0,0,.6)}
+body.dark .empty-state{color:#8b93a1}
+body.dark svg text[fill="#a1a1aa"]{fill:#8b93a1}
+body.dark svg line[stroke="#f1f1f3"]{stroke:#252a33}
+.theme-toggle{background:none;border:1px solid #e4e4e7;border-radius:8px;width:34px;height:32px;cursor:pointer;font-size:15px;display:inline-flex;align-items:center;justify-content:center;color:#52525b;transition:all .15s}
+.theme-toggle:hover{background:#f4f4f5}
+body.dark .theme-toggle{border-color:#2f3540;color:#e4e6eb}
+body.dark .theme-toggle:hover{background:#1e232b}
 </style>
 </head>
 <body>
@@ -204,8 +240,8 @@ tbody tr:hover td{background:#fafafa}
 <!-- SIDEBAR -->
 <div class="sidebar">
   <div class="logo">
-    <div class="logo-mark">düğün.com</div>
-    <div class="logo-sub">B2B Revenue · Lifecycle</div>
+    <img src="/dugun-logo-pembe.png" alt="düğün.com" style="height:24px;width:auto;max-width:150px;display:block;flex-shrink:0">
+    <div class="logo-sub">HQ</div>
   </div>
   <div class="nav-group">Lifecycle</div>
   <div class="nav-item active" onclick="goTo('onboarding',this)"><span class="nav-icon">🚀</span>Onboarding<span class="nav-badge" id="nb-ob">—</span></div>
@@ -227,7 +263,8 @@ tbody tr:hover td{background:#fafafa}
 <div class="main">
   <div class="topbar">
     <div class="page-title" id="page-title">Onboarding</div>
-    <div style="display:flex;gap:6px;flex-shrink:0">
+    <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Tema değiştir">🌙</button>
       <div class="pill" id="pill-firma"><span class="dot"></span><span id="ptf">Firma verisi yok</span></div>
       <div class="pill" id="pill-cagri"><span class="dot"></span><span id="ptc">Çağrı verisi yok</span></div>
     </div>
@@ -996,6 +1033,22 @@ tbody tr:hover td{background:#fafafa}
 <div class="toast" id="toast"></div>
 
 <script>
+// ── TEMA (dark mode toggle) ───────────────────────────────────────────────────
+function applyTheme(mode){
+  const dark=mode==='dark';
+  document.body.classList.toggle('dark',dark);
+  const btn=document.getElementById('theme-toggle');
+  if(btn) btn.textContent=dark?'☀️':'🌙';
+  try{ localStorage.setItem('hq-theme',mode); }catch(e){}
+}
+function toggleTheme(){
+  applyTheme(document.body.classList.contains('dark')?'light':'dark');
+}
+(function initTheme(){
+  let saved='light';
+  try{ saved=localStorage.getItem('hq-theme')||'light'; }catch(e){}
+  applyTheme(saved);
+})();
 // ── COLUMN MAP — Düğün.com gerçek sütun adları ────────────────────────────────
 
 // Onboarding export sütun haritası
@@ -2330,6 +2383,7 @@ function renderLeadDist(){
     arr.map((gr,i)=>{
       const pct=100*gr.lead/totLead;
       const apct=Math.round(100*gr.adet/totAdet);
+      const ort=gr.adet?(gr.lead/gr.adet):0;
       const c=cols[Math.min(i,cols.length-1)];
       const soft=softs[Math.min(i,softs.length-1)];
       return `<div style="background:${soft};border:1px solid ${c}33;border-radius:10px;padding:12px 14px">
@@ -2339,7 +2393,7 @@ function renderLeadDist(){
         </div>
         <div style="font-size:22px;font-weight:700;color:#18181b;line-height:1">${gr.adet}</div>
         <div style="font-size:11px;color:#71717a;margin-top:2px">firma · toplam %${apct}</div>
-        <div style="font-size:11px;color:#52525b;margin-top:6px;padding-top:6px;border-top:1px solid ${c}22">${Math.round(gr.lead).toLocaleString('tr-TR')} teklif</div>
+        <div style="font-size:11px;color:#52525b;margin-top:6px;padding-top:6px;border-top:1px solid ${c}22">${Math.round(gr.lead).toLocaleString('tr-TR')} teklif · <b>${ort.toFixed(1)}</b> firma başı</div>
       </div>`;
     }).join('')+'</div>';
 }
