@@ -648,6 +648,132 @@
     };
   }
 
+  // ══ Performans — FLAG/PY filtresini tüm ekrana yansıt + yenileme kartını taşı + custom pivot ══
+  if (typeof window.renderPF === "function" && !window.__pfPatched) {
+    window.__pfPatched = true;
+
+    // ── (1) FLAG/PY filtresi TÜM alt-kartlara uygulansın (eski fFlag yalnız tabloyu yeniliyordu).
+    // Alt render'lar S.firmalar'ı okuduğundan: geçici olarak filtrelenmiş listeye çevir, çiz, geri koy.
+    window.renderPF = function () {
+      var full = S.firmalar;
+      if (!full || !full.length) return;
+      var topEl = document.getElementById("pf-top"); if (topEl) topEl.textContent = full.length; // toplam portföy (filtreden bağımsız)
+      try { if (typeof renderPYChips === "function") renderPYChips(); } catch (e) {} // PY çipleri tam listeden
+      var filtered = full.filter(function (x) {
+        if (S.fFlag && S.fFlag !== "tümü" && x.flag_rengi !== S.fFlag) return false;
+        if (S.fPY && S.fPY !== "tümü" && x.py_adi !== S.fPY) return false;
+        return true;
+      });
+      S.firmalar = filtered;
+      try {
+        if (typeof renderFirmaTbl === "function") renderFirmaTbl();
+        if (typeof renderPYCards === "function") renderPYCards();
+        if (typeof renderKatDist === "function") renderKatDist();
+        if (typeof renderLeadDist === "function") renderLeadDist();
+        if (typeof renderSehirValue === "function") renderSehirValue();
+        if (typeof renderFlagValue === "function") renderFlagValue();
+      } finally { S.firmalar = full; }
+      renderPerfPivot();
+    };
+    // FLAG ve PY chip'leri aynı .filter-row'da → yalnız FLAG chip'lerini (onclick*=fFlag) deselect et.
+    window.fFlag = function (el, v) { var p = document.getElementById("panel-performans"); if (p) p.querySelectorAll('.filter-row .chip[onclick*="fFlag"]').forEach(function (c) { c.classList.remove("on"); }); el.classList.add("on"); S.fFlag = v; renderPF(); };
+    window.fPY = function (el, v) { document.querySelectorAll("#py-chips .chip,#py-all-chip").forEach(function (c) { c.classList.remove("on"); }); el.classList.add("on"); S.fPY = v; renderPF(); };
+
+    // ── (2) "Paket yenileme — aylık dağılım" kartını Yenileme Öncesi paneline TAŞI ──
+    function moveYenilemeCard() {
+      if (window.__ynCardMoved) return;
+      var dist = document.getElementById("pf-yenileme-dist");
+      var yn = document.getElementById("panel-yenileme");
+      if (!dist || !yn) return;
+      var card = dist.closest ? dist.closest(".card") : null;
+      if (card && card.parentNode !== yn) { yn.appendChild(card); window.__ynCardMoved = true; }
+    }
+    var _origRenderYN = window.renderYN;
+    window.renderYN = function () {
+      moveYenilemeCard();
+      var r = _origRenderYN ? _origRenderYN.apply(this, arguments) : undefined;
+      try { if (typeof renderYenilemeMonthDist === "function") renderYenilemeMonthDist(); } catch (e) {}
+      return r;
+    };
+
+    // ── (3) Custom Pivot (tek kırılım + firma/value metrik + filtreler) — panel-performans altına ──
+    var PERF_DIMS = [
+      { k: "kategori_adi", lbl: "Kategori" }, { k: "kategori_grubu", lbl: "Kategori Grubu" },
+      { k: "sehir", lbl: "Şehir" }, { k: "ilce", lbl: "İlçe" }, { k: "py_adi", lbl: "PY" },
+      { k: "musteri_statusu", lbl: "Müşteri Statüsü" }, { k: "urun_adi", lbl: "Ürün" },
+      { k: "flag_rengi", lbl: "Flag" }, { k: "provider_segment", lbl: "Segment" },
+      { k: "odeme_flagi", lbl: "Ödeme Flagi" }, { k: "geri_donus_flagi", lbl: "Geri Dönüş Flagi" },
+    ];
+    function perfBase() {
+      var fs = S._perfFilters || [];
+      return (S.firmalar || []).filter(function (x) {
+        if (S.fFlag && S.fFlag !== "tümü" && x.flag_rengi !== S.fFlag) return false; // üst FLAG filtresi
+        if (S.fPY && S.fPY !== "tümü" && x.py_adi !== S.fPY) return false;            // üst PY filtresi
+        for (var i = 0; i < fs.length; i++) { var f = fs[i]; if (f.col && f.values && f.values.length && f.values.indexOf(String(x[f.col] == null ? "" : x[f.col]).trim()) < 0) return false; }
+        return true;
+      });
+    }
+    function perfDistinct(col) { var set = {}; (S.firmalar || []).forEach(function (x) { var v = String(x[col] == null ? "" : x[col]).trim(); if (v) set[v] = 1; }); return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, "tr"); }); }
+    function injectPerfPivot() {
+      var panel = document.getElementById("panel-performans"); if (!panel) return null;
+      var card = document.getElementById("perf-pivot-card");
+      if (!card) {
+        card = document.createElement("div");
+        card.className = "card"; card.id = "perf-pivot-card";
+        card.innerHTML =
+          '<div class="card-head"><span class="ct">Custom Pivot — Performans kırılımı</span><span id="perf-pivot-info" style="font-size:11px;color:#a1a1aa"></span></div>' +
+          '<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px">' +
+            '<div style="display:flex;gap:8px;align-items:center"><span class="flbl">Kırılım</span><select id="perf-dim" onchange="perfSetDim(this.value)" style="font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:4px"></select></div>' +
+            '<div style="display:flex;gap:8px;align-items:center"><span class="flbl">Sırala</span>' +
+              '<div class="chip" id="perf-m-value" onclick="perfSetMetric(\'value\')" style="font-size:11px">Value (₺)</div>' +
+              '<div class="chip" id="perf-m-firma" onclick="perfSetMetric(\'firma\')" style="font-size:11px">Firma sayısı</div></div>' +
+          '</div>' +
+          '<div class="flbl" style="margin-bottom:4px">Filtreler</div><div id="perf-filters" style="display:flex;flex-direction:column;gap:6px"></div>' +
+          '<div style="margin:8px 0"><button onclick="perfAddFilter()" style="font-size:12px;padding:5px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#185FA5">+ Filtre ekle</button></div>' +
+          '<div id="perf-pivot-body"></div>';
+        panel.appendChild(card);
+      }
+      return card;
+    }
+    function renderPerfPivot() {
+      if (!injectPerfPivot()) return;
+      if (!S._perfDim) S._perfDim = "kategori_adi";
+      if (!S._perfMetric) S._perfMetric = "value";
+      if (!S._perfFilters) S._perfFilters = [];
+      var dimSel = document.getElementById("perf-dim");
+      if (dimSel) dimSel.innerHTML = PERF_DIMS.map(function (d) { return '<option value="' + d.k + '"' + (S._perfDim === d.k ? " selected" : "") + '>' + d.lbl + '</option>'; }).join("");
+      document.getElementById("perf-m-value").classList.toggle("on", S._perfMetric === "value");
+      document.getElementById("perf-m-firma").classList.toggle("on", S._perfMetric === "firma");
+      var fHost = document.getElementById("perf-filters");
+      if (fHost) fHost.innerHTML = (S._perfFilters || []).map(function (f, i) {
+        var opts = '<option value="">— kolon —</option>' + PERF_DIMS.map(function (d) { return '<option value="' + d.k + '"' + (f.col === d.k ? " selected" : "") + '>' + d.lbl + '</option>'; }).join("");
+        var valSel = "";
+        if (f.col) valSel = '<select multiple size="4" onchange="perfSetVals(' + i + ',this)" style="min-width:180px;max-width:300px;font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:3px">' + perfDistinct(f.col).map(function (v) { return '<option value="' + renEsc(v) + '"' + (f.values.indexOf(v) >= 0 ? " selected" : "") + '>' + renEsc(v) + '</option>'; }).join("") + '</select>';
+        return '<div style="display:flex;gap:6px;align-items:flex-start"><select onchange="perfSetCol(' + i + ',this.value)" style="font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:4px">' + opts + '</select>' + valSel + '<button onclick="perfRemFilter(' + i + ')" style="font-size:11px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#71717a;padding:4px 8px">✕</button></div>';
+      }).join("");
+      var data = perfBase(), dim = S._perfDim, groups = {};
+      data.forEach(function (x) { var g = String(x[dim] == null ? "" : x[dim]).trim() || "—"; var o = groups[g] || (groups[g] = { g: g, n: 0, val: 0 }); o.n++; o.val += renNum(x.satis_fiyati); });
+      var arr = Object.keys(groups).map(function (k) { return groups[k]; });
+      arr.sort(function (a, b) { return S._perfMetric === "firma" ? b.n - a.n : b.val - a.val; });
+      var totV = arr.reduce(function (s, o) { return s + o.val; }, 0);
+      var info = document.getElementById("perf-pivot-info"); if (info) info.textContent = arr.length + " değer · " + data.length + " firma · " + renTL(totV);
+      var maxM = arr.reduce(function (m, o) { return Math.max(m, S._perfMetric === "firma" ? o.n : o.val); }, 0) || 1;
+      var body = document.getElementById("perf-pivot-body");
+      body.innerHTML = arr.length ? arr.slice(0, 60).map(function (o) {
+        var mv = S._perfMetric === "firma" ? o.n : o.val, pct = Math.round(mv / maxM * 100);
+        return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:600">' + renEsc(o.g) + '</span><span style="color:#71717a">' + o.n + ' firma · ' + renTL(o.val) + ' · ' + renTL(o.val / 12) + '/ay</span></div><div style="background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, pct) + '%;background:#185FA5;border-radius:5px"></div></div></div>';
+      }).join("") + (arr.length > 60 ? '<div style="color:#a1a1aa;font-size:11px">…+' + (arr.length - 60) + ' değer</div>' : "") : '<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri yok</div>';
+    }
+    window.perfSetDim = function (v) { S._perfDim = v; renderPerfPivot(); };
+    window.perfSetMetric = function (m) { S._perfMetric = m; renderPerfPivot(); };
+    window.perfAddFilter = function () { (S._perfFilters = S._perfFilters || []).push({ col: "", values: [] }); renderPerfPivot(); };
+    window.perfRemFilter = function (i) { S._perfFilters.splice(i, 1); renderPerfPivot(); };
+    window.perfSetCol = function (i, c) { S._perfFilters[i].col = c; S._perfFilters[i].values = []; renderPerfPivot(); };
+    window.perfSetVals = function (i, sel) { var v = []; for (var o = 0; o < sel.options.length; o++) if (sel.options[o].selected) v.push(sel.options[o].value); S._perfFilters[i].values = v; renderPerfPivot(); };
+
+    moveYenilemeCard(); // yükleme anında kartı taşı (Performans'ta görünmesin)
+  }
+
   fetch("/api/dashboard/data", { credentials: "same-origin" })
     .then(function (r) { return r.json(); })
     .then(function (d) {
