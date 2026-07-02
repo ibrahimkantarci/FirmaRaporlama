@@ -54,6 +54,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .ct{font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.6px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+/* Özel Fiyat 2x2 — hücreler eşit boyutta, kartlar aynı yüksekliğe uzar */
+#panel-ozel .two-col{align-items:stretch;grid-auto-rows:1fr}
+/* Özel Fiyat: dört kart eşit boyutlu 2x2 ızgara */
+.oz-grid{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:14px;margin-bottom:14px}
+.oz-grid>.card{margin-bottom:0;display:flex;flex-direction:column;min-width:0}
+#panel-ozel .two-col > .card{height:100%;margin-bottom:0;display:flex;flex-direction:column}
 .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
 /* table */
 .tw{overflow-x:auto}
@@ -107,6 +113,17 @@ tbody tr:hover td{background:#fafafa}
 .chip{display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:4px 10px;border-radius:14px;border:1px solid #e4e4e7;background:#fff;cursor:pointer;color:#52525b;transition:all .12s;white-space:nowrap}
 .chip:hover{border-color:#d4d4d8}
 .chip.on{background:#E5002A;color:#fff;border-color:#E5002A}
+/* Çağrı grafiği kontrol araç çubuğu — sunum için sade, gruplu görünüm */
+.ca-toolbar{display:inline-flex;align-items:center;gap:2px;background:#f8fafc;border:1px solid #eceef1;border-radius:10px;padding:3px}
+.ca-toolbar .seg{display:inline-flex;align-items:center;gap:6px;padding:3px 8px}
+.ca-toolbar .seg + .seg{border-left:1px solid #e7eaee}
+.ca-toolbar label{font-size:10px;font-weight:600;color:#9aa2ad;text-transform:uppercase;letter-spacing:.4px}
+.ca-toolbar select,.ca-toolbar input{border:none;background:transparent;font-size:12px;color:#374151;cursor:pointer;padding:2px 4px;outline:none;font-family:inherit}
+.ca-toolbar select:hover,.ca-toolbar input:hover{color:#111827}
+.ca-toolbar .dash{font-size:11px;color:#c0c5cc}
+.ca-toolbar .clr{font-size:12px;color:#c0c5cc;cursor:pointer;padding:2px 5px;border-radius:6px;line-height:1}
+.ca-toolbar .clr:hover{color:#6b7280;background:#eef1f4}
+.ca-info{font-size:11px;color:#9aa2ad;font-variant-numeric:tabular-nums}
 /* çağrı sayfası */
 .py-cagri-block{background:#fff;border:1px solid #e4e4e7;border-radius:10px;padding:18px;margin-bottom:14px}
 .py-cagri-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f4f4f5}
@@ -266,16 +283,19 @@ tbody tr:hover td{background:#fafafa}
       <!-- Onboarding çağrı değerlendirmesi (Çağrı Analizi sayfasından bağımsız) -->
       <div class="card">
         <div class="card-head">
-          <span class="ct">📞 Onboarding Çağrı Değerlendirmesi — Günlük Touch / Attempt</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:10.5px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px">Dönem</span>
-            <select id="ob-cagri-gran" onchange="setObCagriGran(this.value)" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-              <option value="gun">Günlük</option>
-              <option value="hafta">Haftalık</option>
-              <option value="ay">Aylık</option>
-            </select>
-            <span id="ob-cagri-trend-info" style="font-size:11px;color:#a1a1aa"></span>
+          <span class="ct">📞 Onboarding — Çağrı Trendi (Touch - Attempt)</span>
+          <div class="ca-toolbar">
+            <div class="seg">
+              <label>Dönem</label>
+              <select id="ob-cagri-gran" onchange="setObCagriGran(this.value)">
+                <option value="gun">Günlük</option>
+                <option value="hafta">Haftalık</option>
+                <option value="ay">Aylık</option>
+              </select>
+            </div>
+            <div class="seg" id="ob-cagri-range"></div>
           </div>
+          <span class="ca-info" id="ob-cagri-trend-info"></span>
         </div>
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#52525b"><span style="width:14px;height:3px;background:#185FA5;border-radius:2px;display:inline-block"></span>Touch</span>
@@ -639,16 +659,19 @@ tbody tr:hover td{background:#fafafa}
 
       <div class="card">
         <div class="card-head" style="flex-wrap:wrap;gap:8px">
-          <span class="ct">📈 Günlük Çağrı Trendi — Touch / Attempt</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:10.5px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px">Dönem</span>
-            <select id="ca-trend-gran" onchange="setCaTrendGran(this.value)" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-              <option value="gun">Günlük</option>
-              <option value="hafta">Haftalık</option>
-              <option value="ay">Aylık</option>
-            </select>
-            <span style="font-size:11px;color:#a1a1aa" id="ca-trend-info"></span>
+          <span class="ct">📈 Çağrı Trendi (Touch - Attempt)</span>
+          <div class="ca-toolbar">
+            <div class="seg">
+              <label>Dönem</label>
+              <select id="ca-trend-gran" onchange="setCaTrendGran(this.value)">
+                <option value="gun">Günlük</option>
+                <option value="hafta">Haftalık</option>
+                <option value="ay">Aylık</option>
+              </select>
+            </div>
+            <div class="seg" id="ca-cagri-range"></div>
           </div>
+          <span class="ca-info" id="ca-trend-info"></span>
         </div>
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px">
           <div style="display:flex;align-items:center;gap:6px">
@@ -789,7 +812,7 @@ tbody tr:hover td{background:#fafafa}
         <div class="mc blue"><div class="mc-label">Toplam value</div><div class="mc-val" id="oz-aylik-top">—</div><div class="mc-sub">Tüm portföy (yıllık)</div></div>
       </div>
 
-      <div class="two-col">
+      <div class="oz-grid">
         <div class="card">
           <div class="card-head">
             <span class="ct">İllere göre dağılım</span>
@@ -811,9 +834,7 @@ tbody tr:hover td{background:#fafafa}
           </div>
           <div id="oz-kategori-dist"></div>
         </div>
-      </div>
 
-      <div class="two-col">
         <div class="card">
           <div class="card-head">
             <span class="ct">Paket bitiş — dağılım</span>
@@ -826,16 +847,21 @@ tbody tr:hover td{background:#fafafa}
         </div>
 
         <div class="card">
-          <div class="card-head">
-            <span class="ct">📞 Pelda Şahin — Günlük Çağrı Trendi (Touch / Attempt)</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:10.5px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px">Dönem</span>
-              <select id="oz-cagri-gran" onchange="setOzCagriGran(this.value)" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-                <option value="gun">Günlük</option>
-                <option value="hafta">Haftalık</option>
-                <option value="ay">Aylık</option>
-              </select>
-              <span id="oz-cagri-info" style="font-size:11px;color:#a1a1aa"></span>
+          <div class="card-head" style="flex-wrap:wrap;gap:8px">
+            <span class="ct">📞 Pelda Şahin — Çağrı Trendi (Touch - Attempt)</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <div class="ca-toolbar">
+                <div class="seg">
+                  <label>Dönem</label>
+                  <select id="oz-cagri-gran" onchange="setOzCagriGran(this.value)">
+                    <option value="gun">Günlük</option>
+                    <option value="hafta">Haftalık</option>
+                    <option value="ay">Aylık</option>
+                  </select>
+                </div>
+                <div class="seg" id="oz-cagri-range"></div>
+              </div>
+              <span class="ca-info" id="oz-cagri-info"></span>
             </div>
           </div>
           <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
@@ -1587,6 +1613,7 @@ function renderObCagriDegerlendirme(){
   if(!S.cagrilar.length){
     if(trendChartEl) trendChartEl.innerHTML='<div class="empty-state" style="padding:20px 0"><div>📞</div><div class="et">Çağrı verisi bekleniyor</div><div class="es">Çağrı logları Excel yükleyin</div></div>';
     if(trendInfoEl) trendInfoEl.textContent='';
+    renderCagriRangeInputs('ob');
     chartEl.innerHTML='';
     tblEl.innerHTML='<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">Çağrı verisi bekleniyor</td></tr>';
     if(cntEl) cntEl.textContent='';
@@ -1599,7 +1626,8 @@ function renderObCagriDegerlendirme(){
     const obIds=new Set(aktif.map(f=>String(f.ob_id||'').trim()).filter(Boolean));
     const obCalls=S.cagrilar.filter(c=>obIds.has(String(c.firma_id||'').trim()));
     const gran=S._obCagriGran||'gun';
-    const grouped=cagriGroupByPeriod(obCalls,gran);
+    const grouped=cagriGroupByPeriod(obCalls,gran,resolveCagriRange('ob',gran));
+    renderCagriRangeInputs('ob');
     drawCagriTrendChart('ob-cagri-trend-chart',grouped.keys,grouped.touch,grouped.attempt);
     if(trendInfoEl){
       const totalT=grouped.touch.reduce((a,b)=>a+b,0);
@@ -3221,7 +3249,8 @@ function renderCagriTrend(){
 
   // Dönem gruplaması (Günlük/Haftalık/Aylık)
   const gran=S._caTrendGran||'gun';
-  const grouped=cagriGroupByPeriod(data,gran);
+  const grouped=cagriGroupByPeriod(data,gran,resolveCagriRange('ca',gran));
+  renderCagriRangeInputs('ca');
   const days=grouped.keys;
   const touchArr=grouped.touch;
   const attemptArr=grouped.attempt;
@@ -3254,10 +3283,16 @@ function cagriPeriodKey(dateStr,gran){
   return s; // günlük
 }
 // Çağrı listesini seçili döneme göre {period:{touch,attempt}} olarak grupla.
-function cagriGroupByPeriod(calls,gran){
+// range: {from, to} (YYYY-MM-DD, dahil) — verilirse çağrılar önce bu aralığa filtrelenir.
+function cagriGroupByPeriod(calls,gran,range){
+  const from=range&&range.from?range.from:null;
+  const to=range&&range.to?range.to:null;
   const m={};
   calls.forEach(c=>{
     if(!c.tarih||c.tarih==='-') return;
+    const g=String(c.tarih).slice(0,10);
+    if(from&&g<from) return;
+    if(to&&g>to) return;
     const k=cagriPeriodKey(c.tarih,gran);
     if(!k) return;
     if(!m[k]) m[k]={touch:0,attempt:0};
@@ -3274,9 +3309,72 @@ function cagriGranSelectHTML(id,handler,current){
     opts.map(([v,l])=>`<option value="${v}"${current===v?' selected':''}>${l}</option>`).join('')+`</select>`;
 }
 
-function setCaTrendGran(v){S._caTrendGran=v;renderCagriTrend();}
-function setObCagriGran(v){S._obCagriGran=v;renderObCagriDegerlendirme();}
-function setOzCagriGran(v){S._ozCagriGran=v;renderOzCagriTrend();}
+// Tarih aralığı state'i (grafik başına). Ham değerler seçili granülerliğin
+// formatındadır: gün → YYYY-MM-DD, hafta → YYYY-Www, ay → YYYY-MM.
+S._cagriRange=S._cagriRange||{ca:{from:'',to:''},ob:{from:'',to:''},oz:{from:'',to:''}};
+
+// ISO hafta ("2026-W27") → o haftanın Pazartesi/Pazar tarihini YYYY-MM-DD verir.
+function isoWeekToDate(wstr,which){
+  const m=/^(\d{4})-W(\d{2})$/.exec(String(wstr||''));
+  if(!m) return '';
+  const y=+m[1], w=+m[2];
+  const jan4=new Date(Date.UTC(y,0,4));
+  const jan4Day=(jan4.getUTCDay()+6)%7; // Pazartesi=0
+  const week1Mon=new Date(jan4); week1Mon.setUTCDate(jan4.getUTCDate()-jan4Day);
+  const mon=new Date(week1Mon); mon.setUTCDate(week1Mon.getUTCDate()+(w-1)*7);
+  if(which==='sun'){ mon.setUTCDate(mon.getUTCDate()+6); }
+  return mon.toISOString().slice(0,10);
+}
+// Hangi input tipi? gün→date, hafta→week, ay→month
+function cagriRangeInputType(gran){ return gran==='ay'?'month':gran==='hafta'?'week':'date'; }
+function cagriGranOf(which){ return which==='ca'?(S._caTrendGran||'gun'):which==='ob'?(S._obCagriGran||'gun'):(S._ozCagriGran||'gun'); }
+
+// Ham aralık değerlerini, filtreleme için somut YYYY-MM-DD sınırlarına çevirir.
+function resolveCagriRange(which,gran){
+  const r=S._cagriRange[which]||{from:'',to:''};
+  let from=r.from||'', to=r.to||'';
+  if(gran==='ay'){
+    if(from) from=from+'-01';
+    if(to){ const p=to.split('-'); const y=+p[0], mo=+p[1]; to=new Date(Date.UTC(y,mo,0)).toISOString().slice(0,10); }
+  } else if(gran==='hafta'){
+    if(from) from=isoWeekToDate(from,'mon');
+    if(to) to=isoWeekToDate(to,'sun');
+  }
+  return {from,to};
+}
+
+// Aralık inputlarını seçili granülerliğe göre (date/week/month) çizer.
+function renderCagriRangeInputs(which){
+  const cont=document.getElementById(which+'-cagri-range');
+  if(!cont) return;
+  const type=cagriRangeInputType(cagriGranOf(which));
+  const r=S._cagriRange[which]||{from:'',to:''};
+  cont.innerHTML=
+    `<input type="${type}" value="${r.from||''}" onchange="setCagriRange('${which}','from',this.value)" title="Başlangıç">`+
+    `<span class="dash">–</span>`+
+    `<input type="${type}" value="${r.to||''}" onchange="setCagriRange('${which}','to',this.value)" title="Bitiş">`+
+    `<span class="clr" onclick="clearCagriRange('${which}')" title="Aralığı temizle">✕</span>`;
+}
+
+function rerenderCagri(which){
+  if(which==='ca') renderCagriTrend();
+  else if(which==='ob') renderObCagriDegerlendirme();
+  else if(which==='oz') renderOzCagriTrend();
+}
+function setCagriRange(which,bound,val){
+  if(!S._cagriRange[which]) S._cagriRange[which]={from:'',to:''};
+  S._cagriRange[which][bound]=val;
+  rerenderCagri(which);
+}
+function clearCagriRange(which){
+  S._cagriRange[which]={from:'',to:''};
+  rerenderCagri(which);
+}
+
+// Granülerlik değişince aralık sıfırlanır (input tipi/format değiştiği için).
+function setCaTrendGran(v){S._caTrendGran=v;S._cagriRange.ca={from:'',to:''};renderCagriTrend();}
+function setObCagriGran(v){S._obCagriGran=v;S._cagriRange.ob={from:'',to:''};renderObCagriDegerlendirme();}
+function setOzCagriGran(v){S._ozCagriGran=v;S._cagriRange.oz={from:'',to:''};renderOzCagriTrend();}
 
 function drawCagriTrendChart(containerId,days,touchArr,attemptArr){
   const el=document.getElementById(containerId);
@@ -3481,11 +3579,13 @@ function renderOzCagriTrend(){
   if(!S.cagrilar.length){
     el.innerHTML='<div class="empty-state" style="padding:20px 0"><div>📞</div><div class="et">Çağrı verisi bekleniyor</div><div class="es">Çağrı loglarını yükleyin</div></div>';
     if(info) info.textContent='';
+    renderCagriRangeInputs('oz');
     return;
   }
   const peldaCalls=S.cagrilar.filter(c=>String(c.py_adi||'').toLocaleLowerCase('tr').includes('pelda'));
   const gran=S._ozCagriGran||'gun';
-  const grouped=cagriGroupByPeriod(peldaCalls,gran);
+  const grouped=cagriGroupByPeriod(peldaCalls,gran,resolveCagriRange('oz',gran));
+  renderCagriRangeInputs('oz');
   drawCagriTrendChart('oz-cagri-chart',grouped.keys,grouped.touch,grouped.attempt);
   if(info){
     const tT=grouped.touch.reduce((a,b)=>a+b,0),tA=grouped.attempt.reduce((a,b)=>a+b,0);
