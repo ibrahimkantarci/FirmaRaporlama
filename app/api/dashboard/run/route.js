@@ -5,6 +5,7 @@ import { withAccess } from "../../../../lib/api";
 import {
   withQlikDoc,
   fetchObjectData,
+  fetchFieldsData,
   selectExact,
   selectLatestDate,
   selectFieldGreaterThan,
@@ -39,6 +40,26 @@ async function runPipeline(request) {
       // run route yazmaz; data route sekmeyi olduğu gibi okur.
       if (src.static) {
         out[src.key] = { mode: "static", tab: src.tab };
+        continue;
+      }
+
+      // ── ALAN kaynağı (nesne değil): veri modelinden belirli ALANLARı çek.
+      // Seçimleri uygula (ör. is_currently_listing=1) → 2 alanlık cube → sekmeye yaz.
+      if (src.fields) {
+        const data = await withQlikDoc(src.appId, async ({ doc }) => {
+          await doc.clearAll(false);
+          if (src.selections?.length) {
+            for (const sel of src.selections) await selectExact(doc, sel.field, sel.value);
+          }
+          return fetchFieldsData(doc, src.fields);
+        });
+        const sheet = await overwriteSheetTab([data.columns, ...data.rows], { tab: src.tab });
+        out[src.key] = {
+          rows: data.rows.length,
+          columns: data.columns.length,
+          tab: src.tab,
+          sheetUrl: sheet.sheetUrl,
+        };
         continue;
       }
 

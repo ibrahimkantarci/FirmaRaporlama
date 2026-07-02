@@ -266,9 +266,20 @@
       // Performans + Alarm + Yenileme (fallback) + Genel Analiz panellerini besler.
       // applyImport ile aynı: mapRow(FIRMA_MAP) + calcFlag(flag_rengi).
       if (Array.isArray(d.firma) && d.firma.length) {
+        // provider_segment (All Provider, aktif) → provider_id_master ile arama tablosu.
+        var segByPid = {};
+        if (Array.isArray(d.provider_segment) && d.provider_segment.length) {
+          d.provider_segment.forEach(function (r) {
+            var pid = String(r["provider_id_master"] == null ? "" : r["provider_id_master"]).trim().replace(/\.0+$/, "");
+            if (pid) segByPid[pid] = String(r["provider_segment"] == null ? "" : r["provider_segment"]).trim();
+          });
+        }
         S.firmalar = d.firma.map(function (row) {
           var m = mapRow(row, FIRMA_MAP);
           m.flag_rengi = calcFlag(m);
+          // provider_segment: RÇİ (henüz m.firma_id) = provider_id_master ile eşleşir.
+          var rci = String(m.firma_id == null ? "" : m.firma_id).trim().replace(/\.0+$/, "");
+          m.provider_segment = segByPid[rci] || "";
           // Çağrılar MÜŞTERİ (account) seviyesinde → firma-çağrı eşleşmesi için
           // firma_id'yi Müşteri İD'ye hizala (kullanıcı kararı). RÇİ sheet'te durur;
           // yalnız bellek içi join anahtarı değişir. c.firma_id da Müşteri ID.
@@ -276,7 +287,7 @@
           return m;
         });
         S.loaded.firma_performans = true;
-        loaded.push("firma: " + S.firmalar.length);
+        loaded.push("firma: " + S.firmalar.length + " (segment: " + Object.keys(segByPid).length + ")");
       }
 
       // ── Çağrı ham veri (PY Sonitel → S.cagrilar) ────────────────────────
