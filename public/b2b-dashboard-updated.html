@@ -242,7 +242,7 @@ tbody tr:hover td{background:#fafafa}
         <div class="mc"><div class="mc-label">Aktif onboarding</div><div class="mc-val" id="ob-toplam">—</div><div class="mc-sub" id="ob-aktif-flag-sub"></div></div>
         <div class="mc orange"><div class="mc-label">Galeri eksik</div><div class="mc-val" id="ob-galeri">—</div><div class="mc-sub">Venue &lt;40 · Big5/Others &lt;50</div></div>
         <div class="mc orange"><div class="mc-label">Yorum eksik</div><div class="mc-val" id="ob-yorum">—</div><div class="mc-sub">10 yorum minimum</div></div>
-        <div class="mc orange"><div class="mc-label">Hakkında eksik</div><div class="mc-val" id="ob-hakkinda">—</div><div class="mc-sub">Metin girilmemiş</div></div>
+        <div class="mc orange"><div class="mc-label">Hakkında eksik</div><div class="mc-val" id="ob-hakkinda">—</div><div class="mc-sub">300 karakterden az</div></div>
       </div>
 
       <!-- Metrik kontrol özeti (KW dahil) -->
@@ -413,7 +413,15 @@ tbody tr:hover td{background:#fafafa}
         </div>
       </div>
       <div class="card">
-        <div class="card-head"><span class="ct">📊 Segment bazlı lead dağılımı</span></div>
+        <div class="card-head">
+          <span class="ct">📊 Segment bazlı lead dağılımı</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:11px;color:#71717a">Kategori</span>
+            <select id="pf-lead-kat" onchange="if(window.renderLeadDist)window.renderLeadDist()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+              <option value="">Tüm kategoriler</option>
+            </select>
+          </div>
+        </div>
         <div id="pf-lead-dist"></div>
       </div>
       <div class="two-col">
@@ -647,14 +655,6 @@ tbody tr:hover td{background:#fafafa}
         <div class="mc purple"><div class="mc-label">Toplam Talk Duration</div><div class="mc-val" id="ca-sure">—</div><div class="mc-sub">Touch çağrılar</div></div>
         <div class="mc orange"><div class="mc-label">Touch oranı</div><div class="mc-val" id="ca-oran">—</div></div>
         <div class="mc"><div class="mc-label">Executive Employee oranı</div><div class="mc-val" id="ca-yip-oran">—</div><div class="mc-sub" id="ca-yip-sub"></div></div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <span class="ct">🏳️ Flag rengine göre arama — Touch oranı</span>
-          <div id="ca-flag-py-tabs" style="display:flex;gap:4px;flex-wrap:wrap"></div>
-        </div>
-        <div id="ca-flag-touch"></div>
       </div>
 
       <div class="card">
@@ -1490,7 +1490,7 @@ function obEksikler(f){
   const miss=[];
   if(!obNonempty(f.telefon)) miss.push('Telefon');
   if(!obNonempty(f.adres))   miss.push('Adres');
-  if(!obNi(f.hakkinda))      miss.push('Hakkında');
+  if(obNi(f.hakkinda)<300)   miss.push(`Hakkında(${obNi(f.hakkinda)}/300)`);
   if(obGaleriEksik(f))       miss.push(`Galeri(${obNi(f.galeri)}/${obGaleriHedef(f)})`);
   if(obNi(f.yorum)<10)       miss.push(`Yorum(${obNi(f.yorum)}/10)`);
   // kampanya & wp — sadece veri yüklendiyse kontrol et
@@ -1508,7 +1508,7 @@ function obRaporMu(f){
 function obBasariliMezun(f){
   // Mezun ve tüm metrikler eksiksiz
   if(f.mezun_mu!=='Evet') return false;
-  const temelEksik=!obNonempty(f.telefon)||!obNonempty(f.adres)||!obNi(f.hakkinda)||obGaleriEksik(f)||obNi(f.yorum)<10;
+  const temelEksik=!obNonempty(f.telefon)||!obNonempty(f.adres)||obNi(f.hakkinda)<300||obGaleriEksik(f)||obNi(f.yorum)<10;
   const kwEksik=!obNi(f.kampanya)||!obNonempty(f.whatsapp);
   return !temelEksik&&!kwEksik;
 }
@@ -1530,7 +1530,7 @@ function renderOB(){
   const raporlar=d.filter(f=>obRaporMu(f));
   const galeriEksik=d.filter(f=>f.mezun_mu!=='Evet'&&obGaleriEksik(f));
   const yorumEksik=d.filter(f=>f.mezun_mu!=='Evet'&&obNi(f.yorum)<10);
-  const hakkindaEksik=d.filter(f=>f.mezun_mu!=='Evet'&&!obNi(f.hakkinda));
+  const hakkindaEksik=d.filter(f=>f.mezun_mu!=='Evet'&&obNi(f.hakkinda)<300);
 
   const flagRenkleri=['Yeşil','Sarı','Turuncu','Kırmızı'];
   const flagIcons={'Yeşil':'🟢','Sarı':'🟡','Turuncu':'🟠','Kırmızı':'🔴'};
@@ -1565,7 +1565,7 @@ function renderOB(){
   const metrikler=[
     ['📞 Telefon',       d.filter(f=>obNonempty(f.telefon)).length,                                             d.length, '#16a34a', 'telefon'],
     ['📍 Adres',         d.filter(f=>obNonempty(f.adres)).length,                                               d.length, '#16a34a', 'adres'],
-    ['📝 Hakkında',      d.filter(f=>obNi(f.hakkinda)>0).length,                                               d.length, '#ca8a04', 'hakkinda'],
+    ['📝 Hakkında',      d.filter(f=>obNi(f.hakkinda)>=300).length,                                               d.length, '#ca8a04', 'hakkinda'],
     ['🖼 Galeri Venue≥40',  d.filter(f=>f.kategori_grubu==='Venue'&&obNi(f.galeri)>=40).length,                d.filter(f=>f.kategori_grubu==='Venue').length, '#185FA5', 'galeri_venue'],
     ['🖼 Galeri Big5/Others≥50', d.filter(f=>['Big 5','Others'].includes(f.kategori_grubu)&&obNi(f.galeri)>=50).length, d.filter(f=>['Big 5','Others'].includes(f.kategori_grubu)).length, '#185FA5', 'galeri_big5'],
     ['⭐ Yorum ≥10',     d.filter(f=>obNi(f.yorum)>=10).length,                                                d.length, '#ea580c', 'yorum'],
@@ -1714,7 +1714,7 @@ function renderObProviderSearch(){
   const metriks=[
     {lbl:'📞 Telefon',      val:firma.telefon||'—',       ok:obNonempty(firma.telefon)},
     {lbl:'📍 Adres',        val:firma.adres||'—',         ok:obNonempty(firma.adres)},
-    {lbl:'📝 Hakkında',     val:obNi(firma.hakkinda)+' karakter', ok:obNi(firma.hakkinda)>0},
+    {lbl:'📝 Hakkında',     val:obNi(firma.hakkinda)+' / 300 karakter', ok:obNi(firma.hakkinda)>=300},
     {lbl:'🖼 Galeri',       val:obNi(firma.galeri)+' fotoğraf',   ok:obNi(firma.galeri)>0},
     {lbl:'⭐ Yorum',        val:obNi(firma.yorum)+' yorum',        ok:obNi(firma.yorum)>=10},
     {lbl:'📣 Kampanya',     val:obNi(firma.kampanya)+' kampanya',  ok:obNi(firma.kampanya)>0},
@@ -1755,7 +1755,7 @@ function openMetrikModal(key){
   const METRIK_CONFIG = {
     telefon:      { lbl:'📞 Telefon',    colHeader:'Telefon',     tamFn:f=>obNonempty(f.telefon),    valFn:f=>f.telefon||'—' },
     adres:        { lbl:'📍 Adres',      colHeader:'Adres',       tamFn:f=>obNonempty(f.adres),      valFn:f=>f.adres||'—' },
-    hakkinda:     { lbl:'📝 Hakkında',   colHeader:'Karakter',    tamFn:f=>obNi(f.hakkinda)>0,       valFn:f=>obNi(f.hakkinda)?obNi(f.hakkinda)+' kr':'Boş' },
+    hakkinda:     { lbl:'📝 Hakkında',   colHeader:'Karakter',    tamFn:f=>obNi(f.hakkinda)>=300,       valFn:f=>obNi(f.hakkinda)?obNi(f.hakkinda)+' / 300 kr':'Boş' },
     galeri_venue: { lbl:'🖼 Galeri (Venue≥40)',   colHeader:'Fotoğraf', tamFn:f=>f.kategori_grubu==='Venue'&&obNi(f.galeri)>=40, valFn:f=>obNi(f.galeri)+' / 40', scope:f=>f.kategori_grubu==='Venue' },
     galeri_big5:  { lbl:'🖼 Galeri (Big5/Others≥50)', colHeader:'Fotoğraf', tamFn:f=>['Big 5','Others'].includes(f.kategori_grubu)&&obNi(f.galeri)>=50, valFn:f=>obNi(f.galeri)+' / 50', scope:f=>['Big 5','Others'].includes(f.kategori_grubu) },
     yorum:        { lbl:'⭐ Yorum ≥10',  colHeader:'Yorum adedi', tamFn:f=>obNi(f.yorum)>=10,        valFn:f=>obNi(f.yorum)+' / 10' },
@@ -1836,7 +1836,7 @@ function renderOBTable(){
       <td style="font-size:12px;text-align:center;font-weight:${teklif>=5?'700':'400'};color:${teklif>=5?'#16a34a':'#1a1a1a'}">${teklif||0}</td>
       <td style="text-align:center">${ck(true,obNonempty(f.telefon))}</td>
       <td style="text-align:center">${ck(true,obNonempty(f.adres))}</td>
-      <td style="text-align:center">${ck(true,obNi(f.hakkinda)>0)}</td>
+      <td style="text-align:center" title="${obNi(f.hakkinda)}/300 karakter">${ck(true,obNi(f.hakkinda)>=300)}</td>
       <td style="text-align:center" title="${galeriVal}/${hedef}">${ck(true,galeriOK)}<span style="font-size:10px;color:#71717a;margin-left:2px">${galeriVal}</span></td>
       <td style="text-align:center" title="${obNi(f.yorum)}/10">${ck(true,obNi(f.yorum)>=10)}<span style="font-size:10px;color:#71717a;margin-left:2px">${obNi(f.yorum)}</span></td>
       <td style="text-align:center">${ck(true,obNi(f.kampanya)>0)}</td>
@@ -2295,11 +2295,53 @@ function renderYenilemeMonthDist(){
 function renderLeadDist(){
   const el=document.getElementById('pf-lead-dist');
   if(!el) return;
-  // NOT: Segmentasyon tanımı henüz yapılmadı.
-  // Önceki sürüm "Müşteri Statüsü" sütununu kullanıyordu — bu veri kaynağı artık geçerli değil.
-  // Qlik üzerinden hangi sütun/segment tanımının kullanılacağı netleşince bu fonksiyon
-  // o kaynağa göre yeniden bağlanacak.
-  el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">⚠️ Segmentasyon tanımı henüz yapılmadı — Qlik veri kaynağı belirlenince bu kart aktif olacak</div>';
+  const all=S.firmalar||[];
+  // Kategori dropdown'ını bir kez doldur
+  const katSel=document.getElementById('pf-lead-kat');
+  if(katSel&&katSel.options.length<=1){
+    const kats=[...new Set(all.map(x=>x.kategori_adi).filter(k=>k&&k!=='—'))].sort();
+    kats.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;katSel.appendChild(o);});
+  }
+  const secilenKat=katSel?katSel.value:'';
+  const f=secilenKat?all.filter(x=>x.kategori_adi===secilenKat):all;
+  // provider_segment alanı canlıda pipeline tarafından eklenir; statik önizlemede olmayabilir.
+  const hasSeg=f.some(x=>x.provider_segment&&String(x.provider_segment).trim()!=='');
+  if(!f.length||!hasSeg){
+    el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">Segment verisi bekleniyor (Qlik provider_segment)</div>';
+    return;
+  }
+  const SEG_ORDER={'A+':0,'A':1,'B':2,'C':3,'D':4};
+  const groups={};
+  f.forEach(x=>{
+    const s=String(x.provider_segment||'').trim()||'—';
+    if(!groups[s]) groups[s]={seg:s,adet:0,lead:0};
+    groups[s].adet++; groups[s].lead+=num(x.teklif)||0;
+  });
+  const arr=Object.values(groups).sort((a,b)=>{
+    const oa=a.seg==='—'?99:(a.seg in SEG_ORDER?SEG_ORDER[a.seg]:98);
+    const ob=b.seg==='—'?99:(b.seg in SEG_ORDER?SEG_ORDER[b.seg]:98);
+    return oa-ob;
+  });
+  const totLead=arr.reduce((s,g)=>s+g.lead,0)||1;
+  const totAdet=f.length||1;
+  const cols=['#16a34a','#4d7c0f','#ca8a04','#ea580c','#dc2626','#a1a1aa'];
+  const softs=['#f0fdf4','#f7fee7','#fefce8','#fff7ed','#fef2f2','#fafafa'];
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">'+
+    arr.map((gr,i)=>{
+      const pct=100*gr.lead/totLead;
+      const apct=Math.round(100*gr.adet/totAdet);
+      const c=cols[Math.min(i,cols.length-1)];
+      const soft=softs[Math.min(i,softs.length-1)];
+      return `<div style="background:${soft};border:1px solid ${c}33;border-radius:10px;padding:12px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:15px;font-weight:700;color:${c}">${gr.seg}</span>
+          <span style="font-size:11px;font-weight:700;color:#fff;background:${c};border-radius:10px;padding:2px 8px">%${pct.toFixed(1)}</span>
+        </div>
+        <div style="font-size:22px;font-weight:700;color:#18181b;line-height:1">${gr.adet}</div>
+        <div style="font-size:11px;color:#71717a;margin-top:2px">firma · toplam %${apct}</div>
+        <div style="font-size:11px;color:#52525b;margin-top:6px;padding-top:6px;border-top:1px solid ${c}22">${Math.round(gr.lead).toLocaleString('tr-TR')} teklif</div>
+      </div>`;
+    }).join('')+'</div>';
 }
 
 function renderSehirValue(){
@@ -2751,48 +2793,6 @@ function renderCA(){
   const toplamSure=sures.reduce((a,b)=>a+b,0);
   document.getElementById('ca-sure').textContent=toplamSure?fmtSure(toplamSure):'—';
 
-  // Flag rengine göre Touch/Attempt dağılımı
-  const flagEl=document.getElementById('ca-flag-touch');
-  if(flagEl){
-    const firmaFlagMap={};
-    S.firmalar.forEach(f=>{const k=String(f.firma_id||'').trim();if(k) firmaFlagMap[k]=f.flag_rengi;});
-
-    // PY sekmeleri
-    const flagPyler=['Tümü',...[...new Set(data.map(c=>c.py_adi).filter(Boolean))].sort()];
-    if(!S._flagTouchPY||!flagPyler.includes(S._flagTouchPY)) S._flagTouchPY='Tümü';
-    const fpBgs=['#374151','#3730a3','#15803d','#a16207','#be123c','#6d28d9','#0f766e'];
-    const tabsEl=document.getElementById('ca-flag-py-tabs');
-    if(tabsEl) tabsEl.innerHTML=flagPyler.map((py,i)=>{
-      const active=S._flagTouchPY===py;
-      return `<div onclick="setFlagTouchPY('${py}')" style="padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;background:${active?fpBgs[i%7]:'#f4f4f5'};color:${active?'#fff':'#52525b'};border:1px solid ${active?fpBgs[i%7]:'#e4e4e7'}">${py==='Tümü'?'Tümü':py.split(' ')[0]}</div>`;
-    }).join('');
-
-    const flagData=S._flagTouchPY==='Tümü'?data:data.filter(c=>c.py_adi===S._flagTouchPY);
-    const flagStats={Yeşil:{touch:0,attempt:0},Sarı:{touch:0,attempt:0},Turuncu:{touch:0,attempt:0},Kırmızı:{touch:0,attempt:0}};
-    flagData.forEach(c=>{
-      const k=String(c.firma_id||'').trim();
-      const fl=firmaFlagMap[k];
-      if(!fl||!flagStats[fl]) return;
-      if(c.durum==='Touch') flagStats[fl].touch++;
-      else if(c.durum==='Attempt') flagStats[fl].attempt++;
-    });
-    const flagColors={Yeşil:'#16a34a',Sarı:'#ca8a04',Turuncu:'#ea580c',Kırmızı:'#dc2626'};
-    const flagIconsX={Yeşil:'🟢',Sarı:'🟡',Turuncu:'🟠',Kırmızı:'🔴'};
-    const aktifFlagler=Object.keys(flagStats).filter(fl=>flagStats[fl].touch+flagStats[fl].attempt>0);
-    flagEl.innerHTML=aktifFlagler.length?aktifFlagler.map(fl=>{
-      const s=flagStats[fl];const top=s.touch+s.attempt;
-      const oran=top?Math.round(s.touch/top*100):0;
-      return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
-        <span style="font-size:12px;width:90px;flex-shrink:0">${flagIconsX[fl]} ${fl}</span>
-        <span style="font-size:11px;color:#71717a;width:130px;flex-shrink:0">${s.touch} touch · ${s.attempt} attempt</span>
-        <div style="flex:1;background:#f4f4f5;border-radius:5px;height:18px;overflow:hidden">
-          <div style="height:100%;width:${oran}%;background:${flagColors[fl]};border-radius:5px"></div>
-        </div>
-        <span style="font-size:12px;font-weight:700;color:${flagColors[fl]};width:45px;text-align:right">%${oran}</span>
-      </div>`;
-    }).join(''):'<div style="color:#a1a1aa;font-size:12px;padding:8px">Firma flag verisi eşleşmedi — Performans terminaline firma listesi yükleyin</div>';
-  }
-
   // Aktif günler
   const gunSet=new Set(data.filter(c=>c.tarih&&c.tarih!=='-').map(c=>c.tarih.slice(0,10)));
   const aktifGun=gunSet.size;
@@ -3072,7 +3072,6 @@ function renderCoverage(){
   covEl.style.color=oran!==null?(oran>=70?'#16a34a':oran>=40?'#ea580c':'#dc2626'):'#185FA5';
 }
 
-function setFlagTouchPY(py){S._flagTouchPY=py;renderCA();}
 function selectCagriPYTab(name){S._secilenCagriPY=name;renderCA();}
 function toggleCard(bodyId, iconId){
   const body=document.getElementById(bodyId);
@@ -3269,7 +3268,7 @@ function renderCagriTrend(){
 // Bağımlılıksız (kütüphanesiz) satır içi SVG çizgi grafiği.
 // Çağrı grafikleri için ortak dönem gruplama.
 // gran: 'gun' (günlük), 'hafta' (ISO hafta başı - Pazartesi), 'ay' (YYYY-MM)
-function cagriPeriodKey(dateStr,gran){
+function cagriTrendPeriodKey(dateStr,gran){
   const s=String(dateStr||'').slice(0,10);
   if(!s) return s;
   if(gran==='ay') return s.slice(0,7);
@@ -3293,7 +3292,7 @@ function cagriGroupByPeriod(calls,gran,range){
     const g=String(c.tarih).slice(0,10);
     if(from&&g<from) return;
     if(to&&g>to) return;
-    const k=cagriPeriodKey(c.tarih,gran);
+    const k=cagriTrendPeriodKey(c.tarih,gran);
     if(!k) return;
     if(!m[k]) m[k]={touch:0,attempt:0};
     if(c.durum==='Touch') m[k].touch++;
@@ -3344,16 +3343,35 @@ function resolveCagriRange(which,gran){
 }
 
 // Aralık inputlarını seçili granülerliğe göre (date/week/month) çizer.
+// ÖNEMLİ: input'lar her render'da yeniden YARATILMAZ. Yeniden yaratmak, native
+// date/week/month picker'larında onchange'in düzgün tetiklenmemesine yol açıyordu.
+// Bunun yerine bir kez kurulur; sonraki çağrılarda yalnızca tip/değer senkronlanır.
 function renderCagriRangeInputs(which){
   const cont=document.getElementById(which+'-cagri-range');
   if(!cont) return;
   const type=cagriRangeInputType(cagriGranOf(which));
   const r=S._cagriRange[which]||{from:'',to:''};
-  cont.innerHTML=
-    `<input type="${type}" value="${r.from||''}" onchange="setCagriRange('${which}','from',this.value)" title="Başlangıç">`+
-    `<span class="dash">–</span>`+
-    `<input type="${type}" value="${r.to||''}" onchange="setCagriRange('${which}','to',this.value)" title="Bitiş">`+
-    `<span class="clr" onclick="clearCagriRange('${which}')" title="Aralığı temizle">✕</span>`;
+
+  let fromI=cont.querySelector('.rng-from');
+  let toI=cont.querySelector('.rng-to');
+
+  if(!fromI||!toI){
+    cont.innerHTML=
+      `<input class="rng-from" title="Başlangıç">`+
+      `<span class="dash">–</span>`+
+      `<input class="rng-to" title="Bitiş">`+
+      `<span class="clr" title="Aralığı temizle">✕</span>`;
+    fromI=cont.querySelector('.rng-from');
+    toI=cont.querySelector('.rng-to');
+    fromI.addEventListener('change',()=>setCagriRange(which,'from',fromI.value));
+    toI.addEventListener('change',()=>setCagriRange(which,'to',toI.value));
+    cont.querySelector('.clr').addEventListener('click',()=>clearCagriRange(which));
+  }
+
+  if(fromI.type!==type) fromI.type=type;
+  if(toI.type!==type) toI.type=type;
+  if(fromI.value!==(r.from||'')) fromI.value=r.from||'';
+  if(toI.value!==(r.to||'')) toI.value=r.to||'';
 }
 
 function rerenderCagri(which){
