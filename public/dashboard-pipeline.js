@@ -52,6 +52,18 @@
   // Binary flag değeri → okunur etiket. 1 = Flag var (kötü), 0 = Flag yok (iyi); renk/metin olduğu gibi.
   function renFlagVal(v) { if (v === 1 || v === "1") return "Flag var"; if (v === 0 || v === "0") return "Flag yok"; return v == null ? "" : v; }
 
+  // Çağrı "Arayan PY" (kısa ad) → firma "Sorumlu PY" (tam ad). Arama_Ham çekilirken çevrilir,
+  // böylece PY coverage join'i doğrudan oturur. Yeni PY: bu tabloyu güncelle (eşleşmeyen ad korunur).
+  var PY_NAME_MAP = {
+    "Berkay": "Berkay Ozcan",
+    "Eylül": "Eylul Sazak",
+    "Kübra": "Kubra Celik",
+    "Mine": "Mine Akgemik",
+    "Nidanur": "Nidanur Başoğul",
+    "Sinem": "Sinem Kilic",
+    "Yiğit_Ziya": "Yigit YAGIZ",
+  };
+
   // ── Yenileme (Genel Analiz) — 1'e 1 hedef + kırılım + esnek filtre ────────
   // İki metrik (görünüm biçimi):
   //   • "tutar" · 1'e 1 Hedef = Σ Yenilenen Tutar / Σ Yenileme Öncesi Tutar
@@ -529,7 +541,7 @@
             firma_id: mid,
             firma_adi: "",
             customer_name: String(row["Kullanıcı Adı"] || ""),
-            py_adi: String(row["Arayan PY"] || ""),
+            py_adi: (function () { var p = String(row["Arayan PY"] || "").trim(); return PY_NAME_MAP[p] || p; })(),
             tarih: toDateStr(row["Arama Tarihi"]),
             durum: durum,
             sure_dakika: sure,
