@@ -353,10 +353,15 @@
       S._covTouched = set; S._covTouchedKey = key; return set;
     }
 
+    // Çağrı PY (Arayan PY = kısa ad, ör. "Kübra") ↔ firma Sorumlu PY (tam ad "Kubra Celik")
+    // eşleştir: TR karakter kıvrımlı + kelime sınırında ön-ek. (İki alan formatı farklı, kesişim 0.)
+    function pyKey(s) { s = String(s == null ? "" : s).trim().toLocaleLowerCase("tr").replace(/_/g, " "); return s.replace(/ı/g, "i").replace(/ş/g, "s").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c"); }
+    function pyMatch(firmaPY, cagriPY) { var fk = pyKey(firmaPY), ck = pyKey(cagriPY); if (!fk || !ck) return false; return fk === ck || fk.indexOf(ck + " ") === 0; }
+
     // Coverage: PY portföyü × dönemde touch (herhangi biri, unique). Value = Satış Fiyatı/12.
     window.calcPYCoverage = function (pyName) {
       var firms = S.firmalar || [];
-      var payda = firms.filter(function (f) { return pyName === "tümü" || String(f.py_adi || "") === pyName; });
+      var payda = firms.filter(function (f) { return pyName === "tümü" || pyMatch(f.py_adi, pyName); });
       if (!payda.length) return { valueOran: null, countOran: null, aranan: 0, toplam: 0, aranValue: 0, toplamValue: 0 };
       var touched = covTouchedSet();
       var toplamValue = 0, aranValue = 0, aranan = 0;
@@ -420,6 +425,36 @@
 
     window.setCovGran = function (g) { S._covGran = g; S._covPeriod = ""; S._covTouched = null; ensureCovDefaults(); renderCA(); };
     window.setCovPeriod = function (v) { S._covPeriod = v; S._covTouched = null; renderCA(); };
+
+    // Per-PY Executive: vendor pm[py].musteri/yip_musteri, Arama_Ham'da olmayan
+    // musteri_sayisi/yip_musteri_sayisi'ni kullandığından 0 kalıyor → yipEl "—".
+    // buildCagriMaps'i sarmalayıp bu iki alanı Kullanıcı Tipi + UNIQUE dokunulan müşteriden doldur.
+    var _origBuildCagriMaps = window.buildCagriMaps;
+    if (typeof _origBuildCagriMaps === "function") {
+      window.buildCagriMaps = function () {
+        var res = _origBuildCagriMaps.apply(this, arguments);
+        var data = (typeof getCagriFiltered === "function") ? getCagriFiltered() : (S.cagrilar || []);
+        var perPy = {};
+        data.forEach(function (c) {
+          if (c.durum !== "Touch") return;
+          var py = c.py_adi || "Bilinmiyor";
+          var cid = String(c.musteri_id || c.firma_id || c.customer_name || "").trim(); if (!cid) return;
+          var p = perPy[py] || (perPy[py] = {});
+          var o = p[cid] || (p[cid] = { exec: false });
+          if (/executive/i.test(String(c.kullanici_tipi || ""))) o.exec = true;
+        });
+        if (res && res.pm) {
+          Object.keys(perPy).forEach(function (py) {
+            if (!res.pm[py]) return;
+            var custs = Object.keys(perPy[py]);
+            var ex = 0; custs.forEach(function (k) { if (perPy[py][k].exec) ex++; });
+            res.pm[py].musteri = custs.length;
+            res.pm[py].yip_musteri = ex;
+          });
+        }
+        return res;
+      };
+    }
 
     var _origRenderCA = window.renderCA;
     window.renderCA = function () {
