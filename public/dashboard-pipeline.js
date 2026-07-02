@@ -255,8 +255,19 @@
   }
   function renderSegmentLeadDist() {
     var el = document.getElementById("pf-lead-dist"); if (!el) return;
-    var f = S.firmalar || [];
-    if (!f.length) { el.innerHTML = '<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri bekleniyor</div>'; return; }
+    var all = S.firmalar || [];
+    if (!all.length) { el.innerHTML = '<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri bekleniyor</div>'; return; }
+    // Kategori dropdown'ını bir kez doldur
+    var katSel = document.getElementById("pf-lead-kat");
+    if (katSel && katSel.options.length <= 1) {
+      var kats = [];
+      all.forEach(function (x) { var k = x.kategori_adi; if (k && k !== "—" && kats.indexOf(k) < 0) kats.push(k); });
+      kats.sort();
+      kats.forEach(function (k) { var o = document.createElement("option"); o.value = k; o.textContent = k; katSel.appendChild(o); });
+    }
+    var secilenKat = katSel ? katSel.value : "";
+    var f = secilenKat ? all.filter(function (x) { return x.kategori_adi === secilenKat; }) : all;
+    if (!f.length) { el.innerHTML = '<div style="color:#a1a1aa;font-size:12px;padding:8px">Bu kategoride firma yok</div>'; return; }
     var groups = {};
     f.forEach(function (x) {
       var s = String(x.provider_segment == null ? "" : x.provider_segment).trim() || "—";
@@ -272,15 +283,23 @@
     var totLead = arr.reduce(function (s, gr) { return s + gr.lead; }, 0) || 1;
     var totAdet = f.length || 1;
     var cols = ["#16a34a", "#4d7c0f", "#ca8a04", "#ea580c", "#dc2626", "#a1a1aa"];
-    el.innerHTML = arr.map(function (gr, i) {
-      var pct = 100 * gr.lead / totLead;
-      var apct = Math.round(100 * gr.adet / totAdet);
-      var c = cols[Math.min(i, cols.length - 1)];
-      return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">' +
-        '<span style="font-weight:600">' + renEsc(gr.seg) + '</span>' +
-        '<span style="color:#71717a">' + gr.adet + ' firma (%' + apct + ') · ' + Math.round(gr.lead).toLocaleString("tr-TR") + ' teklif · <b style="color:' + c + '">%' + pct.toFixed(1) + '</b></span></div>' +
-        '<div style="background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, pct) + '%;background:' + c + ';border-radius:5px"></div></div></div>';
-    }).join("");
+    var softs = ["#f0fdf4", "#f7fee7", "#fefce8", "#fff7ed", "#fef2f2", "#fafafa"];
+    el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">' +
+      arr.map(function (gr, i) {
+        var pct = 100 * gr.lead / totLead;
+        var apct = Math.round(100 * gr.adet / totAdet);
+        var c = cols[Math.min(i, cols.length - 1)];
+        var soft = softs[Math.min(i, softs.length - 1)];
+        return '<div style="background:' + soft + ';border:1px solid ' + c + '33;border-radius:10px;padding:12px 14px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+            '<span style="font-size:15px;font-weight:700;color:' + c + '">' + renEsc(gr.seg) + '</span>' +
+            '<span style="font-size:11px;font-weight:700;color:#fff;background:' + c + ';border-radius:10px;padding:2px 8px">%' + pct.toFixed(1) + '</span>' +
+          '</div>' +
+          '<div style="font-size:22px;font-weight:700;color:#18181b;line-height:1">' + gr.adet + '</div>' +
+          '<div style="font-size:11px;color:#71717a;margin-top:2px">firma · toplam %' + apct + '</div>' +
+          '<div style="font-size:11px;color:#52525b;margin-top:6px;padding-top:6px;border-top:1px solid ' + c + '22">' + Math.round(gr.lead).toLocaleString("tr-TR") + ' teklif</div>' +
+        '</div>';
+      }).join("") + '</div>';
   }
   window.renderLeadDist = renderSegmentLeadDist;
 
