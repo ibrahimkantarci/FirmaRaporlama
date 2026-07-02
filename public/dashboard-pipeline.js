@@ -479,6 +479,163 @@
     };
   }
 
+  // ══ Onboarding — Çağrı Değerlendirmesi: JOIN düzeltme + müşteri tekilleştirme + unique/çoklu ══
+  // (1) JOIN: çağrı MÜŞTERİ (customer) seviyesinde → onboarding "Customer Id" ile eşle
+  //     (Provider Id DEĞİL — canlı veri: provider-id %2, customer-id %100 eşleşiyor).
+  // (2) Aynı müşterinin birden çok onboarding provider'ı MÜŞTERİ bazında tekilleştirilir
+  //     (en erken Ürün Başlangıcı; kaç ürün olduğu rozette gösterilir).
+  // (3) Yalnız firmanın kendi başlangıcı SONRASINDAKİ çağrılar sayılır (mevcut mantık).
+  // (4) Trend/sayaç: "unique" (benzersiz firma) / "çoklu" (tüm çağrı) toggle, default unique.
+  if (typeof window.renderObCagriDegerlendirme === "function" && !window.__obCagriPatched) {
+    window.__obCagriPatched = true;
+
+    // Dönem başına BENZERSİZ müşteri sayısı (unique mod). Çoklu için vendor cagriGroupByPeriod kullanılır.
+    function obUniqueByPeriod(calls, gran, range) {
+      var from = range && range.from ? range.from : null;
+      var to = range && range.to ? range.to : null;
+      var m = {};
+      calls.forEach(function (c) {
+        if (!c.tarih || c.tarih === "-") return;
+        var g = String(c.tarih).slice(0, 10);
+        if (from && g < from) return;
+        if (to && g > to) return;
+        var k = (typeof cagriTrendPeriodKey === "function") ? cagriTrendPeriodKey(c.tarih, gran) : g.slice(0, 7);
+        if (!k) return;
+        var cid = renNormId(c.firma_id); if (!cid) return;
+        if (!m[k]) m[k] = { touch: {}, attempt: {} };
+        if (c.durum === "Touch") m[k].touch[cid] = 1;
+        else if (c.durum === "Attempt") m[k].attempt[cid] = 1;
+      });
+      var keys = Object.keys(m).sort();
+      return { keys: keys, touch: keys.map(function (k) { return Object.keys(m[k].touch).length; }), attempt: keys.map(function (k) { return Object.keys(m[k].attempt).length; }) };
+    }
+
+    function injectObCagriModeToggle() {
+      var chart = document.getElementById("ob-cagri-trend-chart");
+      if (!chart || !chart.parentNode) return;
+      var bar = document.getElementById("ob-cagri-mode");
+      if (!bar) {
+        bar = document.createElement("div");
+        bar.id = "ob-cagri-mode";
+        bar.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px";
+        bar.innerHTML =
+          '<span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">Sayım</span>' +
+          '<div class="chip" id="obm-unique" onclick="setObCagriMode(\'unique\')" style="font-size:11px">Unique (firma)</div>' +
+          '<div class="chip" id="obm-coklu" onclick="setObCagriMode(\'coklu\')" style="font-size:11px">Çoklu (çağrı)</div>';
+        chart.parentNode.insertBefore(bar, chart);
+      }
+      var u = document.getElementById("obm-unique"), co = document.getElementById("obm-coklu");
+      if (u) u.classList.toggle("on", (S._obCagriMode || "unique") === "unique");
+      if (co) co.classList.toggle("on", (S._obCagriMode || "unique") === "coklu");
+    }
+    window.setObCagriMode = function (m) { S._obCagriMode = m; renderObCagriDegerlendirme(); };
+
+    window.renderObCagriDegerlendirme = function () {
+      var chartEl = document.getElementById("ob-cagri-chart");
+      var tblEl = document.getElementById("ob-cagri-tbl");
+      var cntEl = document.getElementById("ob-cagri-cnt");
+      var trendChartEl = document.getElementById("ob-cagri-trend-chart");
+      var trendInfoEl = document.getElementById("ob-cagri-trend-info");
+      if (!chartEl || !tblEl) return;
+      if (!S._obCagriMode) S._obCagriMode = "unique";
+      injectObCagriModeToggle();
+
+      // Aktif onboarding (mezun değil) → MÜŞTERİ (Customer Id) bazında tekilleştir.
+      var aktif = (S.onboarding || []).filter(function (f) { return f.mezun_mu !== "Evet"; });
+      var byCust = {};
+      aktif.forEach(function (f) {
+        var cid = renNormId(f.musteri_id); if (!cid) return;
+        var start = f.baslangic || "";
+        var rec = byCust[cid];
+        if (!rec) byCust[cid] = { cid: cid, start: start, f: f, providerCount: 1 };
+        else { rec.providerCount++; if (start && (!rec.start || start < rec.start)) rec.start = start; }
+      });
+      var custList = Object.keys(byCust).map(function (k) { return byCust[k]; });
+
+      if (!(S.cagrilar && S.cagrilar.length)) {
+        if (trendChartEl) trendChartEl.innerHTML = '<div class="empty-state" style="padding:20px 0"><div>📞</div><div class="et">Çağrı verisi bekleniyor</div></div>';
+        if (trendInfoEl) trendInfoEl.textContent = "";
+        if (typeof renderCagriRangeInputs === "function") renderCagriRangeInputs("ob");
+        chartEl.innerHTML = "";
+        tblEl.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">Çağrı verisi bekleniyor</td></tr>';
+        if (cntEl) cntEl.textContent = "";
+        return;
+      }
+
+      // Onboarding müşterilerine ait çağrılar (Customer Id join) + kendi başlangıcı SONRASI.
+      var custStart = {}, custSet = {};
+      custList.forEach(function (r) { custStart[r.cid] = r.start; custSet[r.cid] = 1; });
+      var obCalls = S.cagrilar.filter(function (c) {
+        var cid = renNormId(c.firma_id);
+        if (!custSet[cid]) return false;
+        var st = custStart[cid];
+        if (st && c.tarih && c.tarih < st) return false;
+        return true;
+      });
+
+      // Trend — unique / çoklu
+      if (trendChartEl) {
+        var gran = S._obCagriGran || "gun";
+        var range = (typeof resolveCagriRange === "function") ? resolveCagriRange("ob", gran) : { from: "", to: "" };
+        var grouped = (S._obCagriMode === "coklu" && typeof cagriGroupByPeriod === "function")
+          ? cagriGroupByPeriod(obCalls, gran, range) : obUniqueByPeriod(obCalls, gran, range);
+        if (typeof renderCagriRangeInputs === "function") renderCagriRangeInputs("ob");
+        if (typeof drawCagriTrendChart === "function") drawCagriTrendChart("ob-cagri-trend-chart", grouped.keys, grouped.touch, grouped.attempt);
+        if (trendInfoEl) {
+          var totalT = grouped.touch.reduce(function (a, b) { return a + b; }, 0);
+          var totalA = grouped.attempt.reduce(function (a, b) { return a + b; }, 0);
+          var birim = gran === "ay" ? "ay" : gran === "hafta" ? "hafta" : "gün";
+          var unit = S._obCagriMode === "coklu" ? "çağrı" : "firma";
+          trendInfoEl.textContent = grouped.keys.length ? (grouped.keys.length + " " + birim + " · " + totalT + " touch · " + totalA + " attempt (" + unit + ")") : "";
+        }
+      }
+
+      // Aranmayan MÜŞTERİLER — kendi başlangıcı sonrası hiç Touch almamış.
+      var touchedCust = {}, attemptByCust = {};
+      obCalls.forEach(function (c) {
+        var k = renNormId(c.firma_id);
+        if (c.durum === "Touch") touchedCust[k] = 1;
+        else if (c.durum === "Attempt") attemptByCust[k] = (attemptByCust[k] || 0) + 1;
+      });
+      var notTouched = custList.filter(function (r) { return !touchedCust[r.cid]; }).map(function (r) {
+        return { r: r, gun: obGun(r.f), attemptCount: attemptByCust[r.cid] || 0 };
+      }).sort(function (a, b) { return b.gun - a.gun; });
+
+      if (cntEl) cntEl.textContent = notTouched.length + " firma";
+      if (!notTouched.length) {
+        chartEl.innerHTML = '<div class="empty-state" style="padding:20px 0"><div>✅</div><div class="et">Tüm aktif onboarding firmaları aranmış</div><div class="es">Paket başlangıcından bu yana en az bir touch çağrısı var</div></div>';
+        tblEl.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">Aranmayan firma yok ✅</td></tr>';
+        return;
+      }
+
+      var guns = notTouched.map(function (x) { return x.gun; }); guns.push(1);
+      var maxGun = Math.max.apply(null, guns);
+      var prov = function (r) { return r.providerCount > 1 ? ' <span style="font-size:9px;color:#a1a1aa">(' + r.providerCount + " ürün)</span>" : ""; };
+      chartEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;padding:6px 0 14px">' +
+        notTouched.map(function (x) {
+          var f = x.r.f, pct = Math.round(x.gun / maxGun * 100);
+          return '<div style="display:flex;align-items:center;gap:10px">' +
+            '<span style="font-size:11px;width:160px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + renEsc(f.ob_adi || f.musteri_adi || "—") + prov(x.r) + '</span>' +
+            '<div style="flex:1;background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden;position:relative"><div style="height:100%;width:' + pct + '%;background:#dc2626;border-radius:5px"></div></div>' +
+            '<span style="font-size:11px;font-weight:700;color:#dc2626;width:56px;text-align:right">' + x.gun + ' gün</span>' +
+            '<span style="font-size:10px;color:#a1a1aa;width:70px;text-align:right">' + (x.attemptCount ? x.attemptCount + " attempt" : "—") + '</span></div>';
+        }).join("") + "</div>";
+
+      tblEl.innerHTML = notTouched.map(function (x) {
+        var f = x.r.f;
+        return "<tr>" +
+          '<td style="font-weight:500;font-size:12px">' + renEsc(f.ob_adi || f.musteri_adi || "—") + prov(x.r) + "</td>" +
+          '<td style="font-size:11px">' + renEsc(f.py_adi || "—") + "</td>" +
+          '<td style="font-size:11px;color:#71717a">' + renEsc(f.kategori_adi || "—") + "</td>" +
+          '<td style="font-size:11px;color:#71717a">' + renEsc(f.sehir || "—") + "</td>" +
+          '<td style="font-size:11px">' + (x.r.start ? String(x.r.start).slice(0, 10) : "—") + "</td>" +
+          '<td><span class="days hot">' + x.gun + "g</span></td>" +
+          '<td style="font-size:11px;text-align:center">' + (x.attemptCount || 0) + "</td>" +
+          '<td><span class="badge crit">&#128245; Hi&#231; konu&#351;ulmad&#305;</span></td></tr>';
+      }).join("");
+    };
+  }
+
   fetch("/api/dashboard/data", { credentials: "same-origin" })
     .then(function (r) { return r.json(); })
     .then(function (d) {
