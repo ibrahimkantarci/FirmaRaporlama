@@ -541,16 +541,21 @@
       injectObCagriModeToggle();
 
       // Aktif onboarding (mezun değil) → MÜŞTERİ (Customer Id) bazında tekilleştir.
+      // GEÇERSİZ veri elenir: müşteri id sayısal değilse (boş/"-"/0), başlangıç yoksa/1900 ise.
       var aktif = (S.onboarding || []).filter(function (f) { return f.mezun_mu !== "Evet"; });
+      var okStart = function (s) { s = String(s == null ? "" : s).slice(0, 10); return s >= "2000-01-01" ? s : ""; };
       var byCust = {};
       aktif.forEach(function (f) {
-        var cid = renNormId(f.musteri_id); if (!cid) return;
-        var start = f.baslangic || "";
+        var cid = renNormId(f.musteri_id); if (!/^\d+$/.test(cid)) return;
+        var start = okStart(f.baslangic);
         var rec = byCust[cid];
         if (!rec) byCust[cid] = { cid: cid, start: start, f: f, providerCount: 1 };
         else { rec.providerCount++; if (start && (!rec.start || start < rec.start)) rec.start = start; }
       });
-      var custList = Object.keys(byCust).map(function (k) { return byCust[k]; });
+      // Yalnız GEÇERLİ başlangıcı olan müşteriler (başlangıç-sonrası mantığı için şart).
+      var custList = Object.keys(byCust).map(function (k) { return byCust[k]; }).filter(function (r) { return r.start; });
+      // Grafik ekseni EN ESKİ onboarding başlangıcından başlasın (geçersiz tarihler hariç).
+      var minStart = custList.reduce(function (m, r) { return (!m || r.start < m) ? r.start : m; }, "");
 
       if (!(S.cagrilar && S.cagrilar.length)) {
         if (trendChartEl) trendChartEl.innerHTML = '<div class="empty-state" style="padding:20px 0"><div>📞</div><div class="et">Çağrı verisi bekleniyor</div></div>';
@@ -577,8 +582,15 @@
       if (trendChartEl) {
         var gran = S._obCagriGran || "gun";
         var range = (typeof resolveCagriRange === "function") ? resolveCagriRange("ob", gran) : { from: "", to: "" };
+        // Kullanıcı aralık seçmediyse alt sınır = en eski onboarding başlangıcı.
+        if (!range.from && minStart) range.from = minStart;
         var grouped = (S._obCagriMode === "coklu" && typeof cagriGroupByPeriod === "function")
           ? cagriGroupByPeriod(obCalls, gran, range) : obUniqueByPeriod(obCalls, gran, range);
+        // Eksen en eski başlangıç DÖNEMİNDEN başlasın (o dönemde çağrı yoksa 0 ekle).
+        if (minStart && typeof cagriTrendPeriodKey === "function") {
+          var mk = cagriTrendPeriodKey(minStart, gran);
+          if (mk && (!grouped.keys.length || grouped.keys[0] > mk)) { grouped.keys.unshift(mk); grouped.touch.unshift(0); grouped.attempt.unshift(0); }
+        }
         if (typeof renderCagriRangeInputs === "function") renderCagriRangeInputs("ob");
         if (typeof drawCagriTrendChart === "function") drawCagriTrendChart("ob-cagri-trend-chart", grouped.keys, grouped.touch, grouped.attempt);
         if (trendInfoEl) {
@@ -598,7 +610,7 @@
         else if (c.durum === "Attempt") attemptByCust[k] = (attemptByCust[k] || 0) + 1;
       });
       var notTouched = custList.filter(function (r) { return !touchedCust[r.cid]; }).map(function (r) {
-        return { r: r, gun: obGun(r.f), attemptCount: attemptByCust[r.cid] || 0 };
+        return { r: r, gun: obGun({ baslangic: r.start }), attemptCount: attemptByCust[r.cid] || 0 };
       }).sort(function (a, b) { return b.gun - a.gun; });
 
       if (cntEl) cntEl.textContent = notTouched.length + " firma";
