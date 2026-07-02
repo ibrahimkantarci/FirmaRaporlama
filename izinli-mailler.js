@@ -6,4 +6,5 @@ export const izinliMailler = [
   "erce.ekim@dugun.com",
   "zeren.aksu@dugun.com",
   "eylul.sazak@dugun.com",
+  "eren.kadakal@dugun.com",
 ];
