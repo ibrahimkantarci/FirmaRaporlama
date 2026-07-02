@@ -215,11 +215,6 @@ tbody tr:hover td{background:#fafafa}
       <div class="pill" id="pill-cagri"><span class="dot"></span><span id="ptc">Çağrı verisi yok</span></div>
     </div>
   </div>
-  <div class="alarm-strip">
-    <span class="as-label">Alarmlar</span>
-    <span id="as-empty" style="font-size:12px;color:#a1a1aa;font-style:italic">Veri yüklenince otomatik hesaplanır</span>
-    <div id="as-chips"></div>
-  </div>
   <div class="content">
 
     <!-- ONBOARDING -->
@@ -248,19 +243,57 @@ tbody tr:hover td{background:#fafafa}
         <div id="ob-metrik-ozet"></div>
       </div>
 
-      <!-- 1 ayı dolan firmalar -->
+      <!-- 1 ayı dolan firmalar (varsayılan kapalı) -->
+      <div class="card">
+        <div class="card-head" onclick="toggleCard('ob-rapor-body','ob-rapor-toggle')" style="cursor:pointer;user-select:none">
+          <span class="ct">🚨 1 ayı dolan firmalar</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span id="ob-rapor-cnt" style="font-size:11px;color:#a1a1aa"></span>
+            <span id="ob-rapor-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
+          </div>
+        </div>
+        <div id="ob-rapor-body" style="display:none">
+          <div class="tw"><table>
+            <thead><tr>
+              <th>Firma</th><th>PY</th><th>Kategori</th><th>Şehir</th>
+              <th>Başlangıç</th><th>Gün</th><th>Teklif</th><th>Eksik metrikler</th>
+            </tr></thead>
+            <tbody id="ob-rapor-tbl"><tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">—</td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- Onboarding çağrı değerlendirmesi (Çağrı Analizi sayfasından bağımsız) -->
       <div class="card">
         <div class="card-head">
-          <span class="ct">🚨 1 ayı dolan firmalar</span>
-          <span id="ob-rapor-cnt" style="font-size:11px;color:#a1a1aa"></span>
+          <span class="ct">📞 Onboarding Çağrı Değerlendirmesi — Günlük Touch / Attempt</span>
+          <span id="ob-cagri-trend-info" style="font-size:11px;color:#a1a1aa"></span>
         </div>
-        <div class="tw"><table>
-          <thead><tr>
-            <th>Firma</th><th>PY</th><th>Kategori</th><th>Şehir</th>
-            <th>Başlangıç</th><th>Gün</th><th>Teklif</th><th>Eksik metrikler</th>
-          </tr></thead>
-          <tbody id="ob-rapor-tbl"><tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">—</td></tr></tbody>
-        </table></div>
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#52525b"><span style="width:14px;height:3px;background:#185FA5;border-radius:2px;display:inline-block"></span>Touch</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#52525b"><span style="width:14px;height:3px;background:#dc2626;border-radius:2px;display:inline-block"></span>Attempt</span>
+        </div>
+        <div id="ob-cagri-trend-chart"></div>
+
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid #f4f4f5">
+          <div onclick="toggleCard('ob-cagri-body','ob-cagri-toggle')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
+            <span class="ct">📵 Paket Başlangıcından Beri Aranmayan Onboarding Firmaları</span>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span id="ob-cagri-cnt" style="font-size:11px;color:#a1a1aa"></span>
+              <span id="ob-cagri-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
+            </div>
+          </div>
+          <div id="ob-cagri-body" style="display:none;margin-top:10px">
+            <div id="ob-cagri-chart"></div>
+            <div class="tw"><table>
+              <thead><tr>
+                <th>Firma</th><th>PY</th><th>Kategori</th><th>Şehir</th>
+                <th>Başlangıç</th><th>Gün</th><th>Attempt denemesi</th><th>Durum</th>
+              </tr></thead>
+              <tbody id="ob-cagri-tbl"><tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">—</td></tr></tbody>
+            </table></div>
+          </div>
+        </div>
       </div>
 
       <!-- Tam firma listesi -->
@@ -421,6 +454,14 @@ tbody tr:hover td{background:#fafafa}
           <span style="font-size:11px;color:#71717a;margin-left:6px">İl</span>
           <select id="yn-sehir-filter" onchange="renderYN()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
             <option value="">Tüm iller</option>
+          </select>
+          <span style="font-size:11px;color:#71717a;margin-left:6px">Kategori Grubu</span>
+          <select id="yn-katgrup-filter" onchange="renderYN()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+            <option value="">Tüm gruplar</option>
+          </select>
+          <span style="font-size:11px;color:#71717a;margin-left:6px">Kategori</span>
+          <select id="yn-kategori-filter" onchange="renderYN()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+            <option value="">Tüm kategoriler</option>
           </select>
         </div>
         <div id="yn-py-board">
@@ -586,6 +627,28 @@ tbody tr:hover td{background:#fafafa}
           <div id="ca-flag-py-tabs" style="display:flex;gap:4px;flex-wrap:wrap"></div>
         </div>
         <div id="ca-flag-touch"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head" style="flex-wrap:wrap;gap:8px">
+          <span class="ct">📈 Günlük Çağrı Trendi — Touch / Attempt</span>
+          <span style="font-size:11px;color:#a1a1aa" id="ca-trend-info"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10.5px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0">PY</span>
+            <select id="ca-trend-py-select" onchange="setTrendPY(this.value)" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer"></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10.5px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0">Flag</span>
+            <select id="ca-trend-flag-select" onchange="setTrendFlag(this.value)" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer"></select>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#52525b"><span style="width:14px;height:3px;background:#185FA5;border-radius:2px;display:inline-block"></span>Touch</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#52525b"><span style="width:14px;height:3px;background:#dc2626;border-radius:2px;display:inline-block"></span>Attempt</span>
+        </div>
+        <div id="ca-trend-chart"></div>
       </div>
 
       <div class="card" style="padding:0">
@@ -1468,7 +1531,97 @@ function renderOB(){
   const pyNames=[...new Set(d.map(f=>f.py_adi).filter(Boolean))];
   document.getElementById('ob-py-chips').innerHTML=pyNames.map(n=>`<div class="chip" style="font-size:11px" onclick="fOBPY(this,'${n}')">${n.split(' ')[0]}</div>`).join('');
 
+  renderObCagriDegerlendirme();
   renderOBTable();
+}
+
+// Onboarding firmalarının çağrı değerlendirmesi — Çağrı Analizi sayfasından bağımsız.
+// Paket başlangıcından (baslangic) bu yana hiç Touch çağrısı yapılmamış aktif
+// onboarding firmalarını tablo + yatay bar grafik olarak gösterir.
+function renderObCagriDegerlendirme(){
+  const chartEl=document.getElementById('ob-cagri-chart');
+  const tblEl=document.getElementById('ob-cagri-tbl');
+  const cntEl=document.getElementById('ob-cagri-cnt');
+  const trendChartEl=document.getElementById('ob-cagri-trend-chart');
+  const trendInfoEl=document.getElementById('ob-cagri-trend-info');
+  if(!chartEl||!tblEl) return;
+
+  const aktif=S.onboarding.filter(f=>f.mezun_mu!=='Evet');
+
+  if(!S.cagrilar.length){
+    if(trendChartEl) trendChartEl.innerHTML='<div class="empty-state" style="padding:20px 0"><div>📞</div><div class="et">Çağrı verisi bekleniyor</div><div class="es">Çağrı logları Excel yükleyin</div></div>';
+    if(trendInfoEl) trendInfoEl.textContent='';
+    chartEl.innerHTML='';
+    tblEl.innerHTML='<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">Çağrı verisi bekleniyor</td></tr>';
+    if(cntEl) cntEl.textContent='';
+    return;
+  }
+
+  // Günlük Touch/Attempt çizgi grafiği — yalnızca onboarding firmalarına ait çağrılar
+  // (Çağrı Analizi sayfasındaki grafikle aynı görsel dil, bağımsız veri kapsamı).
+  if(trendChartEl){
+    const obIds=new Set(aktif.map(f=>String(f.ob_id||'').trim()).filter(Boolean));
+    const obCalls=S.cagrilar.filter(c=>obIds.has(String(c.firma_id||'').trim()));
+    const dayMap={};
+    obCalls.forEach(c=>{
+      if(!c.tarih||c.tarih==='-') return;
+      const g=c.tarih.slice(0,10);
+      if(!dayMap[g]) dayMap[g]={touch:0,attempt:0};
+      if(c.durum==='Touch') dayMap[g].touch++;
+      else if(c.durum==='Attempt') dayMap[g].attempt++;
+    });
+    const days=Object.keys(dayMap).sort();
+    const touchArr=days.map(d=>dayMap[d].touch);
+    const attemptArr=days.map(d=>dayMap[d].attempt);
+    drawCagriTrendChart('ob-cagri-trend-chart',days,touchArr,attemptArr);
+    if(trendInfoEl){
+      const totalT=touchArr.reduce((a,b)=>a+b,0);
+      const totalA=attemptArr.reduce((a,b)=>a+b,0);
+      trendInfoEl.textContent=days.length?`${days.length} gün · ${totalT} touch · ${totalA} attempt`:'';
+    }
+  }
+
+  const notTouched=aktif.map(f=>{
+    const fid=String(f.ob_id||'').trim();
+    const calls=S.cagrilar.filter(c=>String(c.firma_id||'').trim()===fid&&(!f.baslangic||!c.tarih||c.tarih>=f.baslangic));
+    const touchCount=calls.filter(c=>c.durum==='Touch').length;
+    const attemptCount=calls.filter(c=>c.durum==='Attempt').length;
+    return{f,gun:obGun(f),attemptCount,touchCount};
+  }).filter(x=>x.touchCount===0).sort((a,b)=>b.gun-a.gun);
+
+  if(cntEl) cntEl.textContent=notTouched.length+' firma';
+
+  if(!notTouched.length){
+    chartEl.innerHTML='<div class="empty-state" style="padding:20px 0"><div>✅</div><div class="et">Tüm aktif onboarding firmaları aranmış</div><div class="es">Paket başlangıcından bu yana en az bir touch çağrısı var</div></div>';
+    tblEl.innerHTML='<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">Aranmayan firma yok ✅</td></tr>';
+    return;
+  }
+
+  const maxGun=Math.max(...notTouched.map(x=>x.gun),1);
+  chartEl.innerHTML='<div style="display:flex;flex-direction:column;gap:8px;padding:6px 0 14px">'+
+    notTouched.map(({f,gun,attemptCount})=>{
+      const pct=Math.round(gun/maxGun*100);
+      const ad=f.ob_adi||f.musteri_adi||'—';
+      return`<div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11px;width:150px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${ad}">${ad}</span>
+        <div style="flex:1;background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden;position:relative">
+          <div style="height:100%;width:${pct}%;background:#dc2626;border-radius:5px"></div>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:#dc2626;width:56px;text-align:right">${gun} gün</span>
+        <span style="font-size:10px;color:#a1a1aa;width:70px;text-align:right">${attemptCount?attemptCount+' attempt':'—'}</span>
+      </div>`;
+    }).join('')+'</div>';
+
+  tblEl.innerHTML=notTouched.map(({f,gun,attemptCount})=>`<tr>
+    <td style="font-weight:500;font-size:12px">${f.ob_adi||f.musteri_adi||'—'}</td>
+    <td style="font-size:11px">${f.py_adi||'—'}</td>
+    <td style="font-size:11px;color:#71717a">${f.kategori_adi||'—'}</td>
+    <td style="font-size:11px;color:#71717a">${f.sehir||'—'}</td>
+    <td style="font-size:11px">${f.baslangic?f.baslangic.slice(0,10):'—'}</td>
+    <td><span class="days hot">${gun}g</span></td>
+    <td style="font-size:11px;text-align:center">${attemptCount||0}</td>
+    <td><span class="badge crit">📵 Hiç konuşulmadı</span></td>
+  </tr>`).join('');
 }
 
 function closeMetrikModal(){ document.getElementById('metrik-modal').classList.remove('open'); }
@@ -1576,15 +1729,15 @@ function openMetrikModal(key){
       <div style="font-size:22px;font-weight:700;color:#1d4ed8">${scopeFirms.length?Math.round(tamOlanlar.length/scopeFirms.length*100):0}%</div>
       <div style="font-size:11px;color:#1d4ed8;margin-top:2px">Tamamlanma</div>
     </div>`;
-  const rows=[...eksikOlanlar.map(f=>({f,tam:false})),...tamOlanlar.map(f=>({f,tam:true}))];
-  document.getElementById('metrik-modal-tbl').innerHTML=rows.map(({f,tam})=>`<tr style="${tam?'opacity:.5':''}">
+  // Detay tablosunda yalnızca eksik olan firmalar listelenir (tamamlanmış firmalar özet kartlarda sayı olarak zaten görünüyor).
+  document.getElementById('metrik-modal-tbl').innerHTML=eksikOlanlar.map(f=>`<tr>
     <td style="font-weight:500;font-size:12px">${f.ob_adi||f.musteri_adi||'—'}</td>
     <td style="font-size:11px;color:#71717a">${f.py_adi||'—'}</td>
     <td style="font-size:11px;color:#71717a">${f.kategori_grubu||'—'}</td>
     <td style="font-size:11px;color:#71717a">${f.sehir||'—'}</td>
     <td style="font-size:12px;font-weight:500">${cfg.valFn(f)}</td>
-    <td>${tam?'<span class="badge ok">✓ Tamam</span>':'<span class="badge crit">✗ Eksik</span>'}</td>
-  </tr>`).join('');
+    <td><span class="badge crit">✗ Eksik</span></td>
+  </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:14px">Eksik firma yok — tamamı tamamlanmış ✅</td></tr>';
   document.getElementById('metrik-modal').classList.add('open');
 }
 
@@ -2086,53 +2239,11 @@ function renderYenilemeMonthDist(){
 function renderLeadDist(){
   const el=document.getElementById('pf-lead-dist');
   if(!el) return;
-  const f=S.firmalar;
-  if(!f.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri bekleniyor</div>';return;}
-
-  // Segment sütunu yoksa boş bırak
-  const segmentVarMi=f.some(x=>x.musteri_statusu&&x.musteri_statusu.trim()!=='');
-  if(!segmentVarMi){
-    el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Segment sütunu bulunamadı — Excel\'de "Segment" sütunu ekleyin</div>';
-    return;
-  }
-
-  // Statü grupları
-  const gruplar={};
-  f.forEach(x=>{
-    const st=(x.musteri_statusu||'').trim();
-    if(!st) return;
-    const teklif=num(x.teklif)||0;
-    if(!gruplar[st]) gruplar[st]={firma:0,toplamLead:0};
-    gruplar[st].firma++;
-    gruplar[st].toplamLead+=teklif;
-  });
-
-  const sorted=Object.entries(gruplar).sort((a,b)=>b[1].toplamLead-a[1].toplamLead);
-  const maxLead=sorted[0]?sorted[0][1].toplamLead:1;
-  const colors=['#185FA5','#E5002A','#16a34a','#ca8a04','#7c3aed','#0891b2'];
-  const toplamLead=sorted.reduce((a,[,v])=>a+v.toplamLead,0);
-
-  el.innerHTML=`
-    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">
-      ${sorted.map(([st,v],i)=>`
-        <div style="background:#f8fafc;border:1px solid #e4e4e7;border-radius:8px;padding:10px 16px;min-width:120px;text-align:center">
-          <div style="font-size:11px;color:#71717a;margin-bottom:4px;font-weight:600;text-transform:capitalize">${st}</div>
-          <div style="font-size:20px;font-weight:700;color:${colors[i%6]}">${v.toplamLead.toLocaleString('tr-TR')}</div>
-          <div style="font-size:11px;color:#a1a1aa;margin-top:2px">${v.firma} firma · ort. ${v.firma?Math.round(v.toplamLead/v.firma):0}</div>
-          <div style="font-size:10px;font-weight:600;color:${colors[i%6]};margin-top:2px">%${toplamLead?Math.round(v.toplamLead/toplamLead*100):0}</div>
-        </div>`).join('')}
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      ${sorted.map(([st,v],i)=>`
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:12px;width:80px;flex-shrink:0;font-weight:500;text-transform:capitalize">${st}</span>
-          <div style="flex:1;background:#f4f4f5;border-radius:5px;height:20px;overflow:hidden;position:relative">
-            <div style="position:absolute;left:0;top:0;height:100%;width:${maxLead?Math.round(v.toplamLead/maxLead*100):0}%;background:${colors[i%6]};border-radius:5px"></div>
-          </div>
-          <span style="font-size:12px;font-weight:700;color:${colors[i%6]};width:60px;text-align:right">${v.toplamLead.toLocaleString('tr-TR')}</span>
-          <span style="font-size:11px;color:#a1a1aa;width:50px">ort.${v.firma?Math.round(v.toplamLead/v.firma):0}</span>
-        </div>`).join('')}
-    </div>`;
+  // NOT: Segmentasyon tanımı henüz yapılmadı.
+  // Önceki sürüm "Müşteri Statüsü" sütununu kullanıyordu — bu veri kaynağı artık geçerli değil.
+  // Qlik üzerinden hangi sütun/segment tanımının kullanılacağı netleşince bu fonksiyon
+  // o kaynağa göre yeniden bağlanacak.
+  el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">⚠️ Segmentasyon tanımı henüz yapılmadı — Qlik veri kaynağı belirlenince bu kart aktif olacak</div>';
 }
 
 function renderSehirValue(){
@@ -2319,6 +2430,26 @@ function renderYN(){
   const secilenFlag=document.getElementById('yn-flag-filter')?.value||'';
   const secilenSehir=document.getElementById('yn-sehir-filter')?.value||'';
 
+  // Kategori Grubu dropdown (bir kez doldurulur)
+  const katGrupSel=document.getElementById('yn-katgrup-filter');
+  if(katGrupSel&&katGrupSel.options.length<=1){
+    const gruplar=[...new Set(wd.map(f=>f.kategori_grubu).filter(g=>g&&g!=='—'))].sort();
+    gruplar.forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;katGrupSel.appendChild(o);});
+  }
+  const secilenKatGrup=katGrupSel?.value||'';
+
+  // Kategori dropdown — seçili gruba göre daralır
+  const katSel=document.getElementById('yn-kategori-filter');
+  if(katSel){
+    const kaynakKat=secilenKatGrup?wd.filter(f=>f.kategori_grubu===secilenKatGrup):wd;
+    const katlar=[...new Set(kaynakKat.map(f=>f.kategori_adi).filter(k=>k&&k!=='—'))].sort();
+    const oncekiKat=katSel.value;
+    katSel.innerHTML='<option value="">Tüm kategoriler</option>'+katlar.map(k=>`<option value="${k.replace(/"/g,'&quot;')}">${k}</option>`).join('');
+    // Önceki seçim hâlâ geçerliyse koru, değilse sıfırla
+    katSel.value=katlar.includes(oncekiKat)?oncekiKat:'';
+  }
+  const secilenKat=katSel?.value||'';
+
   const pyler=['Tümü',...[...new Set(wd.map(f=>f.py_adi).filter(Boolean))].sort()];
   if(!S._ynSecilenPY||!pyler.includes(S._ynSecilenPY)) S._ynSecilenPY='Tümü';
   const bgs=['#374151','#EEF2FF','#F0FDF4','#FFFBEB','#FFF1F2','#F5F3FF','#ECFDF5'];
@@ -2331,6 +2462,8 @@ function renderYN(){
   let pyData=S._ynSecilenPY==='Tümü'?wd:wd.filter(f=>f.py_adi===S._ynSecilenPY);
   if(secilenFlag) pyData=pyData.filter(f=>f.flag_rengi===secilenFlag);
   if(secilenSehir) pyData=pyData.filter(f=>f.sehir===secilenSehir);
+  if(secilenKatGrup) pyData=pyData.filter(f=>f.kategori_grubu===secilenKatGrup);
+  if(secilenKat) pyData=pyData.filter(f=>f.kategori_adi===secilenKat);
 
   const pyTop=pyData.reduce((s,f)=>s+num(f.satis_fiyati),0);
   const flagDist={Yeşil:0,Sarı:0,Turuncu:0,Kırmızı:0};
@@ -2668,6 +2801,7 @@ function renderCA(){
   }
 
   renderMetrikler(S._secilenCagriPY);
+  renderCagriTrend();
 
   if(!S._aranmayanBand) S._aranmayanBand='30-45';
   renderAranmayan();
@@ -3004,14 +3138,139 @@ function renderAL(){
 
 function fAlarm(el,v){S.fAlarm=v;renderAL();}
 
+// ── ÇAĞRI ANALİZİ — Günlük Trend (Touch/Attempt, PY ve Flag kırılımlı) ─────────
+function setTrendPY(py){ S._trendPY=py; renderCagriTrend(); }
+function setTrendFlag(fl){ S._trendFlag=fl; renderCagriTrend(); }
+
+function renderCagriTrend(){
+  const chartEl=document.getElementById('ca-trend-chart');
+  if(!chartEl) return;
+  const base=getCagriFiltered();
+
+  // Firma → flag rengi eşlemesi (mevcut desenle aynı)
+  const firmaFlagMap={};
+  S.firmalar.forEach(f=>{const k=String(f.firma_id||'').trim();if(k) firmaFlagMap[k]=f.flag_rengi;});
+
+  if(!S._trendPY) S._trendPY='Tümü';
+  if(!S._trendFlag) S._trendFlag='Tümü';
+
+  // PY dropdown — sayılar mevcut Flag seçimine göre hesaplanır (tutarlı kalması için)
+  const flagFilteredForPY=S._trendFlag==='Tümü'?base:base.filter(c=>firmaFlagMap[String(c.firma_id||'').trim()]===S._trendFlag);
+  const pyCounts={};
+  flagFilteredForPY.forEach(c=>{const k=c.py_adi||'Bilinmiyor';pyCounts[k]=(pyCounts[k]||0)+1;});
+  const pyList=['Tümü',...[...new Set(S.cagrilar.map(c=>c.py_adi).filter(Boolean))].sort()];
+  if(!pyList.includes(S._trendPY)) S._trendPY='Tümü';
+  const pySelect=document.getElementById('ca-trend-py-select');
+  if(pySelect){
+    pySelect.innerHTML=pyList.map(py=>{
+      const n=py==='Tümü'?flagFilteredForPY.length:(pyCounts[py]||0);
+      return `<option value="${py.replace(/"/g,'&quot;')}">${py} (${n})</option>`;
+    }).join('');
+    pySelect.value=S._trendPY;
+  }
+
+  // Flag dropdown — sayılar mevcut PY seçimine göre hesaplanır
+  const pyFilteredForFlag=S._trendPY==='Tümü'?base:base.filter(c=>c.py_adi===S._trendPY);
+  const flagCounts={Yeşil:0,Sarı:0,Turuncu:0,Kırmızı:0};
+  pyFilteredForFlag.forEach(c=>{
+    const fl=firmaFlagMap[String(c.firma_id||'').trim()];
+    if(fl&&flagCounts[fl]!==undefined) flagCounts[fl]++;
+  });
+  const flagIconsX={Tümü:'◾',Yeşil:'🟢',Sarı:'🟡',Turuncu:'🟠',Kırmızı:'🔴'};
+  const flagList=['Tümü','Yeşil','Sarı','Turuncu','Kırmızı'];
+  const flagSelect=document.getElementById('ca-trend-flag-select');
+  if(flagSelect){
+    flagSelect.innerHTML=flagList.map(fl=>{
+      const n=fl==='Tümü'?pyFilteredForFlag.length:flagCounts[fl];
+      return `<option value="${fl}">${flagIconsX[fl]} ${fl} (${n})</option>`;
+    }).join('');
+    flagSelect.value=S._trendFlag;
+  }
+
+  let data=base;
+  if(S._trendPY!=='Tümü') data=data.filter(c=>c.py_adi===S._trendPY);
+  if(S._trendFlag!=='Tümü') data=data.filter(c=>firmaFlagMap[String(c.firma_id||'').trim()]===S._trendFlag);
+
+  // Günlük Touch/Attempt sayımı
+  const dayMap={};
+  data.forEach(c=>{
+    if(!c.tarih||c.tarih==='-') return;
+    const g=c.tarih.slice(0,10);
+    if(!dayMap[g]) dayMap[g]={touch:0,attempt:0};
+    if(c.durum==='Touch') dayMap[g].touch++;
+    else if(c.durum==='Attempt') dayMap[g].attempt++;
+  });
+  const days=Object.keys(dayMap).sort();
+  const touchArr=days.map(d=>dayMap[d].touch);
+  const attemptArr=days.map(d=>dayMap[d].attempt);
+
+  drawCagriTrendChart('ca-trend-chart',days,touchArr,attemptArr);
+
+  const info=document.getElementById('ca-trend-info');
+  if(info){
+    const totalT=touchArr.reduce((a,b)=>a+b,0);
+    const totalA=attemptArr.reduce((a,b)=>a+b,0);
+    info.textContent=days.length?`${days.length} gün · ${totalT} touch · ${totalA} attempt`:'';
+  }
+}
+
+// Bağımlılıksız (kütüphanesiz) satır içi SVG çizgi grafiği.
+function drawCagriTrendChart(containerId,days,touchArr,attemptArr){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  if(!days.length){
+    el.innerHTML='<div class="empty-state" style="padding:26px 0"><div>📈</div><div class="et">Veri yok</div><div class="es">Seçili filtrelerde çağrı bulunamadı</div></div>';
+    return;
+  }
+  const w=920,h=220,padL=34,padR=14,padT=22,padB=26;
+  const maxY=Math.max(1,...touchArr,...attemptArr);
+  const innerW=w-padL-padR,innerH=h-padT-padB;
+  const stepX=days.length>1?innerW/(days.length-1):0;
+  const scaleY=v=>padT+innerH-(v/maxY)*innerH;
+  const scaleX=i=>padL+i*stepX;
+
+  const pathFor=arr=>arr.map((v,i)=>(i===0?'M':'L')+scaleX(i).toFixed(1)+','+scaleY(v).toFixed(1)).join(' ');
+
+  let grid='';
+  const ticks=4;
+  for(let t=0;t<=ticks;t++){
+    const val=Math.round(maxY*t/ticks);
+    const y=scaleY(val);
+    grid+=`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w-padR}" y2="${y.toFixed(1)}" stroke="#f1f1f3" stroke-width="1"/>`;
+    grid+=`<text x="${padL-6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#a1a1aa" text-anchor="end">${val}</text>`;
+  }
+
+  const labelEvery=Math.max(1,Math.ceil(days.length/12));
+  let xLabels='';
+  days.forEach((d,i)=>{
+    if(i%labelEvery===0||i===days.length-1){
+      xLabels+=`<text x="${scaleX(i).toFixed(1)}" y="${h-8}" font-size="9" fill="#a1a1aa" text-anchor="middle">${d.slice(5)}</text>`;
+    }
+  });
+
+  const touchDots=touchArr.map((v,i)=>`<circle cx="${scaleX(i).toFixed(1)}" cy="${scaleY(v).toFixed(1)}" r="2.6" fill="#185FA5"><title>${days[i]} · Touch: ${v}</title></circle>`).join('');
+  const attemptDots=attemptArr.map((v,i)=>`<circle cx="${scaleX(i).toFixed(1)}" cy="${scaleY(v).toFixed(1)}" r="2.6" fill="#dc2626"><title>${days[i]} · Attempt: ${v}</title></circle>`).join('');
+  // Net sayı etiketleri: Touch değeri noktanın üstünde, Attempt değeri noktanın altında (0 olanlar gizlenir — karmaşayı azaltmak için)
+  const touchLabels=touchArr.map((v,i)=>v>0?`<text x="${scaleX(i).toFixed(1)}" y="${(scaleY(v)-6).toFixed(1)}" font-size="9" font-weight="700" fill="#185FA5" text-anchor="middle">${v}</text>`:'').join('');
+  const attemptLabels=attemptArr.map((v,i)=>v>0?`<text x="${scaleX(i).toFixed(1)}" y="${(scaleY(v)+13).toFixed(1)}" font-size="9" font-weight="700" fill="#dc2626" text-anchor="middle">${v}</text>`:'').join('');
+
+  el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px;display:block">
+    ${grid}
+    <path d="${pathFor(touchArr)}" fill="none" stroke="#185FA5" stroke-width="2"/>
+    <path d="${pathFor(attemptArr)}" fill="none" stroke="#dc2626" stroke-width="2"/>
+    ${touchDots}${attemptDots}
+    ${touchLabels}${attemptLabels}
+    ${xLabels}
+  </svg>`;
+}
+
 function buildAlarmStrip(){
+  // Not: sayfa üstündeki alarm şeridi kaldırıldı (Alarm Merkezi sayfası etkilenmez).
+  // Yalnızca sidebar'daki Alarm Merkezi rozet sayacını güncel tutuyoruz.
   const alarms=buildAlarms();
-  const chips=document.getElementById('as-chips');const empty=document.getElementById('as-empty');
   const important=alarms.filter(a=>a.tip!=='info');
-  if(!important.length){chips.innerHTML='';empty.style.display='';empty.textContent=S.firmalar.length?'Aktif alarm yok ✅':'Veri yüklenince otomatik hesaplanır';return;}
-  empty.style.display='none';
-  chips.innerHTML=important.slice(0,7).map(a=>`<div class="as-chip ${a.tip}" onclick="goTo('alarm',document.querySelectorAll('.nav-item')[4])" title="${a.msg}">${a.tip==='crit'?'🚨':'⚠️'} ${a.firma}${a.diff<999?' · '+a.diff+'g':''}</div>`).join('')+(important.length>7?`<span style="font-size:11px;color:#71717a;padding:0 4px">+${important.length-7} daha</span>`:'');
-  document.getElementById('nb-alarm').textContent=important.length;
+  const badge=document.getElementById('nb-alarm');
+  if(badge) badge.textContent=important.length;
 }
 
 // ── ÖZEL FİYAT ────────────────────────────────────────────────────────────────
