@@ -485,6 +485,14 @@ body.dark .theme-toggle:hover{background:#1e232b}
         </div>
         <div id="pf-lead-dist"></div>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.4px">Value — paket bitiş dönemi</span>
+        <input type="month" id="pf-val-from" onchange="renderSehirValue();renderFlagValue();" title="Başlangıç ayı" style="padding:4px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+        <span style="font-size:11px;color:#a1a1aa">–</span>
+        <input type="month" id="pf-val-to" onchange="renderSehirValue();renderFlagValue();" title="Bitiş ayı" style="padding:4px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+        <span onclick="clearPfValDonem()" title="Dönemi temizle" style="font-size:12px;color:#c0c5cc;cursor:pointer;padding:2px 6px;border-radius:6px">✕ temizle</span>
+        <span id="pf-val-info" style="font-size:11px;color:#a1a1aa"></span>
+      </div>
       <div class="two-col">
         <div class="card">
           <div class="card-head">
@@ -760,6 +768,17 @@ body.dark .theme-toggle:hover{background:#1e232b}
         <div id="py-cagri-blocks" style="padding:14px 18px">
           <div class="empty-state"><div>📞</div><div class="et">Çağrı verisi bekleniyor</div><div class="es">Çağrı logları Excel yükleyin</div></div>
         </div>
+      </div>
+
+      <!-- PY × Flag arama dağılımı (customer bazlı) -->
+      <div class="card">
+        <div class="card-head">
+          <span class="ct">🎯 PY'nin Aradığı Flag Dağılımı (customer bazlı)</span>
+          <select id="ca-pyflag-select" onchange="renderPyFlagArama()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+            <option value="">PY seçin…</option>
+          </select>
+        </div>
+        <div id="ca-pyflag-dist"></div>
       </div>
 
       <!-- Detaylı metrikler -->
@@ -2549,23 +2568,52 @@ function renderLeadDist(){
           <span style="font-size:15px;font-weight:700;color:${c}">${gr.seg}</span>
           <span style="font-size:11px;font-weight:700;color:#fff;background:${c};border-radius:10px;padding:2px 8px">%${pct.toFixed(1)}</span>
         </div>
-        <div style="font-size:22px;font-weight:700;color:#18181b;line-height:1">${gr.adet}</div>
-        <div style="font-size:11px;color:#71717a;margin-top:2px">firma · toplam %${apct}</div>
-        <div style="font-size:11px;color:#52525b;margin-top:6px;padding-top:6px;border-top:1px solid ${c}22">${Math.round(gr.lead).toLocaleString('tr-TR')} teklif · <b>${ort.toFixed(1)}</b> firma başı</div>
+        <div style="font-size:22px;font-weight:700;color:#18181b;line-height:1">${ort.toFixed(1)}</div>
+        <div style="font-size:11px;color:#71717a;margin-top:2px">firma başı ort. lead</div>
+        <div style="font-size:11px;color:#52525b;margin-top:6px;padding-top:6px;border-top:1px solid ${c}22">${gr.adet} firma · ${Math.round(gr.lead).toLocaleString('tr-TR')} toplam lead</div>
       </div>`;
     }).join('')+'</div>';
+}
+
+// Şehir×Value ve Flag×Value için ayrı paket bitiş dönem filtresi
+function pfValDonemFiltered(list){
+  const fromEl=document.getElementById('pf-val-from');
+  const toEl=document.getElementById('pf-val-to');
+  const from=fromEl&&fromEl.value?fromEl.value:'';
+  const to=toEl&&toEl.value?toEl.value:'';
+  const infoEl=document.getElementById('pf-val-info');
+  if(infoEl){
+    if(from&&to) infoEl.textContent=`${from} – ${to}`;
+    else if(from) infoEl.textContent=`${from} ve sonrası`;
+    else if(to) infoEl.textContent=`${to} ve öncesi`;
+    else infoEl.textContent='Tüm dönemler';
+  }
+  if(!from&&!to) return list;
+  return list.filter(f=>{
+    if(!f.bitis_tarihi) return false;
+    const ay=String(f.bitis_tarihi).slice(0,7);
+    if(from&&ay<from) return false;
+    if(to&&ay>to) return false;
+    return true;
+  });
+}
+function clearPfValDonem(){
+  const f=document.getElementById('pf-val-from');
+  const t=document.getElementById('pf-val-to');
+  if(f) f.value=''; if(t) t.value='';
+  renderSehirValue();renderFlagValue();
 }
 
 function renderSehirValue(){
   const el=document.getElementById('pf-sehir-value');
   if(!el) return;
-  const f=S.firmalar;
-  if(!f.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri bekleniyor</div>';return;}
+  const f=pfValDonemFiltered(S.firmalar);
+  if(!f.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Bu dönemde veri yok</div>';return;}
 
   const sel=document.getElementById('pf-sehir-select');
-  // Dropdown doldur
+  // Dropdown doldur (tüm firmalardan — dönemden bağımsız)
   if(sel&&sel.options.length<=1){
-    const sehirler=[...new Set(f.map(x=>x.sehir).filter(s=>s&&s!=='—'))].sort();
+    const sehirler=[...new Set(S.firmalar.map(x=>x.sehir).filter(s=>s&&s!=='—'))].sort();
     sehirler.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
   }
   const secili=sel?sel.value:'';
@@ -2617,7 +2665,7 @@ function renderSehirValue(){
 function renderFlagValue(){
   const el=document.getElementById('pf-flag-value');
   if(!el) return;
-  const f=S.firmalar;
+  const f=pfValDonemFiltered(S.firmalar);
   if(!f.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri bekleniyor</div>';return;}
 
   const sel=document.getElementById('pf-flag-select');
@@ -2782,9 +2830,14 @@ function renderYN(){
   const pyTop=pyData.reduce((s,f)=>s+num(f.satis_fiyati),0);
   const flagDist={Yeşil:0,Sarı:0,Turuncu:0,Kırmızı:0};
   pyData.forEach(f=>{if(flagDist[f.flag_rengi]!==undefined)flagDist[f.flag_rengi]++;});
-  const sehirDist={};
-  pyData.forEach(f=>{if(f.sehir&&f.sehir!=='—')sehirDist[f.sehir]=(sehirDist[f.sehir]||0)+1;});
-  const topSehirler=Object.entries(sehirDist).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  // Kırılım tablosu — kullanıcı boyutu seçer (İl / Kategori / Kategori Grubu / Flag / PY)
+  const kirilimBoyut=S._ynKirilimBoyut||'sehir';
+  const boyutAlan={sehir:'sehir',kategori:'kategori_adi',katgrup:'kategori_grubu',flag:'flag_rengi',py:'py_adi'};
+  const boyutBaslik={sehir:'İl',kategori:'Kategori',katgrup:'Kategori Grubu',flag:'Flag',py:'PY'};
+  const kirilimAlan=boyutAlan[kirilimBoyut]||'sehir';
+  const kirilimDist={};
+  pyData.forEach(f=>{const v=f[kirilimAlan];if(v&&v!=='—')kirilimDist[v]=(kirilimDist[v]||0)+1;});
+  const topKirilim=Object.entries(kirilimDist).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const flagColors={Yeşil:'#16a34a',Sarı:'#ca8a04',Turuncu:'#ea580c',Kırmızı:'#dc2626'};
   const flagIcons={Yeşil:'🟢',Sarı:'🟡',Turuncu:'🟠',Kırmızı:'🔴'};
 
@@ -2816,16 +2869,21 @@ function renderYN(){
           '</div>').join('')+
       '</div>'+
       '<div style="flex:1;min-width:180px">'+
-        '<div style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">İl dağılımı (top 6)</div>'+
-        (topSehirler.map(function(item){const sehir=item[0],cnt=item[1];return (
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'+
+          '<span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">'+boyutBaslik[kirilimBoyut]+' kırılımı</span>'+
+          '<select onchange="setYnKirilim(this.value)" style="padding:3px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:11px;color:#374151;background:#fff;cursor:pointer">'+
+            [['sehir','İl'],['kategori','Kategori'],['katgrup','Kategori Grubu'],['flag','Flag'],['py','PY']].map(function(o){return '<option value="'+o[0]+'"'+(kirilimBoyut===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
+          '</select>'+
+        '</div>'+
+        (topKirilim.map(function(item){const ad=item[0],cnt=item[1];return (
           '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'+
-            '<span style="font-size:12px;width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+sehir+'</span>'+
+            '<span style="font-size:12px;width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+ad+'">'+ad+'</span>'+
             '<div style="flex:1;background:#f4f4f5;border-radius:4px;height:16px;overflow:hidden">'+
-              '<div style="height:100%;width:'+(topSehirler[0]?Math.round(cnt/topSehirler[0][1]*100):0)+'%;background:#185FA5;border-radius:4px"></div>'+
+              '<div style="height:100%;width:'+(topKirilim[0]?Math.round(cnt/topKirilim[0][1]*100):0)+'%;background:#185FA5;border-radius:4px"></div>'+
             '</div>'+
             '<span style="font-size:12px;font-weight:600;color:#185FA5;width:24px;text-align:right">'+cnt+'</span>'+
           '</div>'
-        );}).join('')||'<div style="color:#a1a1aa;font-size:12px">Şehir verisi yok</div>')+
+        );}).join('')||'<div style="color:#a1a1aa;font-size:12px">Veri yok</div>')+
       '</div>'+
     '</div>'
   ):'<div style="color:#a1a1aa;font-size:12px;padding:12px">Seçili aralıkta firma yok</div>';
@@ -2852,6 +2910,7 @@ function renderYN(){
   }).join(''):'<tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:16px">Customer ID verisi yok</td></tr>';
 }
 function setYnPY(py){S._ynSecilenPY=py;renderYN();}
+function setYnKirilim(v){S._ynKirilimBoyut=v;renderYN();}
 
 // ── ÇAĞRI ANALİZİ ─────────────────────────────────────────────────────────────
 function getYenilemeAyFromSecilenDonem(){
@@ -3292,6 +3351,61 @@ function renderCA(){
   } else {
     document.getElementById('py-cagri-blocks').innerHTML='<div class="empty-state"><div>📞</div><div class="et">Seçili dönemde '+String(S._secilenCagriPY).split(' ')[0]+' için çağrı yok</div></div>';
   }
+
+  renderPyFlagArama();
+}
+
+// PY'nin aradığı (Touch attığı) benzersiz customer'ların flag rengine göre dağılımı.
+// Customer bazlı: her benzersiz customer bir kez sayılır (firma_id/musteri_id).
+function renderPyFlagArama(){
+  const el=document.getElementById('ca-pyflag-dist');
+  const sel=document.getElementById('ca-pyflag-select');
+  if(!el) return;
+
+  // firma → flag eşlemesi
+  const firmaFlagMap={};
+  S.firmalar.forEach(f=>{const k=String(f.firma_id||'').trim();if(k) firmaFlagMap[k]=f.flag_rengi;});
+
+  // PY dropdown'ını bir kez doldur
+  if(sel&&sel.options.length<=1){
+    const pyler=[...new Set(S.cagrilar.map(c=>c.py_adi).filter(Boolean))].sort();
+    pyler.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+  }
+  const secPY=sel?sel.value:'';
+  if(!S.cagrilar.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">Çağrı verisi bekleniyor</div>';return;}
+  if(!secPY){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">Bir PY seçin — o PY\'nin aradığı customer\'ların flag dağılımı gösterilecek</div>';return;}
+
+  // Seçili PY'nin Touch attığı çağrılar → benzersiz customer'lar
+  const touchCalls=S.cagrilar.filter(c=>c.py_adi===secPY&&c.durum==='Touch');
+  const flagCustomers={Yeşil:new Set(),Sarı:new Set(),Turuncu:new Set(),Kırmızı:new Set(),Bilinmiyor:new Set()};
+  touchCalls.forEach(c=>{
+    const cid=String(c.musteri_id||c.firma_id||c.customer_name||'').trim();
+    if(!cid) return;
+    const fl=firmaFlagMap[String(c.firma_id||'').trim()]||'Bilinmiyor';
+    if(flagCustomers[fl]) flagCustomers[fl].add(cid);
+    else flagCustomers.Bilinmiyor.add(cid);
+  });
+
+  const flagColors={Yeşil:'#16a34a',Sarı:'#ca8a04',Turuncu:'#ea580c',Kırmızı:'#dc2626',Bilinmiyor:'#a1a1aa'};
+  const flagIcons={Yeşil:'🟢',Sarı:'🟡',Turuncu:'🟠',Kırmızı:'🔴',Bilinmiyor:'⚪'};
+  const sira=['Yeşil','Sarı','Turuncu','Kırmızı','Bilinmiyor'];
+  const counts=sira.map(fl=>({fl,n:flagCustomers[fl].size})).filter(x=>x.n>0);
+  const toplam=counts.reduce((a,x)=>a+x.n,0);
+  if(!toplam){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">'+secPY+' için aranan customer bulunamadı</div>';return;}
+  const max=Math.max(...counts.map(x=>x.n),1);
+
+  el.innerHTML=`<div style="font-size:12px;color:#71717a;margin-bottom:10px">${secPY} · <b>${toplam}</b> benzersiz customer aranmış (Touch)</div>`+
+    counts.map(({fl,n})=>{
+      const pct=Math.round(n/toplam*100);
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:12px;width:110px;flex-shrink:0">${flagIcons[fl]} ${fl}</span>
+        <div style="flex:1;background:#f4f4f5;border-radius:5px;height:20px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(n/max*100)}%;background:${flagColors[fl]};border-radius:5px"></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:${flagColors[fl]};width:80px;text-align:right">${n} customer</span>
+        <span style="font-size:11px;color:#a1a1aa;width:40px;text-align:right">%${pct}</span>
+      </div>`;
+    }).join('');
 }
 
 function renderCagriTbl(){
