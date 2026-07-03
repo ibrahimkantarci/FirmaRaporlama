@@ -504,7 +504,7 @@
         if (trendInfoEl) trendInfoEl.textContent = "";
         if (typeof renderCagriRangeInputs === "function") renderCagriRangeInputs("ob");
         chartEl.innerHTML = "";
-        tblEl.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">Çağrı verisi bekleniyor</td></tr>';
+        tblEl.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#a1a1aa;padding:14px">Çağrı verisi bekleniyor</td></tr>';
         if (cntEl) cntEl.textContent = "";
         return;
       }
@@ -558,7 +558,7 @@
       if (cntEl) cntEl.textContent = notTouched.length + " firma";
       if (!notTouched.length) {
         chartEl.innerHTML = '<div class="empty-state" style="padding:20px 0"><div>✅</div><div class="et">Tüm aktif onboarding firmaları aranmış</div><div class="es">Paket başlangıcından bu yana en az bir touch çağrısı var</div></div>';
-        tblEl.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">Aranmayan firma yok ✅</td></tr>';
+        tblEl.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#a1a1aa;padding:14px">Aranmayan firma yok ✅</td></tr>';
         return;
       }
 
@@ -585,7 +585,8 @@
           '<td style="font-size:11px">' + (x.r.start ? String(x.r.start).slice(0, 10) : "—") + "</td>" +
           '<td><span class="days hot">' + x.gun + "g</span></td>" +
           '<td style="font-size:11px;text-align:center">' + (x.attemptCount || 0) + "</td>" +
-          '<td><span class="badge crit">&#128245; Hi&#231; konu&#351;ulmad&#305;</span></td></tr>';
+          '<td><span class="badge crit">&#128245; Hi&#231; konu&#351;ulmad&#305;</span></td>' +
+          '<td style="font-size:12px;color:#185FA5">' + (typeof aylikValFmt === "function" ? aylikValFmt(typeof firmaValByCid === "function" ? firmaValByCid(f.musteri_id) : 0) : "&#8212;") + "</td></tr>";
       }).join("");
     };
   }

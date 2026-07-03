@@ -42,6 +42,10 @@ body.nav-collapsed .logo-sub{display:none}
 body.nav-collapsed .logo img{display:none}
 body.nav-collapsed .logo{padding:14px 0;text-align:center}
 body.nav-collapsed .sidebar-footer{display:none}
+.tw thead th{cursor:pointer;user-select:none}
+.tw thead th:hover{background:#f4f4f5}
+.tw thead th[data-sortdir]{color:#E5002A}
+body.dark .tw thead th:hover{background:#1e232b}
 .sidebar-footer{margin-top:auto;padding:14px}
 .btn-import{width:100%;padding:9px;background:#E5002A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
 .btn-import:hover{background:#be123c}
@@ -346,9 +350,9 @@ body.dark .theme-toggle:hover{background:#1e232b}
           <div class="tw"><table>
             <thead><tr>
               <th>Firma</th><th>PY</th><th>Kategori</th><th>Şehir</th>
-              <th>Başlangıç</th><th>Gün</th><th>Teklif</th><th>Eksik metrikler</th>
+              <th>Başlangıç</th><th>Gün</th><th>Teklif</th><th>Aylık Value</th><th>Eksik metrikler</th>
             </tr></thead>
-            <tbody id="ob-rapor-tbl"><tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">—</td></tr></tbody>
+            <tbody id="ob-rapor-tbl"><tr><td colspan="9" style="text-align:center;color:#a1a1aa;padding:14px">—</td></tr></tbody>
           </table></div>
         </div>
       </div>
@@ -389,9 +393,9 @@ body.dark .theme-toggle:hover{background:#1e232b}
             <div class="tw"><table>
               <thead><tr>
                 <th>Firma</th><th>PY</th><th>Kategori</th><th>Şehir</th>
-                <th>Başlangıç</th><th>Gün</th><th>Attempt denemesi</th><th>Durum</th>
+                <th>Başlangıç</th><th>Gün</th><th>Attempt denemesi</th><th>Durum</th><th>Aylık Value</th>
               </tr></thead>
-              <tbody id="ob-cagri-tbl"><tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">—</td></tr></tbody>
+              <tbody id="ob-cagri-tbl"><tr><td colspan="9" style="text-align:center;color:#a1a1aa;padding:14px">—</td></tr></tbody>
             </table></div>
           </div>
         </div>
@@ -660,9 +664,9 @@ body.dark .theme-toggle:hover{background:#1e232b}
         <div id="an-body" style="display:none"><div class="tw"><table>
           <thead><tr>
             <th>Firma</th><th>Kategori</th><th>Şehir</th><th>İlçe</th><th>Ürün</th><th>Flag</th>
-            <th>Dönüş oranı</th><th>PY</th><th>Yenileme</th>
+            <th>Dönüş oranı</th><th>PY</th><th>Yenileme</th><th>Aylık Value</th>
           </tr></thead>
-          <tbody id="an-tbl"><tr><td colspan="9" style="text-align:center;color:#a1a1aa;padding:20px">Yenileme verisi yüklenmedi</td></tr></tbody>
+          <tbody id="an-tbl"><tr><td colspan="10" style="text-align:center;color:#a1a1aa;padding:20px">Yenileme verisi yüklenmedi</td></tr></tbody>
         </table></div></div>
       </div>
 
@@ -772,9 +776,9 @@ body.dark .theme-toggle:hover{background:#1e232b}
           </div>
           <div class="tw"><table>
             <thead><tr>
-              <th>Firma</th><th>Müşteri adı</th><th>PY</th><th>Son çağrı</th><th>Geçen gün</th>
+              <th>Firma</th><th>Müşteri adı</th><th>PY</th><th>Son çağrı</th><th>Geçen gün</th><th>Aylık Value</th>
             </tr></thead>
-            <tbody id="ca-aranmayan-tbl"><tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:16px">Çağrı verisi bekleniyor</td></tr></tbody>
+            <tbody id="ca-aranmayan-tbl"><tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:16px">Çağrı verisi bekleniyor</td></tr></tbody>
           </table></div>
         </div>
       </div>
@@ -794,9 +798,9 @@ body.dark .theme-toggle:hover{background:#1e232b}
         </div>
         <div id="al-iletisim-body" style="display:none"><div class="tw"><table>
           <thead><tr>
-            <th>Firma</th><th>PY</th><th>Flag</th><th>Son çağrı</th><th>Geçen gün</th><th>Bitiş</th>
+            <th>Firma</th><th>PY</th><th>Flag</th><th>Son çağrı</th><th>Geçen gün</th><th>Bitiş</th><th>Aylık Value</th>
           </tr></thead>
-          <tbody id="al-iletisim-tbl"><tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:16px">Çağrı ve firma verisi yüklenince hesaplanır</td></tr></tbody>
+          <tbody id="al-iletisim-tbl"><tr><td colspan="7" style="text-align:center;color:#a1a1aa;padding:16px">Çağrı ve firma verisi yüklenince hesaplanır</td></tr></tbody>
         </table></div></div>
       </div>
 
@@ -828,9 +832,9 @@ body.dark .theme-toggle:hover{background:#1e232b}
         </div>
         <div id="al-sure-body" style="display:none"><div class="tw"><table>
           <thead><tr>
-            <th>Firma</th><th>PY</th><th>Flag</th><th>Dönüş süresi</th><th>Teklif</th><th>Dönüş oranı</th>
+            <th>Firma</th><th>PY</th><th>Flag</th><th>Dönüş süresi</th><th>Teklif</th><th>Dönüş oranı</th><th>Aylık Value</th>
           </tr></thead>
-          <tbody id="al-sure-tbl"><tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:16px">Firma verisi yüklenince hesaplanır</td></tr></tbody>
+          <tbody id="al-sure-tbl"><tr><td colspan="7" style="text-align:center;color:#a1a1aa;padding:16px">Firma verisi yüklenince hesaplanır</td></tr></tbody>
         </table></div></div>
       </div>
 
@@ -1520,7 +1524,14 @@ function flagClass(fl){return (fl||'').toLowerCase().replace('ı','i').replace('
 
 // ── ONBOARDING ────────────────────────────────────────────────────────────────
 
-function obNi(x){ try{return parseInt(parseFloat(String(x||'0').replace('-','0'))||0);}catch{return 0;} }
+function obNi(x){
+  // Değerler düz metin + binlik ayıracı VİRGÜL ("2,200" = 2200 karakter). Doğrudan
+  // parseFloat("2,200")=2.2 → 2 veriyordu (bug). Önce virgülleri kaldır, sonra parseInt.
+  let s=String(x==null?'':x).trim();
+  if(s===''||s==='-') return 0;
+  const n=parseInt(s.replace(/,/g,''),10);
+  return isNaN(n)?0:n;
+}
 function obNonempty(x){ return x&&String(x).trim()!==''&&String(x).trim()!=='-'&&String(x).trim()!=='0'; }
 
 function obGaleriEksik(f){
@@ -1605,6 +1616,7 @@ function renderOB(){
       <td style="font-size:11px">${f.baslangic?f.baslangic.slice(0,10):'—'}</td>
       <td><span class="days hot">${gun}g</span></td>
       <td style="font-size:12px;text-align:center">${teklif||0}</td>
+      <td style="font-size:12px;color:#185FA5">${aylikValFmt(firmaValByCid(f.musteri_id))}</td>
       <td style="font-size:11px">${eksik.length?eksik.map(e=>`<span class="badge crit" style="margin:1px;font-size:10px">${e}</span>`).join(''):'<span class="badge ok">Tüm metrikler tamam</span>'}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:12px">1 ayı dolan firma yok</td></tr>';
@@ -2097,6 +2109,7 @@ function renderAnalizTable(){
       <td style="text-align:center">${getDonusOran(x)!==null?`<span style="font-size:12px;font-weight:600;color:${getDonusOran(x)>=80?'#16a34a':getDonusOran(x)>=50?'#ea580c':'#dc2626'}">${getDonusOran(x).toFixed(1)}%</span>`:'—'}</td>
       <td style="font-size:11px">${x.py_adi||'—'}</td>
       <td>${x.yeniledi?'<span class="badge ok">✅ Yeniledi</span>':'<span class="badge crit">❌ Yenilemedi</span>'}</td>
+      <td style="font-size:12px;color:#185FA5">${aylikValFmt(firmaValByCid(x.firma_id))}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="9" style="text-align:center;color:#a1a1aa;padding:16px">Sonuç yok</td></tr>';
 }
@@ -2296,7 +2309,7 @@ function renderAnaliz(){
     document.getElementById('analiz-veri-uyari').style.display='flex';
     ['an-yenileyen','an-yenilemeyen','an-oran','an-kapsam'].forEach(id=>document.getElementById(id).textContent='—');
     ['an-board-flag','an-board-kat','an-board-donus','an-board-ozel'].forEach(id=>document.getElementById(id).innerHTML='<div class="empty-state"><div>📊</div><div class="et">Veri bekleniyor</div></div>');
-    document.getElementById('an-tbl').innerHTML='<tr><td colspan="9" style="text-align:center;color:#a1a1aa;padding:20px">Veri yüklenmedi</td></tr>';
+    document.getElementById('an-tbl').innerHTML='<tr><td colspan="10" style="text-align:center;color:#a1a1aa;padding:20px">Veri yüklenmedi</td></tr>';
     return;
   }
   document.getElementById('analiz-veri-uyari').style.display='none';
@@ -3267,7 +3280,7 @@ function renderAranmayan(){
   });
   const cntEl=document.getElementById('ca-aranmayan-cnt');
   if(!S.cagrilar.length){
-    document.getElementById('ca-aranmayan-tbl').innerHTML='<tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:16px">Çağrı verisi yüklenmedi</td></tr>';
+    document.getElementById('ca-aranmayan-tbl').innerHTML='<tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:16px">Çağrı verisi yüklenmedi</td></tr>';
     if(cntEl) cntEl.textContent='';
     return;
   }
@@ -3293,7 +3306,8 @@ function renderAranmayan(){
     <td style="font-size:11px">${f.py_adi||'—'}</td>
     <td style="font-size:11px;color:#71717a">${f.son_cagri||'Hiç aranmadı'}</td>
     <td><span class="days hot">${f.gecen_gun!==null?f.gecen_gun+'g':'—'}</span></td>
-  </tr>`).join(''):`<tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:12px">${band} gün aranmayan firma yok ✅</td></tr>`;
+    <td style="font-size:12px;color:#185FA5">${aylikValFmt(f.satis_fiyati)}</td>
+  </tr>`).join(''):`<tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:12px">${band} gün aranmayan firma yok ✅</td></tr>`;
 }
 
 function renderCoverage(){
@@ -3342,6 +3356,54 @@ function toggleCard(bodyId, iconId){
   body.style.display=open?'block':'none';
   if(icon) icon.textContent=open?'▲':'▼';
 }
+
+// ── Firma değeri (value) yardımcıları — raw tablolarda Aylık Value için ─────────
+function firmaValByCid(cid){
+  const k=String(cid==null?'':cid).trim(); if(!k) return 0;
+  const fl=S.firmalar||[];
+  if(S._fvMapSrc!==fl){ // firmalar yeniden yüklenince (referans değişince) haritayı kur
+    S._fvMapSrc=fl; S._fvMap={};
+    fl.forEach(f=>{
+      const id=String(f.firma_id||'').trim(), mid=String(f.musteri_id||'').trim(), v=num(f.satis_fiyati)||0;
+      if(id&&!(id in S._fvMap)) S._fvMap[id]=v;
+      if(mid&&!(mid in S._fvMap)) S._fvMap[mid]=v;
+    });
+  }
+  return S._fvMap[k]||0;
+}
+function aylikValFmt(yillik){ const v=num(yillik)||0; return v?fmt(Math.round(v/12)):'—'; }
+
+// ── Genel tablo sıralama: raw tablo başlığına tıkla → o kolona göre sırala ──────
+// .tw tablolarındaki başlıklar (kendi onclick sıralaması OLMAYANLAR) tıklanabilir.
+function _cellSortVal(td){
+  const t=(td?td.textContent:'').trim();
+  // tarih (2026-05-01 / 01.05.2026) → metin sıralama (sayı sanılmasın)
+  if(/\d{4}-\d{2}-\d{2}/.test(t)||/\d{2}\.\d{2}\.\d{4}/.test(t)) return {n:NaN,t};
+  // ilk sayı (para/%/gün/adet); TR format: nokta=binlik, virgül=ondalık
+  const m=t.replace(/[.\s₺]/g,'').match(/-?\d+(?:,\d+)?/);
+  return {n:m?parseFloat(m[0].replace(',','.')):NaN, t};
+}
+document.addEventListener('click',function(e){
+  const th=e.target&&e.target.closest?e.target.closest('.tw table thead th'):null;
+  if(!th||th.hasAttribute('onclick')) return; // kendi sıralaması olan başlıkları atla
+  const table=th.closest('table'), tbody=table&&table.querySelector('tbody');
+  if(!tbody) return;
+  const ths=[...th.parentElement.children], idx=ths.indexOf(th);
+  if(idx<0) return;
+  const dir=th.getAttribute('data-sortdir')==='asc'?'desc':'asc';
+  ths.forEach(h=>h.removeAttribute('data-sortdir'));
+  th.setAttribute('data-sortdir',dir);
+  const rows=[...tbody.children].filter(r=>r.tagName==='TR'&&r.children.length>idx&&!(r.children.length===1&&r.children[0].hasAttribute('colspan')));
+  if(rows.length<2) return;
+  rows.sort((a,b)=>{
+    const av=_cellSortVal(a.children[idx]), bv=_cellSortVal(b.children[idx]);
+    let cmp;
+    if(!isNaN(av.n)&&!isNaN(bv.n)) cmp=av.n-bv.n;
+    else cmp=av.t.localeCompare(bv.t,'tr');
+    return dir==='asc'?cmp:-cmp;
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+});
 function toggleFirmaCagri(){toggleCard('firma-cagri-body','firma-cagri-toggle');}
 function fCagriPY(el,v){document.querySelectorAll('#cf-chips .chip,#cf-all').forEach(c=>c.classList.remove('on'));el.classList.add('on');S.fCagriPY=v;renderCagriTbl();}
 
@@ -3409,8 +3471,9 @@ function renderAL(){
       <td style="font-size:11px;color:#71717a">${son||'Hiç aranmadı'}</td>
       <td><span class="days hot">${gun!==null?gun+'g':'—'}</span></td>
       <td style="font-size:11px">${diff!==null?`<span class="days ${diff<=30?'hot':diff<=60?'warm':'ok'}">${diff}g</span>`:'—'}</td>
+      <td style="font-size:12px;color:#185FA5">${aylikValFmt(x.satis_fiyati)}</td>
     </tr>`;
-  }).join(''):'<tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:12px">60+ gün iletişimsiz firma yok ✅</td></tr>';
+  }).join(''):'<tr><td colspan="7" style="text-align:center;color:#a1a1aa;padding:12px">60+ gün iletişimsiz firma yok ✅</td></tr>';
 
   // Board 2: 3 ay içinde yenilenecek kırmızı flag firmalar (≤90 gün)
   const kirmizi=f.filter(x=>{
@@ -3448,8 +3511,9 @@ function renderAL(){
       <td style="font-size:12px;font-weight:700;color:#dc2626">${sure.toFixed(1)}s</td>
       <td style="font-size:12px;text-align:center">${num(x.teklif)||'—'}</td>
       <td style="text-align:center">${dO!==null?`<span style="font-size:12px;font-weight:600;color:${dO>=80?'#16a34a':dO>=50?'#ea580c':'#dc2626'}">${dO.toFixed(1)}%</span>`:'—'}</td>
+      <td style="font-size:12px;color:#185FA5">${aylikValFmt(x.satis_fiyati)}</td>
     </tr>`;
-  }).join(''):'<tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:12px">20+ saat dönüş süreli firma yok ✅</td></tr>';
+  }).join(''):'<tr><td colspan="7" style="text-align:center;color:#a1a1aa;padding:12px">20+ saat dönüş süreli firma yok ✅</td></tr>';
 }
 
 function fAlarm(el,v){S.fAlarm=v;renderAL();}
