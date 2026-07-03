@@ -130,7 +130,7 @@ tbody tr:hover td{background:#fafafa}
 .py-cagri-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
 .py-cagri-name{font-size:14px;font-weight:600}
 .py-cagri-meta{font-size:12px;color:#71717a}
-.py-cagri-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px}
+.py-cagri-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
 .stat-box{background:#fafafa;border:1px solid #f0f0f0;border-radius:8px;padding:10px 12px;text-align:center}
 .stat-val{font-size:20px;font-weight:700;line-height:1;margin-bottom:3px}
 .stat-lbl{font-size:10px;color:#71717a;font-weight:500}
@@ -696,10 +696,6 @@ body.dark .theme-toggle:hover{background:#1e232b}
     </div>
 
     <div class="panel" id="panel-cagri">
-      <div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:8px;padding:10px 16px;font-size:12px;color:#7e22ce;margin-bottom:14px">
-        ⚠️ <b>Customer Name gereklidir.</b>
-      </div>
-
       <!-- Tarih filtresi -->
       <div class="card" style="margin-bottom:14px;padding:12px 18px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -748,6 +744,11 @@ body.dark .theme-toggle:hover{background:#1e232b}
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:10.5px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0">Flag</span>
             <select id="ca-trend-flag-select" onchange="setTrendFlag(this.value)" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer"></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10.5px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0">Sayım</span>
+            <div class="chip" id="ca-trend-mode-coklu" style="font-size:11px" onclick="setCaTrendMode('coklu')">Çoklu (çağrı)</div>
+            <div class="chip" id="ca-trend-mode-unique" style="font-size:11px" onclick="setCaTrendMode('unique')">Unique (müşteri)</div>
           </div>
         </div>
         <div style="display:flex;gap:16px;align-items:center;margin-bottom:6px">
@@ -808,20 +809,28 @@ body.dark .theme-toggle:hover{background:#1e232b}
 
       <!-- Aranmayan müşteriler -->
       <div class="card">
-        <div class="card-head">
-          <span class="ct">📵 Aranmayan müşteriler</span>
-          <div style="display:flex;gap:4px">
+        <div class="card-head" onclick="toggleAranmayan()" style="cursor:pointer;user-select:none">
+          <span class="ct">📵 Aranmayan müşteriler <span id="ca-aranmayan-cnt" style="font-size:11px;color:#a1a1aa;font-weight:400"></span></span>
+          <span id="aranmayan-toggle" style="font-size:14px;color:#a1a1aa;margin-left:auto">▼</span>
+        </div>
+        <div id="aranmayan-body" style="display:none">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 0 8px">
+            <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">Gün</span>
             <div class="chip on" style="font-size:11px" onclick="fAranmayan(this,'30-45')">30-45 gün</div>
             <div class="chip" style="font-size:11px" onclick="fAranmayan(this,'45-60')">45-60 gün</div>
             <div class="chip" style="font-size:11px" onclick="fAranmayan(this,'60+')">60+ gün</div>
           </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;padding:0 0 10px">
+            <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">PY</span>
+            <span id="aranmayan-py-chips" style="display:inline-flex;gap:5px;flex-wrap:wrap"></span>
+          </div>
+          <div class="tw"><table>
+            <thead><tr>
+              <th>Firma</th><th>Müşteri adı</th><th>PY</th><th>Son çağrı</th><th>Geçen gün</th>
+            </tr></thead>
+            <tbody id="ca-aranmayan-tbl"><tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:16px">Çağrı verisi bekleniyor</td></tr></tbody>
+          </table></div>
         </div>
-        <div class="tw"><table>
-          <thead><tr>
-            <th>Firma</th><th>Müşteri adı</th><th>PY</th><th>Son çağrı</th><th>Geçen gün</th>
-          </tr></thead>
-          <tbody id="ca-aranmayan-tbl"><tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:16px">Çağrı verisi bekleniyor</td></tr></tbody>
-        </table></div>
       </div>
     </div>
 
@@ -2967,6 +2976,21 @@ function fmtSureAvg(toplam, adet){
   return fmtSure(Math.round(toplam/adet));
 }
 
+// ── Çağrı PY filtresi — ana isimler + "Diğer" açılır grubu (paylaşılan) ──────
+// Ana çipler: Berkay, Sinem, Kubra, Yigit, Nidanur. Kalanlar "Diğer ▾" altında.
+const PY_MAIN_ORDER=['berkay','sinem','kubra','yigit','nidanur'];
+const PY_MAIN_SET=new Set(PY_MAIN_ORDER);
+function pyFoldFirst(s){return String(s==null?'':s).trim().split(/[\s_]/)[0].toLocaleLowerCase('tr').replace(/ı/g,'i').replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o').replace(/ç/g,'c');}
+S._pyDigerOpen=S._pyDigerOpen||{};
+function togglePyDiger(key){S._pyDigerOpen[key]=!S._pyDigerOpen[key];if(key==='aran')renderAranmayan();else renderCA();}
+function partitionPy(names,selected,key){
+  const uniq=[...new Set((names||[]).filter(Boolean))];
+  const main=uniq.filter(n=>PY_MAIN_SET.has(pyFoldFirst(n))).sort((a,b)=>PY_MAIN_ORDER.indexOf(pyFoldFirst(a))-PY_MAIN_ORDER.indexOf(pyFoldFirst(b)));
+  const others=uniq.filter(n=>!PY_MAIN_SET.has(pyFoldFirst(n))).sort();
+  const open=!!S._pyDigerOpen[key]||(!!selected&&selected!=='tümü'&&others.includes(selected));
+  return {main,others,open};
+}
+
 function renderCA(){
   const bgs=['#EEF2FF','#F0FDF4','#FFFBEB','#FFF1F2','#F5F3FF','#ECFDF5'];
   const fgs=['#3730a3','#15803d','#a16207','#be123c','#6d28d9','#0f766e'];
@@ -2974,8 +2998,22 @@ function renderCA(){
     document.getElementById('py-cagri-blocks').innerHTML='<div class="empty-state"><div>📞</div><div class="et">Çağrı verisi bekleniyor</div><div class="es">Çağrı logları Excel yükleyin</div></div>';
     return;
   }
-  // İlk yüklemede ay seçiciyi oluştur
-  if(document.getElementById('ca-tarih-select')?.options.length<=1) buildCagriMonthSelector();
+  // İlk yüklemede ay seçiciyi oluştur + default dönem = içinde bulunduğumuz ay
+  if(document.getElementById('ca-tarih-select')?.options.length<=1){
+    buildCagriMonthSelector();
+    if(!S._caPeriodInit){
+      S._caPeriodInit=true;
+      const _sel=document.getElementById('ca-tarih-select');
+      if(_sel){
+        const _now=new Date();
+        const _curKey=_now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0');
+        const _opts=[..._sel.options].map(o=>o.value).filter(Boolean);
+        if(_opts.includes(_curKey)) S._cagriSecilenAy=_curKey;
+        else if(_opts.length) S._cagriSecilenAy=_opts[_opts.length-1]; // en yeni dönem (bu ay boşsa)
+        _sel.value=S._cagriSecilenAy;
+      }
+    }
+  }
 
   const data=getCagriFiltered();
   const bas=data.filter(x=>x.durum==='Touch').length;
@@ -3090,55 +3128,59 @@ function renderCA(){
   const yipOran2=toplamMusteri>0?Math.round(toplamYip/toplamMusteri*100):null;
   document.getElementById('ca-yip-oran').textContent=yipOran2!==null?'%'+yipOran2:'—';
   document.getElementById('ca-yip-sub').textContent=toplamMusteri>0?`${toplamYip} / ${toplamMusteri} executive`:'';
-  const pyEntries=Object.entries(pm);
-  if(!pyEntries.length){
-    document.getElementById('py-cagri-blocks').innerHTML='<div class="empty-state"><div>📞</div><div class="et">Çağrı verisi bekleniyor</div></div>';
-    document.getElementById('ca-py-tab-chips').innerHTML='';
-  } else {
-    // Seçili PY
-    const pyNames=pyEntries.map(([n])=>n);
-    if(!S._secilenCagriPY) S._secilenCagriPY='tümü';
-    const allPyNames=['tümü',...pyNames];
-    document.getElementById('ca-py-tab-chips').innerHTML=allPyNames.map((name,i)=>{
-      const isTumu=name==='tümü';
-      const active=S._secilenCagriPY===name;
-      const col=isTumu?'#374151':fgs[(i-1)%6];
-      const bg=isTumu?'#374151':fgs[(i-1)%6];
-      return`<div onclick="selectCagriPYTab('${name}')" style="padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;
-        background:${active?bg:'#f4f4f5'};
-        color:${active?'#fff':'#52525b'};
-        border:1px solid ${active?bg:'#e4e4e7'}">${isTumu?'Tümü':name.split(' ')[0]}</div>`;}).join('');
-    if(S._secilenCagriPY==='tümü'){
-      // Tümü: toplam istatistikler
-      const topT=Object.values(pm).reduce((a,d)=>a+d.toplam,0);
-      const topB=Object.values(pm).reduce((a,d)=>a+d.basarili,0);
-      const topC=Object.values(pm).reduce((a,d)=>a+d.cevapsiz,0);
-      const topS=Object.values(pm).reduce((a,d)=>a+d.sure,0);
-      const topFirma=new Set(Object.values(pm).flatMap(d=>[...d.firmalar])).size;
-      const oranAll=topT?Math.round(topB/topT*100):0;
-      const oranColor=oranAll>=70?'#16a34a':oranAll>=50?'#ea580c':'#dc2626';
-      const covAll=calcPYCoverage('tümü');
-      const topCoverageEl=covAll&&covAll.toplam?`<span style="font-size:12px;font-weight:700;color:#185FA5">₺${Math.round(covAll.aranValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#71717a;margin-left:2px">/₺${Math.round(covAll.toplamValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#185FA5;font-weight:700;margin-left:4px">%${covAll.valueOran}</span>`:'<span style="font-size:12px;color:#d4d4d8">—</span>';
-      const topCountCoverageEl=covAll&&covAll.toplam?`<span style="font-size:12px;font-weight:700;color:#7c3aed">${covAll.aranan}</span><span style="font-size:10px;color:#71717a;margin-left:2px">/${covAll.toplam}</span><span style="font-size:10px;color:#7c3aed;font-weight:700;margin-left:4px">%${covAll.countOran}</span>`:'<span style="font-size:12px;color:#d4d4d8">—</span>';
-      document.getElementById('py-cagri-blocks').innerHTML=`<div class="py-cagri-block">
-        <div class="py-cagri-header">
-          <div class="py-cagri-av" style="background:#374151;color:#fff">TM</div>
-          <div><div class="py-cagri-name">Tüm PY'ler</div><div class="py-cagri-meta">${topFirma} firma · ${topT} toplam çağrı</div></div>
-          <div style="margin-left:auto;text-align:right"><div style="font-size:22px;font-weight:700;color:${oranColor}">${oranAll}%</div><div style="font-size:11px;color:#71717a">başarı oranı</div></div>
-        </div>
-        <div class="py-cagri-stats">
-          <div class="stat-box s-attempt"><div class="stat-val">${topT}</div><div class="stat-lbl">Toplam çağrı</div></div>
-          <div class="stat-box s-bas"><div class="stat-val">${topB}</div><div class="stat-lbl">Touch</div></div>
-          <div class="stat-box s-cevaps"><div class="stat-val">${topC}</div><div class="stat-lbl">Attempt</div></div>
-          <div class="stat-box s-sure"><div class="stat-val">${topS?fmtSure(topS):'—'}</div><div class="stat-lbl">Toplam süre</div></div>
-          <div class="stat-box" style="background:#eff6ff;border-color:#bfdbfe"><div class="stat-val" style="font-size:13px">${topCoverageEl}</div><div class="stat-lbl">Value coverage</div></div>
-          <div class="stat-box" style="background:#f5f3ff;border-color:#ddd6fe"><div class="stat-val" style="font-size:13px">${topCountCoverageEl}</div><div class="stat-lbl">Count coverage</div></div>
-        </div>
-        <div class="rate-bar"><div class="rate-fill" style="width:${oranAll}%;background:${oranColor}"></div></div>
-      </div>`;
-    } else {
-    const [name,d]=[S._secilenCagriPY,pm[S._secilenCagriPY]];
-    const idx=pyNames.indexOf(S._secilenCagriPY);
+  // ── PY tab chips: TÜM çağrı PY'lerinden (filtreden bağımsız) — ana + "Diğer" ──
+  if(!S._secilenCagriPY) S._secilenCagriPY='tümü';
+  const allCagriPY=[...new Set(S.cagrilar.map(c=>c.py_adi).filter(Boolean))];
+  const caTabColor=(n)=>{const i=allCagriPY.indexOf(n);return fgs[((i<0?0:i)%6)];};
+  const caTabChip=(nm,lbl,active)=>{const bg=nm==='tümü'?'#374151':caTabColor(nm);return`<div onclick="selectCagriPYTab('${String(nm).replace(/'/g,"\\'")}')" style="padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;background:${active?bg:'#f4f4f5'};color:${active?'#fff':'#52525b'};border:1px solid ${active?bg:'#e4e4e7'}">${lbl}</div>`;};
+  (function(){
+    const part=partitionPy(allCagriPY,S._secilenCagriPY,'ca');
+    let h=caTabChip('tümü','Tümü',S._secilenCagriPY==='tümü');
+    part.main.forEach(n=>{h+=caTabChip(n,n.split(' ')[0],S._secilenCagriPY===n);});
+    if(part.others.length){
+      h+=`<div onclick="togglePyDiger('ca')" style="padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;background:#f4f4f5;color:#52525b;border:1px solid ${part.open?'#a1a1aa':'#e4e4e7'}">Diğer ${part.open?'▴':'▾'}</div>`;
+      if(part.open) part.others.forEach(n=>{h+=caTabChip(n,n.split(' ')[0],S._secilenCagriPY===n);});
+    }
+    document.getElementById('ca-py-tab-chips').innerHTML=h;
+  })();
+
+  if(S._secilenCagriPY==='tümü'){
+    // Tümü: toplam istatistikler
+    const topT=Object.values(pm).reduce((a,d)=>a+d.toplam,0);
+    const topB=Object.values(pm).reduce((a,d)=>a+d.basarili,0);
+    const topC=Object.values(pm).reduce((a,d)=>a+d.cevapsiz,0);
+    const topS=Object.values(pm).reduce((a,d)=>a+d.sure,0);
+    const topFirma=new Set(Object.values(pm).flatMap(d=>[...d.firmalar])).size;
+    const oranAll=topT?Math.round(topB/topT*100):0;
+    const oranColor=oranAll>=70?'#16a34a':oranAll>=50?'#ea580c':'#dc2626';
+    const covAll=calcPYCoverage('tümü');
+    const execT2=Object.values(pm).reduce((a,d)=>a+(d.yip_musteri||0),0);
+    const execM2=Object.values(pm).reduce((a,d)=>a+(d.musteri||0),0);
+    const execOran2=execM2>0?Math.round(execT2/execM2*100):null;
+    const execEl2=execOran2!==null?`<span style="font-weight:700;color:#7c3aed">%${execOran2}</span> <span style="font-size:10px;color:#71717a">(${execT2}/${execM2})</span>`:'<span style="color:#d4d4d8">—</span>';
+    const topCoverageEl=covAll&&covAll.toplam?`<span style="font-size:12px;font-weight:700;color:#185FA5">₺${Math.round(covAll.aranValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#71717a;margin-left:2px">/₺${Math.round(covAll.toplamValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#185FA5;font-weight:700;margin-left:4px">%${covAll.valueOran}</span>`:'<span style="font-size:12px;color:#d4d4d8">—</span>';
+    const topCountCoverageEl=covAll&&covAll.toplam?`<span style="font-size:12px;font-weight:700;color:#7c3aed">${covAll.aranan}</span><span style="font-size:10px;color:#71717a;margin-left:2px">/${covAll.toplam}</span><span style="font-size:10px;color:#7c3aed;font-weight:700;margin-left:4px">%${covAll.countOran}</span>`:'<span style="font-size:12px;color:#d4d4d8">—</span>';
+    document.getElementById('py-cagri-blocks').innerHTML=`<div class="py-cagri-block">
+      <div class="py-cagri-header">
+        <div class="py-cagri-av" style="background:#374151;color:#fff">TM</div>
+        <div><div class="py-cagri-name">Tüm PY'ler</div><div class="py-cagri-meta">${topFirma} firma · ${topT} toplam çağrı</div></div>
+        <div style="margin-left:auto;text-align:right"><div style="font-size:22px;font-weight:700;color:${oranColor}">${oranAll}%</div><div style="font-size:11px;color:#71717a">başarı oranı</div></div>
+      </div>
+      <div class="py-cagri-stats">
+        <div class="stat-box" style="background:#eff6ff;border-color:#bfdbfe"><div class="stat-val" style="font-size:13px">${topCoverageEl}</div><div class="stat-lbl">Value coverage</div></div>
+        <div class="stat-box" style="background:#f5f3ff;border-color:#ddd6fe"><div class="stat-val" style="font-size:13px">${topCountCoverageEl}</div><div class="stat-lbl">Count coverage</div></div>
+        <div class="stat-box" style="background:#f5f3ff;border-color:#ddd6fe"><div class="stat-val" style="font-size:13px">${execEl2}</div><div class="stat-lbl">Executive Employee oranı</div></div>
+        <div class="stat-box s-sure"><div class="stat-val">${topS?fmtSure(topS):'—'}</div><div class="stat-lbl">Toplam süre</div></div>
+        <div class="stat-box s-bas"><div class="stat-val">${topB}</div><div class="stat-lbl">Touch</div></div>
+        <div class="stat-box s-cevaps"><div class="stat-val">${topC}</div><div class="stat-lbl">Attempt</div></div>
+        <div class="stat-box s-attempt"><div class="stat-val">${topT}</div><div class="stat-lbl">Toplam</div></div>
+        <div class="stat-box s-oran"><div class="stat-val" style="color:${oranColor}">${oranAll}%</div><div class="stat-lbl">Başarı oranı</div></div>
+      </div>
+      <div class="rate-bar"><div class="rate-fill" style="width:${oranAll}%;background:${oranColor}"></div></div>
+    </div>`;
+  } else if(pm[S._secilenCagriPY]){
+    const name=S._secilenCagriPY, d=pm[S._secilenCagriPY];
+    const idx=allCagriPY.indexOf(name);
     const ini=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const oran=d.toplam?Math.round(d.basarili/d.toplam*100):0;
     const toplamSD=d.sure?fmtSure(d.sure):'—';
@@ -3153,26 +3195,41 @@ function renderCA(){
     const gunRows=gunKeys.map(k=>{const g=d.gunler[k];const total=g.ok+g.fail;const w=Math.round(total/maxT*100);const okW=total?Math.round(g.ok/total*w):0;return`<div class="day-heatrow"><span class="day-label">${k.slice(5)}</span><div class="day-bar-wrap"><div class="day-bar-ok" style="width:${okW}%"></div><div class="day-bar-fail" style="width:${w-okW}%;left:${okW}%"></div></div><span class="day-count">${g.ok}✓ ${g.fail}✗</span></div>`;}).join('');
     document.getElementById('py-cagri-blocks').innerHTML=`<div class="py-cagri-block">
       <div class="py-cagri-header">
-        <div class="py-cagri-av" style="background:${bgs[idx%6]};color:${fgs[idx%6]}">${ini}</div>
+        <div class="py-cagri-av" style="background:${bgs[idx<0?0:idx%6]};color:${fgs[idx<0?0:idx%6]}">${ini}</div>
         <div><div class="py-cagri-name">${name}</div><div class="py-cagri-meta">${d.firmalar.size} firma · ${d.toplam} toplam çağrı</div></div>
         <div style="margin-left:auto;text-align:right"><div style="font-size:22px;font-weight:700;color:${oranColor}">${oran}%</div><div style="font-size:11px;color:#71717a">başarı oranı</div></div>
       </div>
       <div class="py-cagri-stats">
-        <div class="stat-box s-attempt"><div class="stat-val">${d.toplam}</div><div class="stat-lbl">Toplam attempt</div></div>
-        <div class="stat-box s-bas"><div class="stat-val">${d.basarili}</div><div class="stat-lbl">Touch</div></div>
-        <div class="stat-box s-cevaps"><div class="stat-val">${d.cevapsiz}</div><div class="stat-lbl">Attempt</div></div>
-        <div class="stat-box s-sure"><div class="stat-val">${toplamSD}</div><div class="stat-lbl">Toplam süre</div></div>
         <div class="stat-box" style="background:#eff6ff;border-color:#bfdbfe"><div class="stat-val" style="font-size:13px">${coverageEl}</div><div class="stat-lbl">Value coverage</div></div>
         <div class="stat-box" style="background:#f5f3ff;border-color:#ddd6fe"><div class="stat-val" style="font-size:13px">${countCoverageEl}</div><div class="stat-lbl">Count coverage</div></div>
         <div class="stat-box" style="background:#f5f3ff;border-color:#ddd6fe"><div class="stat-val" style="font-size:13px">${yipEl}</div><div class="stat-lbl">Executive Employee oranı</div></div>
+        <div class="stat-box s-sure"><div class="stat-val">${toplamSD}</div><div class="stat-lbl">Toplam süre</div></div>
+        <div class="stat-box s-bas"><div class="stat-val">${d.basarili}</div><div class="stat-lbl">Touch</div></div>
+        <div class="stat-box s-cevaps"><div class="stat-val">${d.cevapsiz}</div><div class="stat-lbl">Attempt</div></div>
+        <div class="stat-box s-attempt"><div class="stat-val">${d.toplam}</div><div class="stat-lbl">Toplam</div></div>
+        <div class="stat-box s-oran"><div class="stat-val" style="color:${oranColor}">${oran}%</div><div class="stat-lbl">Başarı oranı</div></div>
       </div>
       <div class="rate-bar"><div class="rate-fill" style="width:${oran}%;background:${oranColor}"></div></div>
       ${gunKeys.length?`<div style="margin-top:12px"><div style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">Son ${gunKeys.length} gün</div>${gunRows}</div>`:''}
     </div>`;
-    } // end else (tek PY)
-  } // end pyEntries.length
+  } else {
+    document.getElementById('py-cagri-blocks').innerHTML='<div class="empty-state"><div>📞</div><div class="et">Seçili dönemde '+String(S._secilenCagriPY).split(' ')[0]+' için çağrı yok</div></div>';
+  }
+  if(!S.fCagriPY) S.fCagriPY='tümü';
   const pyNames=[...new Set(S.cagrilar.map(c=>c.py_adi).filter(Boolean))];
-  document.getElementById('cf-chips').innerHTML=pyNames.map(n=>`<div class="chip" onclick="fCagriPY(this,'${n}')" style="display:inline-flex;margin:0 2px;font-size:11px">${n.split(' ')[0]}</div>`).join('');
+  (function(){
+    const cfSel=S.fCagriPY||'tümü';
+    const allChip=document.getElementById('cf-all'); if(allChip) allChip.classList.toggle('on',cfSel==='tümü');
+    const part=partitionPy(pyNames,cfSel,'cf');
+    const ch=(nm,lbl,active)=>`<div class="chip${active?' on':''}" onclick="fCagriPY(this,'${String(nm).replace(/'/g,"\\'")}')" style="display:inline-flex;margin:0 2px;font-size:11px">${lbl}</div>`;
+    let h='';
+    part.main.forEach(n=>{h+=ch(n,n.split(' ')[0],cfSel===n);});
+    if(part.others.length){
+      h+=`<div class="chip${part.open?' on':''}" onclick="togglePyDiger('cf')" style="display:inline-flex;margin:0 2px;font-size:11px">Diğer ${part.open?'▴':'▾'}</div>`;
+      if(part.open) part.others.forEach(n=>{h+=ch(n,n.split(' ')[0],cfSel===n);});
+    }
+    document.getElementById('cf-chips').innerHTML=h;
+  })();
   renderCagriTbl();
 }
 
@@ -3183,22 +3240,39 @@ function renderCagriTbl(){
   document.getElementById('ca-firma-tbl').innerHTML=rows.map(r=>{
     const oc=r.oran>=70?'#16a34a':r.oran>=50?'#ea580c':'#dc2626';
     const dots=r.son5.map(d=>`<div class="streak-dot ${d==='Touch'?'ok':'fail'}" title="${d}"></div>`).join('');
-    return`<tr><td style="font-weight:500;font-size:12px">${r.firma_adi}</td><td style="font-size:11px;color:${r.customer_name?'#71717a':'#f97316'};font-style:${r.customer_name?'normal':'italic'}">${r.customer_name||'Customer Name gerekli'}</td><td style="font-size:11px;color:#71717a">${r.py_adi||'—'}</td><td style="text-align:center">${r.toplam}</td><td style="text-align:center;color:#16a34a;font-weight:600">${r.basarili}</td><td style="text-align:center;color:#dc2626;font-weight:600">${r.cevapsiz}</td><td style="text-align:center"><span style="font-weight:700;color:${oc}">${r.oran}%</span></td><td style="text-align:center;font-size:12px">${r.ort_sure?fmtSure(r.ort_sure):'—'}</td><td><div class="streak-bar">${dots}</div></td></tr>`;
+    return`<tr><td style="font-weight:500;font-size:12px">${r.firma_adi}</td><td style="font-size:11px;color:${r.customer_name?'#71717a':'#f97316'};font-style:${r.customer_name?'normal':'italic'}">${r.customer_name||'—'}</td><td style="font-size:11px;color:#71717a">${r.py_adi||'—'}</td><td style="text-align:center">${r.toplam}</td><td style="text-align:center;color:#16a34a;font-weight:600">${r.basarili}</td><td style="text-align:center;color:#dc2626;font-weight:600">${r.cevapsiz}</td><td style="text-align:center"><span style="font-weight:700;color:${oc}">${r.oran}%</span></td><td style="text-align:center;font-size:12px">${r.ort_sure?fmtSure(r.ort_sure):'—'}</td><td><div class="streak-bar">${dots}</div></td></tr>`;
   }).join('')||'<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:16px">Veri yok</td></tr>';
 }
 
 function srtC(key){if(S.cSortKey===key)S.cSortDir*=-1;else{S.cSortKey=key;S.cSortDir=1;}renderCagriTbl();}
 function fAranmayan(el,band){
-  document.querySelectorAll('#panel-cagri .card:last-child .chip').forEach(c=>c.classList.remove('on'));
-  el.classList.add('on');
+  if(el&&el.parentElement) el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  if(el) el.classList.add('on');
   S._aranmayanBand=band;
   renderAranmayan();
 }
+function fAranmayanPY(v){S._aranmayanPY=v;renderAranmayan();}
+function toggleAranmayan(){toggleCard('aranmayan-body','aranmayan-toggle');}
 
 function renderAranmayan(){
   const band=S._aranmayanBand||'30-45';
+  const selPY=S._aranmayanPY||'tümü';
   const [bandMin,bandMax]=band==='60+'?[60,Infinity]:band.split('-').map(Number);
   const today=new Date();
+  // PY filtresi çipleri (firmaların Sorumlu PY'si) — ana + "Diğer"
+  const chipsEl=document.getElementById('aranmayan-py-chips');
+  if(chipsEl){
+    const firmaPY=[...new Set(S.firmalar.map(f=>f.py_adi).filter(Boolean))];
+    const part=partitionPy(firmaPY,selPY,'aran');
+    const ch=(nm,lbl,active)=>`<div class="chip${active?' on':''}" style="font-size:11px" onclick="fAranmayanPY('${String(nm).replace(/'/g,"\\'")}')">${lbl}</div>`;
+    let h=ch('tümü','Tümü',selPY==='tümü');
+    part.main.forEach(n=>{h+=ch(n,n.split(' ')[0],selPY===n);});
+    if(part.others.length){
+      h+=`<div class="chip${part.open?' on':''}" style="font-size:11px" onclick="togglePyDiger('aran')">Diğer ${part.open?'▴':'▾'}</div>`;
+      if(part.open) part.others.forEach(n=>{h+=ch(n,n.split(' ')[0],selPY===n);});
+    }
+    chipsEl.innerHTML=h;
+  }
   // Son çağrı tarihini firma bazlı bul
   const sonCagri={};
   const sonCagriMus={};
@@ -3210,12 +3284,14 @@ function renderAranmayan(){
       sonCagriMus[k]=c.customer_name||c.firma_adi;
     }
   });
+  const cntEl=document.getElementById('ca-aranmayan-cnt');
   if(!S.cagrilar.length){
     document.getElementById('ca-aranmayan-tbl').innerHTML='<tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:16px">Çağrı verisi yüklenmedi</td></tr>';
+    if(cntEl) cntEl.textContent='';
     return;
   }
-  // Firma listesinden tüm firmaları al, son çağrısı gun+ olan veya hiç aranmayanlar
-  const kaynakFirms=S.firmalar.length?S.firmalar:[];
+  // Firma listesinden (PY filtresine uyanlar), son çağrısı gun+ olan veya hiç aranmayanlar
+  const kaynakFirms=(S.firmalar.length?S.firmalar:[]).filter(f=>selPY==='tümü'||f.py_adi===selPY);
   const aranmayan=kaynakFirms.filter(f=>{
     const k=f.firma_id||f.musteri_adi;
     const son=sonCagri[k];
@@ -3229,6 +3305,7 @@ function renderAranmayan(){
     return{...f,son_cagri:son||null,gecen_gun:gecen};
   }).sort((a,b)=>(b.gecen_gun||9999)-(a.gecen_gun||9999));
 
+  if(cntEl) cntEl.textContent=aranmayan.length?('· '+aranmayan.length+' firma'):'';
   document.getElementById('ca-aranmayan-tbl').innerHTML=aranmayan.length?aranmayan.map(f=>`<tr>
     <td style="font-weight:500;font-size:12px">${f.musteri_adi||f.firma_id||'—'}</td>
     <td style="font-size:11px;color:#71717a">${sonCagriMus[f.firma_id||f.musteri_adi]||'—'}</td>
@@ -3449,9 +3526,16 @@ function renderCagriTrend(){
   if(S._trendPY!=='Tümü') data=data.filter(c=>c.py_adi===S._trendPY);
   if(S._trendFlag!=='Tümü') data=data.filter(c=>firmaFlagMap[String(c.firma_id||'').trim()]===S._trendFlag);
 
+  // Sayım modu (çoklu = çağrı adedi, unique = benzersiz müşteri) toggle senkronu
+  if(!S._caTrendMode) S._caTrendMode='coklu';
+  const _mc=document.getElementById('ca-trend-mode-coklu'), _mu=document.getElementById('ca-trend-mode-unique');
+  if(_mc) _mc.classList.toggle('on',S._caTrendMode==='coklu');
+  if(_mu) _mu.classList.toggle('on',S._caTrendMode==='unique');
+
   // Dönem gruplaması (Günlük/Haftalık/Aylık)
   const gran=S._caTrendGran||'gun';
-  const grouped=cagriGroupByPeriod(data,gran,resolveCagriRange('ca',gran));
+  const _range=resolveCagriRange('ca',gran);
+  const grouped=S._caTrendMode==='unique'?caUniqueByPeriod(data,gran,_range):cagriGroupByPeriod(data,gran,_range);
   renderCagriRangeInputs('ca');
   const days=grouped.keys;
   const touchArr=grouped.touch;
@@ -3464,7 +3548,8 @@ function renderCagriTrend(){
     const totalT=touchArr.reduce((a,b)=>a+b,0);
     const totalA=attemptArr.reduce((a,b)=>a+b,0);
     const birim=gran==='ay'?'ay':gran==='hafta'?'hafta':'gün';
-    info.textContent=days.length?`${days.length} ${birim} · ${totalT} touch · ${totalA} attempt`:'';
+    const unit=S._caTrendMode==='unique'?'müşteri':'çağrı';
+    info.textContent=days.length?`${days.length} ${birim} · ${totalT} touch · ${totalA} attempt (${unit})`:'';
   }
 }
 
@@ -3504,6 +3589,27 @@ function cagriGroupByPeriod(calls,gran,range){
   const keys=Object.keys(m).sort();
   return {keys,touch:keys.map(k=>m[k].touch),attempt:keys.map(k=>m[k].attempt)};
 }
+// Unique mod: dönem başına BENZERSİZ müşteri (firma_id = Müşteri ID) sayısı.
+function caUniqueByPeriod(calls,gran,range){
+  const from=range&&range.from?range.from:null;
+  const to=range&&range.to?range.to:null;
+  const m={};
+  calls.forEach(c=>{
+    if(!c.tarih||c.tarih==='-') return;
+    const g=String(c.tarih).slice(0,10);
+    if(from&&g<from) return;
+    if(to&&g>to) return;
+    const k=cagriTrendPeriodKey(c.tarih,gran);
+    if(!k) return;
+    const cid=String(c.firma_id||'').trim(); if(!cid) return;
+    if(!m[k]) m[k]={touch:{},attempt:{}};
+    if(c.durum==='Touch') m[k].touch[cid]=1;
+    else if(c.durum==='Attempt') m[k].attempt[cid]=1;
+  });
+  const keys=Object.keys(m).sort();
+  return {keys,touch:keys.map(k=>Object.keys(m[k].touch).length),attempt:keys.map(k=>Object.keys(m[k].attempt).length)};
+}
+function setCaTrendMode(mode){S._caTrendMode=mode;renderCagriTrend();}
 // Bir kart başlığına yerleştirilecek dönem seçici (Günlük/Haftalık/Aylık).
 function cagriGranSelectHTML(id,handler,current){
   const opts=[['gun','Günlük'],['hafta','Haftalık'],['ay','Aylık']];
