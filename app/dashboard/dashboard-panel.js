@@ -26,18 +26,34 @@ export default function DashboardPanel() {
     doc.body.appendChild(s);
   }
 
+  // Yanıt JSON değilse (ör. Vercel zaman aşımı düz-metin sayfası) okunabilir hata üret.
+  async function parseJson(r) {
+    const t = await r.text();
+    try {
+      return JSON.parse(t);
+    } catch {
+      throw new Error(`Sunucu yanıtı JSON değil (HTTP ${r.status}): ${t.slice(0, 70)}…`);
+    }
+  }
+
   async function refresh() {
     setBusy(true);
     setMsg("Qlik'ten çekiliyor…");
     try {
-      const r = await fetch("/api/dashboard/run", { method: "POST" });
-      const d = await r.json();
+      // İKİ PARALEL istek: Qlik kaynakları + yenileme cache'i (bkz. updated-hq paneli).
+      const [main, yen] = await Promise.allSettled([
+        fetch("/api/dashboard/run?except=yenileme", { method: "POST" }).then(parseJson),
+        fetch("/api/dashboard/run?only=yenileme", { method: "POST" }).then(parseJson),
+      ]);
+      if (main.status === "rejected") throw main.reason;
+      const d = main.value;
       if (!d.ok) throw new Error(d.error || "Bilinmeyen hata");
       // Her kaynağın satır sayısını özetle (onboarding, firma, …).
       const parts = Object.keys(d)
         .filter((k) => d[k] && typeof d[k] === "object" && d[k].rows != null)
         .map((k) => `${k}: ${d[k].rows}`);
-      setMsg("Yenilendi" + (parts.length ? " · " + parts.join(" · ") : ""));
+      const yenOk = yen.status === "fulfilled" && yen.value && yen.value.ok !== false;
+      setMsg("Yenilendi" + (parts.length ? " · " + parts.join(" · ") : "") + (yenOk ? "" : " · (yenileme cache güncellenemedi)"));
       const w = ref.current?.contentWindow;
       if (w) w.location.reload(); // reload → onLoad → injectPipeline → /api/dashboard/data
     } catch (e) {

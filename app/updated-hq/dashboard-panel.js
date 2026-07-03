@@ -43,14 +43,34 @@ export default function DashboardPanel() {
     doc.body.appendChild(s);
   }
 
+  // Yanıt JSON değilse (ör. Vercel zaman aşımı düz-metin sayfası) okunabilir hata üret.
+  async function parseJson(r) {
+    const t = await r.text();
+    try {
+      return JSON.parse(t);
+    } catch {
+      throw new Error(`Sunucu yanıtı JSON değil (HTTP ${r.status}): ${t.slice(0, 70)}…`);
+    }
+  }
+
   async function refresh() {
     setBusy(true);
     setErr("");
     try {
-      const r = await fetch("/api/dashboard/run", { method: "POST" });
-      const d = await r.json();
-      if (!d.ok) throw new Error(d.error || "Bilinmeyen hata");
-      if (d.updatedAt) setUpdatedAt(d.updatedAt);
+      // İKİ PARALEL istek: Qlik kaynakları + yenileme cache'i (Apps Script). Tek istekte
+      // toplam süre Vercel fonksiyon limitini aşıyordu; bölününce her biri kendi 120sn
+      // bütçesinde çalışır. Yenileme cache'i güncellenemezse ölümcül değil (eski cache /
+      // canlı fallback devrede kalır).
+      const [main, yen] = await Promise.allSettled([
+        fetch("/api/dashboard/run?except=yenileme", { method: "POST" }).then(parseJson),
+        fetch("/api/dashboard/run?only=yenileme", { method: "POST" }).then(parseJson),
+      ]);
+      if (main.status === "rejected") throw main.reason;
+      if (!main.value.ok) throw new Error(main.value.error || "Bilinmeyen hata");
+      if (main.value.updatedAt) setUpdatedAt(main.value.updatedAt);
+      if (yen.status === "rejected" || (yen.value && yen.value.ok === false)) {
+        console.warn("[dashboard] yenileme cache güncellenemedi:", yen.status === "rejected" ? yen.reason : yen.value);
+      }
       const w = ref.current?.contentWindow;
       if (w) w.location.reload();
     } catch (e) {

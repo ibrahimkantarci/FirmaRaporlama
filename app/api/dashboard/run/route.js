@@ -93,9 +93,13 @@ async function runPipeline(request) {
     catch (err) { return Response.json({ ok: false, error: String(err?.message ?? err) }, { status: 500 }); }
   }
   const only = searchParams.get("only");
-  const sources = only
-    ? DASHBOARD_SOURCES.filter((s) => s.key === only)
-    : DASHBOARD_SOURCES;
+  // except: bazı kaynakları bu çalıştırmadan HARİÇ tut (virgülle çoklu). Kullanım:
+  // istemci run'ı ikiye böler — ?except=yenileme (Qlik kaynakları) + ?only=yenileme
+  // (Apps Script cache) PARALEL çağrılır; tek istekte toplam süre Vercel 120sn
+  // fonksiyon limitini aşıyordu (düz-metin "An error occurred" → JSON parse hatası).
+  const except = (searchParams.get("except") || "").split(",").map((s) => s.trim()).filter(Boolean);
+  let sources = only ? DASHBOARD_SOURCES.filter((s) => s.key === only) : DASHBOARD_SOURCES;
+  if (!only && except.length) sources = sources.filter((s) => !except.includes(s.key));
   if (!sources.length) {
     return Response.json({ ok: false, error: `Kaynak bulunamadı: ${only || "(boş)"}` }, { status: 400 });
   }
