@@ -40,27 +40,49 @@ function toObjects(values) {
     });
 }
 
+// HIZ (payload diyeti): yalnız istenen kolonları bırak (sekmede tümü durur; yanıt küçülür).
+// İstenen kolonlardan hiçbiri başlıkta yoksa dokunmaz (eski/farklı başlıklı sekme bozulmasın).
+function trimColumns(values, wanted) {
+  if (!Array.isArray(values) || !values.length || !Array.isArray(wanted) || !wanted.length) return values;
+  const hdr = (values[0] || []).map((h) => String(h ?? "").trim());
+  const idx = wanted.map((w) => hdr.indexOf(w)).filter((i) => i >= 0);
+  if (!idx.length) return values;
+  return values.map((r) => idx.map((i) => (Array.isArray(r) && r[i] != null ? r[i] : "")));
+}
+
 export const GET = withAccess("dashboard", async () => {
   const out = { ok: true };
   try {
-    for (const src of DASHBOARD_SOURCES) {
-      // Canlı URL kaynağı → doğrudan çek (Sheet sekmesi yok).
-      if (src.urlEnv) {
-        try {
-          out[src.key] = await fetchExternalRows(src);
-        } catch {
-          out[src.key] = [];
+    // HIZ: tüm kaynaklar PARALEL okunur (sıralı ~8sn → ~1.5-2sn).
+    const results = await Promise.all(
+      DASHBOARD_SOURCES.map(async (src) => {
+        // Canlı URL kaynağı: önce cache sekmesi (run route yazar), boşsa canlı fetch.
+        if (src.urlEnv) {
+          if (src.cacheTab) {
+            try {
+              const cached = toObjects(await readMatrixFromSheet({ tab: src.cacheTab }));
+              if (cached.length) return [src.key, cached];
+            } catch {
+              // cache sekmesi henüz yok → canlıya düş
+            }
+          }
+          try {
+            return [src.key, await fetchExternalRows(src)];
+          } catch {
+            return [src.key, []];
+          }
         }
-        continue;
-      }
-      let values = [];
-      try {
-        values = await readMatrixFromSheet({ tab: src.tab });
-      } catch {
-        values = []; // sekme henüz yoksa boş dön
-      }
-      out[src.key] = toObjects(values);
-    }
+        let values = [];
+        try {
+          values = await readMatrixFromSheet({ tab: src.tab });
+        } catch {
+          values = []; // sekme henüz yoksa boş dön
+        }
+        if (src.sendCols) values = trimColumns(values, src.sendCols);
+        return [src.key, toObjects(values)];
+      })
+    );
+    for (const [k, v] of results) out[k] = v;
     return Response.json(out);
   } catch (err) {
     return Response.json({ ok: false, error: String(err?.message ?? err) }, { status: 500 });

@@ -103,9 +103,33 @@ async function runPipeline(request) {
   const out = { ok: true, updatedAt: new Date().toISOString() };
   try {
     for (const src of sources) {
-      // ── CANLI URL kaynağı (ör. RENEWAL_DATA): Sheet'e yazılmaz, data route canlı çeker.
+      // ── CANLI URL kaynağı (ör. RENEWAL_DATA): cacheTab varsa buraya YAZILIR (açılış
+      // hızlansın diye data route sekmeden okur); yoksa data route canlı çeker.
       if (src.urlEnv) {
-        out[src.key] = { mode: "live", tab: null };
+        if (src.cacheTab) {
+          try {
+            const liveRows = await fetchExternalRows(src);
+            if (liveRows.length) {
+              // Satır nesneleri → matris (başlık = tüm satırların anahtar birleşimi, ilk görülme sırası).
+              const keys = [];
+              const seen = {};
+              liveRows.forEach((r) => Object.keys(r || {}).forEach((k) => { if (!seen[k]) { seen[k] = 1; keys.push(k); } }));
+              const matrix = [keys, ...liveRows.map((r) => keys.map((k) => {
+                const v = r ? r[k] : "";
+                return v == null ? "" : (typeof v === "object" ? JSON.stringify(v) : v);
+              }))];
+              await overwriteSheetTab(matrix, { tab: src.cacheTab });
+              out[src.key] = { mode: "live-cache", rows: liveRows.length, tab: src.cacheTab };
+            } else {
+              // Boş yanıt geldiyse mevcut cache'i EZME (eski veri kalır, veri kaybı olmaz).
+              out[src.key] = { mode: "live-cache", rows: 0, tab: src.cacheTab, note: "boş yanıt — cache korundu" };
+            }
+          } catch (e) {
+            out[src.key] = { mode: "live-cache", tab: src.cacheTab, error: String(e?.message ?? e) };
+          }
+        } else {
+          out[src.key] = { mode: "live", tab: null };
+        }
         continue;
       }
 
