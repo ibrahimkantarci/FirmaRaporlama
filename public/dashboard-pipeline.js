@@ -506,14 +506,20 @@
         bar.innerHTML =
           '<span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">Sayım</span>' +
           '<div class="chip" id="obm-unique" onclick="setObCagriMode(\'unique\')" style="font-size:11px">Unique (firma)</div>' +
-          '<div class="chip" id="obm-coklu" onclick="setObCagriMode(\'coklu\')" style="font-size:11px">Çoklu (çağrı)</div>';
+          '<div class="chip" id="obm-coklu" onclick="setObCagriMode(\'coklu\')" style="font-size:11px">Çoklu (çağrı)</div>' +
+          '<span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;margin-left:12px">Yön</span>' +
+          '<div class="chip" id="oby-hepsi" onclick="setObYon(\'hepsi\')" style="font-size:11px">Hepsi</div>' +
+          '<div class="chip" id="oby-in" onclick="setObYon(\'in\')" style="font-size:11px">Gelen</div>' +
+          '<div class="chip" id="oby-out" onclick="setObYon(\'out\')" style="font-size:11px">Giden</div>';
         chart.parentNode.insertBefore(bar, chart);
       }
       var u = document.getElementById("obm-unique"), co = document.getElementById("obm-coklu");
       if (u) u.classList.toggle("on", (S._obCagriMode || "unique") === "unique");
       if (co) co.classList.toggle("on", (S._obCagriMode || "unique") === "coklu");
+      ["hepsi", "in", "out"].forEach(function (y) { var el = document.getElementById("oby-" + y); if (el) el.classList.toggle("on", (S._obYon || "hepsi") === y); });
     }
     window.setObCagriMode = function (m) { S._obCagriMode = m; renderObCagriDegerlendirme(); };
+    window.setObYon = function (y) { S._obYon = y; renderObCagriDegerlendirme(); };
 
     window.renderObCagriDegerlendirme = function () {
       var chartEl = document.getElementById("ob-cagri-chart");
@@ -560,6 +566,7 @@
         if (!custSet[cid]) return false;
         var st = custStart[cid];
         if (st && c.tarih && c.tarih < st) return false;
+        if ((S._obYon || "hepsi") !== "hepsi" && typeof callYonMatch === "function" && !callYonMatch(c, S._obYon)) return false;
         return true;
       });
 
@@ -845,6 +852,7 @@
             musteri_id: mid,
             cagri_id: String(row["sonitel_call_log_id"] || ""),
             kullanici_tipi: String(row["Kullanıcı Tipi"] || ""),
+            yon: String(row["IB OB"] || "").trim(), // Gelen=inbound, Giden=outbound
           };
         });
         S.loaded.cagri = true;

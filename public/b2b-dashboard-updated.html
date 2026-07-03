@@ -687,6 +687,10 @@ body.dark .theme-toggle:hover{background:#1e232b}
             <option value="">Tüm dönemler</option>
           </select>
           <span id="ca-tarih-info" style="font-size:11px;color:#a1a1aa;margin-left:4px"></span>
+          <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;margin-left:10px">Yön</span>
+          <div class="chip on" id="ca-yon-hepsi" style="font-size:11px" onclick="setCaYon('hepsi')">Hepsi</div>
+          <div class="chip" id="ca-yon-in" style="font-size:11px" onclick="setCaYon('in')">📥 Gelen</div>
+          <div class="chip" id="ca-yon-out" style="font-size:11px" onclick="setCaYon('out')">📤 Giden</div>
         </div>
       </div>
 
@@ -2922,12 +2926,21 @@ function onCagriAyChange(){
   renderCoverage();
 }
 
+// Çağrı yönü (IB OB kolonu: Gelen=inbound, Giden=outbound) filtresi — paylaşılan.
+function callYonMatch(c,y){
+  if(!y||y==='hepsi') return true;
+  const v=String(c&&c.yon||'');
+  if(y==='in') return /gelen/i.test(v);
+  if(y==='out') return /giden/i.test(v);
+  return true;
+}
 function getCagriFiltered(){
   // Yalnız ÜST bardaki dönem (Granülarite + Dönem) — üstteki 6 özet kartını besler.
   // PY tab (S._secilenCagriPY) BURADAN ÇIKARILDI: PY detayı seçimi artık trendi/üst
-  // kartları etkilemez. Her filtre yalnız kendi bölümünü etkiler.
+  // kartları etkilemez. Her filtre yalnız kendi bölümünü etkiler. (Yön filtresi tüm çağrıya.)
   let arr=S.cagrilar;
   if(S._cagriSecilenAy) arr=arr.filter(c=>cagriPeriodKey(c.tarih)===S._cagriSecilenAy);
+  if((S._caYon||'hepsi')!=='hepsi') arr=arr.filter(c=>callYonMatch(c,S._caYon));
   return arr;
 }
 // ── PY Detayı bölümü için KAPSAM (coverage) dönemine göre veri ───────────────
@@ -2943,8 +2956,9 @@ function covPeriodKeyH(tarih){
 }
 function getCagriCoverage(){
   const per=S._covPeriod||'';
-  if(!per) return S.cagrilar.slice();
-  return S.cagrilar.filter(c=>covPeriodKeyH(c.tarih)===per);
+  let arr = per ? S.cagrilar.filter(c=>covPeriodKeyH(c.tarih)===per) : S.cagrilar.slice();
+  if((S._caYon||'hepsi')!=='hepsi') arr=arr.filter(c=>callYonMatch(c,S._caYon));
+  return arr;
 }
 // PY detayı blokları için kapsam-dönemli harita (per-PY sayaç + unique müşteri exec).
 function buildCagriMapsCov(){
@@ -3055,6 +3069,8 @@ function renderCA(){
     }
   }
 
+  // Yön çipleri (Gelen/Giden/Hepsi) senkron
+  ['hepsi','in','out'].forEach(function(y){var el=document.getElementById('ca-yon-'+y);if(el)el.classList.toggle('on',(S._caYon||'hepsi')===y);});
   const data=getCagriFiltered();
   const bas=data.filter(x=>x.durum==='Touch').length;
   const cevaps=data.filter(x=>x.durum==='Attempt').length;
@@ -3380,6 +3396,7 @@ function renderCoverage(){
 }
 
 function selectCagriPYTab(name){S._secilenCagriPY=name;renderCA();}
+function setCaYon(y){S._caYon=y;renderCA();}
 function toggleCard(bodyId, iconId){
   const body=document.getElementById(bodyId);
   const icon=document.getElementById(iconId);
@@ -3558,8 +3575,8 @@ function renderCagriTrend(){
   const chartEl=document.getElementById('ca-trend-chart');
   if(!chartEl) return;
   // Trend TAMAMEN kendi filtreleriyle (PY/Flag/Sayım/gran/aralık) çalışır — üst dönem
-  // ve PY detayı seçiminden BAĞIMSIZ. Baz = tüm çağrılar.
-  const base=S.cagrilar;
+  // ve PY detayı seçiminden BAĞIMSIZ. Baz = tüm çağrılar (yalnız yön filtresi geneldir).
+  const base=(S._caYon&&S._caYon!=='hepsi')?S.cagrilar.filter(c=>callYonMatch(c,S._caYon)):S.cagrilar;
 
   // Firma → flag rengi eşlemesi (mevcut desenle aynı)
   const firmaFlagMap={};
