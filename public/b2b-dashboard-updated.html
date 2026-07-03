@@ -414,6 +414,14 @@ body.dark .theme-toggle:hover{background:#1e232b}
         <div class="chip on" id="py-all-chip" onclick="fPY(this,'tümü')">Tümü</div>
         <span id="py-chips"></span>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.4px">Paket bitiş dönemi</span>
+        <input type="month" id="pf-donem-from" onchange="renderPF()" title="Başlangıç ayı" style="padding:4px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+        <span style="font-size:11px;color:#a1a1aa">–</span>
+        <input type="month" id="pf-donem-to" onchange="renderPF()" title="Bitiş ayı" style="padding:4px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+        <span onclick="clearPfDonem()" title="Dönemi temizle" style="font-size:12px;color:#c0c5cc;cursor:pointer;padding:2px 6px;border-radius:6px">✕ temizle</span>
+        <span id="pf-donem-info" style="font-size:11px;color:#a1a1aa"></span>
+      </div>
       <div class="two-col">
         <div class="card">
           <div class="card-head"><span class="ct">PY portföy özeti</span></div>
@@ -2386,10 +2394,39 @@ function renderFirmaTbl(){
   }).join('')||'<tr><td colspan="13" style="text-align:center;color:#a1a1aa;padding:16px">Sonuç yok</td></tr>';
 }
 
+// Paket bitiş dönemine göre firma listesini filtreler (PY portföy özeti + Kategori dağılımı ortak)
+function pfDonemFiltered(list){
+  const fromEl=document.getElementById('pf-donem-from');
+  const toEl=document.getElementById('pf-donem-to');
+  const from=fromEl&&fromEl.value?fromEl.value:'';       // YYYY-MM
+  const to=toEl&&toEl.value?toEl.value:'';
+  const infoEl=document.getElementById('pf-donem-info');
+  if(infoEl){
+    if(from&&to) infoEl.textContent=`${from} – ${to}`;
+    else if(from) infoEl.textContent=`${from} ve sonrası`;
+    else if(to) infoEl.textContent=`${to} ve öncesi`;
+    else infoEl.textContent='Tüm dönemler';
+  }
+  if(!from&&!to) return list;
+  return list.filter(f=>{
+    if(!f.bitis_tarihi) return false;
+    const ay=String(f.bitis_tarihi).slice(0,7);           // YYYY-MM
+    if(from&&ay<from) return false;
+    if(to&&ay>to) return false;
+    return true;
+  });
+}
+function clearPfDonem(){
+  const f=document.getElementById('pf-donem-from');
+  const t=document.getElementById('pf-donem-to');
+  if(f) f.value=''; if(t) t.value='';
+  renderPF();
+}
+
 function renderPYCards(){
   const pm={};
   const mk=()=>({t:0,Y:0,S:0,T:0,K:0,vY:0,vS:0,vT:0,vK:0,vTop:0});
-  S.firmalar.forEach(f=>{
+  pfDonemFiltered(S.firmalar).forEach(f=>{
     const k=f.py_adi||'Bilinmiyor';
     if(!pm[k])pm[k]=mk();
     const val=num(f.satis_fiyati)||0;
@@ -2619,7 +2656,8 @@ function setKatDistTab(tab){
 function renderKatDist(){
   const tab=S._katDistTab||'kategori';
   const field=tab==='grup'?'kategori_grubu':'kategori_adi';
-  const kaynak=S.fPY!=='tümü'?S.firmalar.filter(f=>f.py_adi===S.fPY):S.firmalar;
+  const baz=pfDonemFiltered(S.firmalar);
+  const kaynak=S.fPY!=='tümü'?baz.filter(f=>f.py_adi===S.fPY):baz;
   const km={};kaynak.forEach(f=>{const k=f[field]||'Diğer';if(!km[k])km[k]=0;km[k]++;});
   const sorted=Object.entries(km).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const max=sorted[0]?.[1]||1;
