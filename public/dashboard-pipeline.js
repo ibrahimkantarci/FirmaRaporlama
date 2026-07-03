@@ -254,67 +254,9 @@
   window.renSetCol = function (i, col) { S._renFilters[i].col = col; S._renFilters[i].values = []; renderRenewalAnaliz(); };
   window.renSetVals = function (i, sel) { var v = []; for (var o = 0; o < sel.options.length; o++) if (sel.options[o].selected) v.push(sel.options[o].value); S._renFilters[i].values = v; renderRenewalAnaliz(); };
 
-  // ── Performans → "Segment bazlı lead dağılımı" (#pf-lead-dist) ────────────
-  // Vendor placeholder'ını provider_segment (A+/A/B/C/D) kırılımına bağlar.
-  // Lead metriği = firma "teklif". Segment iyiden kötüye sıralanır.
-  var SEG_ORDER = { "A+": 0, "A": 1, "B": 2, "C": 3, "D": 4 };
-  function segNum(v) {
-    if (v == null || v === "") return 0;
-    if (typeof v === "number") return isFinite(v) ? v : 0;
-    var t = String(v).replace(/[^\d.,-]/g, ""); var hasC = t.indexOf(",") >= 0, hasD = t.indexOf(".") >= 0;
-    if (hasC && hasD) t = t.replace(/\./g, "").replace(",", "."); else if (hasC) t = t.replace(",", ".");
-    var f = parseFloat(t); return isFinite(f) ? f : 0;
-  }
-  function renderSegmentLeadDist() {
-    var el = document.getElementById("pf-lead-dist"); if (!el) return;
-    var all = S.firmalar || [];
-    if (!all.length) { el.innerHTML = '<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri bekleniyor</div>'; return; }
-    // Kategori dropdown'ını bir kez doldur
-    var katSel = document.getElementById("pf-lead-kat");
-    if (katSel && katSel.options.length <= 1) {
-      var kats = [];
-      all.forEach(function (x) { var k = x.kategori_adi; if (k && k !== "—" && kats.indexOf(k) < 0) kats.push(k); });
-      kats.sort();
-      kats.forEach(function (k) { var o = document.createElement("option"); o.value = k; o.textContent = k; katSel.appendChild(o); });
-    }
-    var secilenKat = katSel ? katSel.value : "";
-    var f = secilenKat ? all.filter(function (x) { return x.kategori_adi === secilenKat; }) : all;
-    if (!f.length) { el.innerHTML = '<div style="color:#a1a1aa;font-size:12px;padding:8px">Bu kategoride firma yok</div>'; return; }
-    var groups = {};
-    f.forEach(function (x) {
-      var s = String(x.provider_segment == null ? "" : x.provider_segment).trim() || "—";
-      var gr = groups[s] || (groups[s] = { seg: s, adet: 0, lead: 0 });
-      gr.adet++; gr.lead += segNum(x.teklif);
-    });
-    var arr = Object.keys(groups).map(function (k) { return groups[k]; });
-    arr.sort(function (a, b) {
-      var oa = a.seg === "—" ? 99 : (a.seg in SEG_ORDER ? SEG_ORDER[a.seg] : 98);
-      var ob = b.seg === "—" ? 99 : (b.seg in SEG_ORDER ? SEG_ORDER[b.seg] : 98);
-      return oa - ob;
-    });
-    var totLead = arr.reduce(function (s, gr) { return s + gr.lead; }, 0) || 1;
-    var totAdet = f.length || 1;
-    var cols = ["#16a34a", "#4d7c0f", "#ca8a04", "#ea580c", "#dc2626", "#a1a1aa"];
-    var softs = ["#f0fdf4", "#f7fee7", "#fefce8", "#fff7ed", "#fef2f2", "#fafafa"];
-    el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">' +
-      arr.map(function (gr, i) {
-        var pct = 100 * gr.lead / totLead;
-        var apct = Math.round(100 * gr.adet / totAdet);
-        var ort = gr.adet ? (gr.lead / gr.adet) : 0;
-        var c = cols[Math.min(i, cols.length - 1)];
-        var soft = softs[Math.min(i, softs.length - 1)];
-        return '<div style="background:' + soft + ';border:1px solid ' + c + '33;border-radius:10px;padding:12px 14px">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
-            '<span style="font-size:15px;font-weight:700;color:' + c + '">' + renEsc(gr.seg) + '</span>' +
-            '<span style="font-size:11px;font-weight:700;color:#fff;background:' + c + ';border-radius:10px;padding:2px 8px">%' + pct.toFixed(1) + '</span>' +
-          '</div>' +
-          '<div style="font-size:22px;font-weight:700;color:#18181b;line-height:1">' + gr.adet + '</div>' +
-          '<div style="font-size:11px;color:#71717a;margin-top:2px">firma · toplam %' + apct + '</div>' +
-          '<div style="font-size:11px;color:#52525b;margin-top:6px;padding-top:6px;border-top:1px solid ' + c + '22">' + Math.round(gr.lead).toLocaleString("tr-TR") + ' teklif · <b>' + ort.toFixed(1) + '</b> firma başı</div>' +
-        '</div>';
-      }).join("") + '</div>';
-  }
-  window.renderLeadDist = renderSegmentLeadDist;
+  // NOT: "Segment bazlı lead dağılımı" (renderLeadDist) artık VENDOR HTML'de
+  // (sabit segment renkleri + A+/A/B/C/D daima görünür orada düzeltildi). Pipeline
+  // override'ı kaldırıldı; renderPF içindeki renderLeadDist() vendor sürümünü çağırır.
 
   // ══ Çağrı Analizi — executive top kart + coverage rework + PY detayı dönem seçici ══
   // Vendor renderCA/calcPYCoverage'ı sarmalar (her iki dashboard'a uygulanır).
@@ -659,6 +601,9 @@
       if (!full || !full.length) return;
       var topEl = document.getElementById("pf-top"); if (topEl) topEl.textContent = full.length; // toplam portföy (filtreden bağımsız)
       try { if (typeof renderPYChips === "function") renderPYChips(); } catch (e) {} // PY çipleri tam listeden
+      // PY özeti TAM flag dağılımını gösterir (flag % anlamlı olsun diye flag filtresinden bağımsız;
+      // PY seçimini kendi içinde yapar). Filtre yalnız içerik kartlarına uygulanır.
+      try { if (typeof renderPYCards === "function") renderPYCards(); } catch (e) {}
       var filtered = full.filter(function (x) {
         if (S.fFlag && S.fFlag !== "tümü" && x.flag_rengi !== S.fFlag) return false;
         if (S.fPY && S.fPY !== "tümü" && x.py_adi !== S.fPY) return false;
@@ -667,7 +612,6 @@
       S.firmalar = filtered;
       try {
         if (typeof renderFirmaTbl === "function") renderFirmaTbl();
-        if (typeof renderPYCards === "function") renderPYCards();
         if (typeof renderKatDist === "function") renderKatDist();
         if (typeof renderLeadDist === "function") renderLeadDist();
         if (typeof renderSehirValue === "function") renderSehirValue();
@@ -724,9 +668,9 @@
           '<div class="card-head"><span class="ct">Custom Pivot — Performans kırılımı</span><span id="perf-pivot-info" style="font-size:11px;color:#a1a1aa"></span></div>' +
           '<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px">' +
             '<div style="display:flex;gap:8px;align-items:center"><span class="flbl">Kırılım</span><select id="perf-dim" onchange="perfSetDim(this.value)" style="font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:4px"></select></div>' +
-            '<div style="display:flex;gap:8px;align-items:center"><span class="flbl">Sırala</span>' +
+            '<div style="display:flex;gap:8px;align-items:center"><span class="flbl">Görüntüle</span>' +
               '<div class="chip" id="perf-m-value" onclick="perfSetMetric(\'value\')" style="font-size:11px">Value (₺)</div>' +
-              '<div class="chip" id="perf-m-firma" onclick="perfSetMetric(\'firma\')" style="font-size:11px">Firma sayısı</div></div>' +
+              '<div class="chip" id="perf-m-teklif" onclick="perfSetMetric(\'teklif\')" style="font-size:11px">Teklif</div></div>' +
           '</div>' +
           '<div class="flbl" style="margin-bottom:4px">Filtreler</div><div id="perf-filters" style="display:flex;flex-direction:column;gap:6px"></div>' +
           '<div style="margin:8px 0"><button onclick="perfAddFilter()" style="font-size:12px;padding:5px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#185FA5">+ Filtre ekle</button></div>' +
@@ -743,7 +687,7 @@
       var dimSel = document.getElementById("perf-dim");
       if (dimSel) dimSel.innerHTML = PERF_DIMS.map(function (d) { return '<option value="' + d.k + '"' + (S._perfDim === d.k ? " selected" : "") + '>' + d.lbl + '</option>'; }).join("");
       document.getElementById("perf-m-value").classList.toggle("on", S._perfMetric === "value");
-      document.getElementById("perf-m-firma").classList.toggle("on", S._perfMetric === "firma");
+      document.getElementById("perf-m-teklif").classList.toggle("on", S._perfMetric === "teklif");
       var fHost = document.getElementById("perf-filters");
       if (fHost) fHost.innerHTML = (S._perfFilters || []).map(function (f, i) {
         var opts = '<option value="">— kolon —</option>' + PERF_DIMS.map(function (d) { return '<option value="' + d.k + '"' + (f.col === d.k ? " selected" : "") + '>' + d.lbl + '</option>'; }).join("");
@@ -752,16 +696,18 @@
         return '<div style="display:flex;gap:6px;align-items:flex-start"><select onchange="perfSetCol(' + i + ',this.value)" style="font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:4px">' + opts + '</select>' + valSel + '<button onclick="perfRemFilter(' + i + ')" style="font-size:11px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#71717a;padding:4px 8px">✕</button></div>';
       }).join("");
       var data = perfBase(), dim = S._perfDim, groups = {};
-      data.forEach(function (x) { var g = String(x[dim] == null ? "" : x[dim]).trim() || "—"; var o = groups[g] || (groups[g] = { g: g, n: 0, val: 0 }); o.n++; o.val += renNum(x.satis_fiyati); });
+      data.forEach(function (x) { var g = String(x[dim] == null ? "" : x[dim]).trim() || "—"; var o = groups[g] || (groups[g] = { g: g, n: 0, val: 0, teklif: 0 }); o.n++; o.val += renNum(x.satis_fiyati); o.teklif += renNum(x.teklif); });
       var arr = Object.keys(groups).map(function (k) { return groups[k]; });
-      arr.sort(function (a, b) { return S._perfMetric === "firma" ? b.n - a.n : b.val - a.val; });
-      var totV = arr.reduce(function (s, o) { return s + o.val; }, 0);
-      var info = document.getElementById("perf-pivot-info"); if (info) info.textContent = arr.length + " değer · " + data.length + " firma · " + renTL(totV);
-      var maxM = arr.reduce(function (m, o) { return Math.max(m, S._perfMetric === "firma" ? o.n : o.val); }, 0) || 1;
+      var mOf = function (o) { return S._perfMetric === "teklif" ? o.teklif : o.val; }; // "Görüntüle" metriği
+      arr.sort(function (a, b) { return mOf(b) - mOf(a); });
+      var totV = arr.reduce(function (s, o) { return s + o.val; }, 0), totT = arr.reduce(function (s, o) { return s + o.teklif; }, 0);
+      var info = document.getElementById("perf-pivot-info"); if (info) info.textContent = arr.length + " değer · " + data.length + " firma · " + renTL(totV) + " · " + totT + " teklif";
+      var maxM = arr.reduce(function (m, o) { return Math.max(m, mOf(o)); }, 0) || 1;
+      var barCol = S._perfMetric === "teklif" ? "#7c3aed" : "#185FA5";
       var body = document.getElementById("perf-pivot-body");
       body.innerHTML = arr.length ? arr.slice(0, 60).map(function (o) {
-        var mv = S._perfMetric === "firma" ? o.n : o.val, pct = Math.round(mv / maxM * 100);
-        return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:600">' + renEsc(o.g) + '</span><span style="color:#71717a">' + o.n + ' firma · ' + renTL(o.val) + ' · ' + renTL(o.val / 12) + '/ay</span></div><div style="background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, pct) + '%;background:#185FA5;border-radius:5px"></div></div></div>';
+        var pct = Math.round(mOf(o) / maxM * 100);
+        return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:600">' + renEsc(o.g) + '</span><span style="color:#71717a">' + o.n + ' firma · ' + renTL(o.val) + ' (' + renTL(o.val / 12) + '/ay) · ' + o.teklif + ' teklif</span></div><div style="background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, pct) + '%;background:' + barCol + ';border-radius:5px"></div></div></div>';
       }).join("") + (arr.length > 60 ? '<div style="color:#a1a1aa;font-size:11px">…+' + (arr.length - 60) + ' değer</div>' : "") : '<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri yok</div>';
     }
     window.perfSetDim = function (v) { S._perfDim = v; renderPerfPivot(); };
@@ -785,12 +731,19 @@
 
       // ── Onboarding ──────────────────────────────────────────────────────
       if (Array.isArray(d.onboarding) && d.onboarding.length) {
+        // "Kampanya var mı" bilgisi Dashboard_Firma'dan (Kampanya Sayısı); Provider Id = RÇİ
+        // ile eşlenir (canlı: %99). Onboarding'in kendi kampanya/whatsapp'ı kullanılmaz.
+        var firmaKampanya = {};
+        if (Array.isArray(d.firma)) d.firma.forEach(function (fr) { var rci = String(fr["RÇİ"] == null ? "" : fr["RÇİ"]).trim().replace(/\.0+$/, ""); if (rci) firmaKampanya[rci] = fr["Kampanya Sayısı"]; });
         S.onboarding = d.onboarding.map(function (row) {
-          return mapRow(row, ONBOARDING_MAP);
+          var m = mapRow(row, ONBOARDING_MAP);
+          var pid = String(m.ob_id == null ? "" : m.ob_id).trim().replace(/\.0+$/, "");
+          if (pid in firmaKampanya) m.kampanya = firmaKampanya[pid];
+          return m;
         });
         S.loaded.onboarding = true;
         S.loaded.flag = S.onboarding.some(function (f) { return f.ob_flag; });
-        S.loaded.kw = S.onboarding.some(function (f) { return f.kampanya || f.whatsapp; });
+        S.loaded.kw = S.onboarding.some(function (f) { return f.kampanya; });
         loaded.push("onboarding: " + S.onboarding.length);
       }
 

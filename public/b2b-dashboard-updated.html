@@ -419,7 +419,6 @@ body.dark .theme-toggle:hover{background:#1e232b}
             <th title="Galeri">🖼</th>
             <th title="Yorum">⭐</th>
             <th title="Kampanya">📣</th>
-            <th title="WhatsApp">💬</th>
             <th>Durum</th>
           </tr></thead>
           <tbody id="ob-full-tbl"><tr><td colspan="15" style="text-align:center;color:#a1a1aa;padding:20px">Onboarding verisi yüklenmedi</td></tr></tbody>
@@ -1577,9 +1576,8 @@ function obEksikler(f){
   if(obNi(f.hakkinda)<300)   miss.push(`Hakkında(${obNi(f.hakkinda)}/300)`);
   if(obGaleriEksik(f))       miss.push(`Galeri(${obNi(f.galeri)}/${obGaleriHedef(f)})`);
   if(obNi(f.yorum)<10)       miss.push(`Yorum(${obNi(f.yorum)}/10)`);
-  // kampanya & wp — sadece veri yüklendiyse kontrol et
+  // kampanya (Firma_Dashboard'dan) — sadece veri yüklendiyse kontrol et
   if(!obNi(f.kampanya)) miss.push('Kampanya');
-  if(!obNonempty(f.whatsapp)) miss.push('WhatsApp');
   return miss;
 }
 
@@ -1593,7 +1591,7 @@ function obBasariliMezun(f){
   // Mezun ve tüm metrikler eksiksiz
   if(f.mezun_mu!=='Evet') return false;
   const temelEksik=!obNonempty(f.telefon)||!obNonempty(f.adres)||obNi(f.hakkinda)<300||obGaleriEksik(f)||obNi(f.yorum)<10;
-  const kwEksik=!obNi(f.kampanya)||!obNonempty(f.whatsapp);
+  const kwEksik=!obNi(f.kampanya);
   return !temelEksik&&!kwEksik;
 }
 
@@ -1654,7 +1652,6 @@ function renderOB(){
     ['🖼 Galeri Big5/Others≥50', d.filter(f=>['Big 5','Others'].includes(f.kategori_grubu)&&obNi(f.galeri)>=50).length, d.filter(f=>['Big 5','Others'].includes(f.kategori_grubu)).length, '#185FA5', 'galeri_big5'],
     ['⭐ Yorum ≥10',     d.filter(f=>obNi(f.yorum)>=10).length,                                                d.length, '#ea580c', 'yorum'],
     ['📣 Kampanya',      d.filter(f=>obNi(f.kampanya)>0).length, d.length, '#7c3aed', 'kampanya'],
-    ['💬 WhatsApp',      d.filter(f=>obNonempty(f.whatsapp)).length, d.length, '#0891b2', 'whatsapp'],
   ];
   document.getElementById('ob-metrik-ozet').innerHTML=metrikler.map(([lbl,ok,tot,col,key])=>{
     const pct=tot?Math.round(ok/tot*100):0;
@@ -1919,7 +1916,6 @@ function renderObProviderSearch(){
     {lbl:'🖼 Galeri',       val:obNi(firma.galeri)+' fotoğraf',   ok:obNi(firma.galeri)>0},
     {lbl:'⭐ Yorum',        val:obNi(firma.yorum)+' yorum',        ok:obNi(firma.yorum)>=10},
     {lbl:'📣 Kampanya',     val:obNi(firma.kampanya)+' kampanya',  ok:obNi(firma.kampanya)>0},
-    {lbl:'💬 WhatsApp',     val:firma.whatsapp||'—',      ok:obNonempty(firma.whatsapp)},
     {lbl:'📊 Profil puanı', val:parseFloat(firma.profil_puani)>0?parseFloat(firma.profil_puani).toFixed(1):'—', ok:parseFloat(firma.profil_puani)>0},
     {lbl:'📈 Toplam teklif',val:obNi(firma.toplam_teklif)+' teklif', ok:obNi(firma.toplam_teklif)>0},
   ];
@@ -2041,7 +2037,6 @@ function renderOBTable(){
       <td style="text-align:center" title="${galeriVal}/${hedef}">${ck(true,galeriOK)}<span style="font-size:10px;color:#71717a;margin-left:2px">${galeriVal}</span></td>
       <td style="text-align:center" title="${obNi(f.yorum)}/10">${ck(true,obNi(f.yorum)>=10)}<span style="font-size:10px;color:#71717a;margin-left:2px">${obNi(f.yorum)}</span></td>
       <td style="text-align:center">${ck(true,obNi(f.kampanya)>0)}</td>
-      <td style="text-align:center">${ck(true,obNonempty(f.whatsapp))}</td>
       <td>${mezunBadge}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="15" style="text-align:center;color:#a1a1aa;padding:16px">Sonuç yok</td></tr>';
@@ -2460,10 +2455,10 @@ function renderPYCards(){
         <div><div class="py-name">${baslik}</div><div class="py-meta">${d.t} firma · %${pct} yeşil flag · ${ay(d.vTop)}/ay toplam</div></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;font-size:12.5px">
-        <div style="display:flex;justify-content:space-between"><span>🟢 <b>${d.Y}</b> firma</span><span style="color:#16a34a;font-weight:600">${ay(d.vY)}/ay</span></div>
-        <div style="display:flex;justify-content:space-between"><span>🟡 <b>${d.S}</b> firma</span><span style="color:#ca8a04;font-weight:600">${ay(d.vS)}/ay</span></div>
-        <div style="display:flex;justify-content:space-between"><span>🟠 <b>${d.T}</b> firma</span><span style="color:#ea580c;font-weight:600">${ay(d.vT)}/ay</span></div>
-        <div style="display:flex;justify-content:space-between"><span>🔴 <b>${d.K}</b> firma</span><span style="color:#dc2626;font-weight:600">${ay(d.vK)}/ay</span></div>
+        <div style="display:flex;justify-content:space-between"><span>🟢 <b>${d.Y}</b> firma <span style="color:#a1a1aa;font-size:11px">%${d.t?Math.round(d.Y/d.t*100):0}</span></span><span style="color:#16a34a;font-weight:600">${ay(d.vY)}/ay</span></div>
+        <div style="display:flex;justify-content:space-between"><span>🟡 <b>${d.S}</b> firma <span style="color:#a1a1aa;font-size:11px">%${d.t?Math.round(d.S/d.t*100):0}</span></span><span style="color:#ca8a04;font-weight:600">${ay(d.vS)}/ay</span></div>
+        <div style="display:flex;justify-content:space-between"><span>🟠 <b>${d.T}</b> firma <span style="color:#a1a1aa;font-size:11px">%${d.t?Math.round(d.T/d.t*100):0}</span></span><span style="color:#ea580c;font-weight:600">${ay(d.vT)}/ay</span></div>
+        <div style="display:flex;justify-content:space-between"><span>🔴 <b>${d.K}</b> firma <span style="color:#a1a1aa;font-size:11px">%${d.t?Math.round(d.K/d.t*100):0}</span></span><span style="color:#dc2626;font-weight:600">${ay(d.vK)}/ay</span></div>
       </div>
     </div>`;
 }
@@ -2489,28 +2484,32 @@ function renderLeadDist(){
     return;
   }
   const SEG_ORDER={'A+':0,'A':1,'B':2,'C':3,'D':4};
+  // SABİT segment renkleri (index'e göre DEĞİL — bir segment eksik olsa da renk kaymasın).
+  const SEG_COLOR={'A+':'#16a34a','A':'#4d7c0f','B':'#ca8a04','C':'#ea580c','D':'#dc2626'};
+  const SEG_SOFT ={'A+':'#f0fdf4','A':'#f7fee7','B':'#fefce8','C':'#fff7ed','D':'#fef2f2'};
+  const DEF_COLOR='#a1a1aa', DEF_SOFT='#fafafa';
   const groups={};
   f.forEach(x=>{
     const s=String(x.provider_segment||'').trim()||'—';
     if(!groups[s]) groups[s]={seg:s,adet:0,lead:0};
     groups[s].adet++; groups[s].lead+=num(x.teklif)||0;
   });
+  // A+, A, B, C, D DAİMA görünsün (0 olsa bile). "-"/"—" yalnız veride varsa (dokunma).
+  ['A+','A','B','C','D'].forEach(s=>{ if(!groups[s]) groups[s]={seg:s,adet:0,lead:0}; });
   const arr=Object.values(groups).sort((a,b)=>{
-    const oa=a.seg==='—'?99:(a.seg in SEG_ORDER?SEG_ORDER[a.seg]:98);
-    const ob=b.seg==='—'?99:(b.seg in SEG_ORDER?SEG_ORDER[b.seg]:98);
+    const oa=(a.seg in SEG_ORDER)?SEG_ORDER[a.seg]:99;
+    const ob=(b.seg in SEG_ORDER)?SEG_ORDER[b.seg]:99;
     return oa-ob;
   });
   const totLead=arr.reduce((s,g)=>s+g.lead,0)||1;
   const totAdet=f.length||1;
-  const cols=['#16a34a','#4d7c0f','#ca8a04','#ea580c','#dc2626','#a1a1aa'];
-  const softs=['#f0fdf4','#f7fee7','#fefce8','#fff7ed','#fef2f2','#fafafa'];
   el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">'+
-    arr.map((gr,i)=>{
+    arr.map((gr)=>{
       const pct=100*gr.lead/totLead;
       const apct=Math.round(100*gr.adet/totAdet);
       const ort=gr.adet?(gr.lead/gr.adet):0;
-      const c=cols[Math.min(i,cols.length-1)];
-      const soft=softs[Math.min(i,softs.length-1)];
+      const c=SEG_COLOR[gr.seg]||DEF_COLOR;
+      const soft=SEG_SOFT[gr.seg]||DEF_SOFT;
       return `<div style="background:${soft};border:1px solid ${c}33;border-radius:10px;padding:12px 14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <span style="font-size:15px;font-weight:700;color:${c}">${gr.seg}</span>
@@ -2655,8 +2654,11 @@ function renderKatDist(){
 }
 
 function renderPYChips(){
-  const names=[...new Set(S.firmalar.map(f=>f.py_adi).filter(Boolean))];
-  document.getElementById('py-chips').innerHTML=names.map(n=>`<div class="chip" onclick="fPY(this,'${n}')" style="display:inline-flex;margin:0 2px">${n.split(' ')[0]}</div>`).join('');
+  const names=[...new Set(S.firmalar.map(f=>f.py_adi).filter(Boolean))]
+    .filter(n=>{const fw=String(n).split(' ')[0].toLocaleLowerCase('tr');return fw!=='eylul'&&fw!=='eylül';});
+  document.getElementById('py-chips').innerHTML=names.map(n=>`<div class="chip${S.fPY===n?' on':''}" onclick="fPY(this,'${n}')" style="display:inline-flex;margin:0 2px">${n.split(' ')[0]}</div>`).join('');
+  const allChip=document.getElementById('py-all-chip');
+  if(allChip) allChip.classList.toggle('on',S.fPY==='tümü'||!S.fPY);
 }
 
 function srt(key){if(S.sortKey===key)S.sortDir*=-1;else{S.sortKey=key;S.sortDir=1;}
