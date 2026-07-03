@@ -485,15 +485,6 @@ body.dark .theme-toggle:hover{background:#1e232b}
           <div id="pf-flag-value"></div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-head">
-          <span class="ct">📅 Paket yenileme — aylık dağılım</span>
-          <select id="pf-yenileme-ay" onchange="renderYenilemeMonthDist()" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-            <option value="">Tüm dönemler</option>
-          </select>
-        </div>
-        <div id="pf-yenileme-dist"></div>
-      </div>
     </div>
 
     <!-- YENİLEME -->
@@ -544,16 +535,21 @@ body.dark .theme-toggle:hover{background:#1e232b}
 
       <!-- En çok ödeyen müşteriler -->
       <div class="card">
-        <div class="card-head">
+        <div class="card-head" onclick="toggleCard('yn-customer-body','yn-customer-toggle')" style="cursor:pointer;user-select:none">
           <span class="ct">💰 En çok ödeyen müşteriler (Customer ID bazlı)</span>
-          <span id="yn-customer-cnt" style="font-size:11px;color:#a1a1aa"></span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span id="yn-customer-cnt" style="font-size:11px;color:#a1a1aa"></span>
+            <span id="yn-customer-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
+          </div>
         </div>
-        <div class="tw"><table>
-          <thead><tr>
-            <th>Customer ID</th><th>Firma sayısı</th><th>Firmalar</th><th>Toplam Value (Yıllık)</th><th>Aylık Value</th>
-          </tr></thead>
-          <tbody id="yn-customer-tbl"></tbody>
-        </table></div>
+        <div id="yn-customer-body" style="display:none">
+          <div class="tw"><table>
+            <thead><tr>
+              <th>Customer ID</th><th>Firma sayısı</th><th>Firmalar</th><th>Toplam Value (Yıllık)</th><th>Aylık Value</th>
+            </tr></thead>
+            <tbody id="yn-customer-tbl"></tbody>
+          </table></div>
+        </div>
       </div>
     </div>
 
@@ -2242,7 +2238,7 @@ function renderPF(){
   const f=S.firmalar;if(!f.length)return;
   const cnt=flag=>f.filter(x=>x.flag_rengi===flag).length;
   document.getElementById('pf-top').textContent=f.length;
-  renderFirmaTbl();renderPYCards();renderKatDist();renderPYChips();renderYenilemeMonthDist();renderLeadDist();renderSehirValue();renderFlagValue();
+  renderFirmaTbl();renderPYCards();renderKatDist();renderPYChips();renderLeadDist();renderSehirValue();renderFlagValue();
 }
 
 function renderFirmaTbl(){
@@ -2281,79 +2277,56 @@ function renderFirmaTbl(){
 
 function renderPYCards(){
   const pm={};
-  S.firmalar.forEach(f=>{const k=f.py_adi||'Bilinmiyor';if(!pm[k])pm[k]={t:0,Y:0,S:0,T:0,K:0};pm[k].t++;if(f.flag_rengi==='Yeşil')pm[k].Y++;else if(f.flag_rengi==='Sarı')pm[k].S++;else if(f.flag_rengi==='Turuncu')pm[k].T++;else if(f.flag_rengi==='Kırmızı')pm[k].K++;});
+  const mk=()=>({t:0,Y:0,S:0,T:0,K:0,vY:0,vS:0,vT:0,vK:0,vTop:0});
+  S.firmalar.forEach(f=>{
+    const k=f.py_adi||'Bilinmiyor';
+    if(!pm[k])pm[k]=mk();
+    const val=num(f.satis_fiyati)||0;
+    pm[k].t++; pm[k].vTop+=val;
+    if(f.flag_rengi==='Yeşil'){pm[k].Y++;pm[k].vY+=val;}
+    else if(f.flag_rengi==='Sarı'){pm[k].S++;pm[k].vS+=val;}
+    else if(f.flag_rengi==='Turuncu'){pm[k].T++;pm[k].vT+=val;}
+    else if(f.flag_rengi==='Kırmızı'){pm[k].K++;pm[k].vK+=val;}
+  });
   const names=Object.keys(pm);
   if(!names.length){document.getElementById('py-cards').innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri yok</div>';return;}
-  // Seçili PY'yi fPY state'den al, yoksa ilk PY
-  const secili=S.fPY!=='tümü'&&pm[S.fPY]?S.fPY:names[0];
   const bgs=['#EEF2FF','#F0FDF4','#FFFBEB','#FFF1F2','#F5F3FF','#ECFDF5'];
   const fgs=['#3730a3','#15803d','#a16207','#be123c','#6d28d9','#0f766e'];
-  const d=pm[secili];
-  const idx=names.indexOf(secili);
-  const ini=secili.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+  // "Tümü" seçiliyse tüm PY'lerin toplamını göster, aksi halde seçili PY
+  let secili, d, ini, idx, baslik;
+  if(S.fPY==='tümü'||!pm[S.fPY]){
+    d=mk();
+    names.forEach(nm=>{const p=pm[nm];d.t+=p.t;d.Y+=p.Y;d.S+=p.S;d.T+=p.T;d.K+=p.K;d.vY+=p.vY;d.vS+=p.vS;d.vT+=p.vT;d.vK+=p.vK;d.vTop+=p.vTop;});
+    baslik='Tüm PY\'ler';
+    ini='∑';
+    idx=0;
+  }else{
+    secili=S.fPY;
+    d=pm[secili];
+    baslik=secili;
+    ini=secili.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    idx=names.indexOf(secili);
+  }
   const pct=d.t?Math.round(d.Y/d.t*100):0;
+  // Aylık value = yıllık satış fiyatı / 12
+  const ay=v=>'₺'+Math.round((v||0)/12).toLocaleString('tr-TR');
   document.getElementById('py-cards').innerHTML=`
     <div class="py-card" style="border:none;padding:12px 0">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <div class="py-av" style="background:${bgs[idx%6]};color:${fgs[idx%6]}">${ini}</div>
-        <div><div class="py-name">${secili}</div><div class="py-meta">${d.t} firma · %${pct} yeşil flag</div></div>
+        <div><div class="py-name">${baslik}</div><div class="py-meta">${d.t} firma · %${pct} yeşil flag · ${ay(d.vTop)}/ay toplam</div></div>
       </div>
-      <div class="py-dots" style="font-size:13px;gap:12px">
-        <span>🟢 <b>${d.Y}</b></span>
-        <span>🟡 <b>${d.S}</b></span>
-        <span>🟠 <b>${d.T}</b></span>
-        <span>🔴 <b>${d.K}</b></span>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:12.5px">
+        <div style="display:flex;justify-content:space-between"><span>🟢 <b>${d.Y}</b> firma</span><span style="color:#16a34a;font-weight:600">${ay(d.vY)}/ay</span></div>
+        <div style="display:flex;justify-content:space-between"><span>🟡 <b>${d.S}</b> firma</span><span style="color:#ca8a04;font-weight:600">${ay(d.vS)}/ay</span></div>
+        <div style="display:flex;justify-content:space-between"><span>🟠 <b>${d.T}</b> firma</span><span style="color:#ea580c;font-weight:600">${ay(d.vT)}/ay</span></div>
+        <div style="display:flex;justify-content:space-between"><span>🔴 <b>${d.K}</b> firma</span><span style="color:#dc2626;font-weight:600">${ay(d.vK)}/ay</span></div>
       </div>
     </div>`;
 }
 
-function renderYenilemeMonthDist(){
-  const el=document.getElementById('pf-yenileme-dist');
-  if(!el) return;
-  const today=new Date();
-  const ayMap={};
-  S.firmalar.forEach(f=>{
-    if(!f.bitis_tarihi) return;
-    const d=new Date(f.bitis_tarihi);
-    if(isNaN(d)) return;
-    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    if(!ayMap[key]) ayMap[key]={adet:0,value:0,flags:{Yeşil:0,Sarı:0,Turuncu:0,Kırmızı:0,Diğer:0}};
-    ayMap[key].adet++;
-    ayMap[key].value+=num(f.satis_fiyati)||0;
-    const fl=f.flag_rengi||'Diğer';
-    if(ayMap[key].flags[fl]!==undefined) ayMap[key].flags[fl]++;
-    else ayMap[key].flags['Diğer']++;
-  });
-  const sorted=Object.entries(ayMap).sort((a,b)=>a[0]>b[0]?1:-1);
-  if(!sorted.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:8px">Bitiş tarihi verisi yok</div>';return;}
-  // Dropdown doldur
-  const sel=document.getElementById('pf-yenileme-ay');
-  if(sel&&sel.options.length<=1){
-    sorted.forEach(([ay])=>{const o=document.createElement('option');o.value=ay;o.textContent=ay;sel.appendChild(o);});
-  }
-  const secilenAy=sel?sel.value:'';
-  const filtrelenmis=secilenAy?sorted.filter(([ay])=>ay===secilenAy):sorted;
-  const maxVal=Math.max(...filtrelenmis.map(([,v])=>v.value),1);
-  const flagIcons={Yeşil:'🟢',Sarı:'🟡',Turuncu:'🟠',Kırmızı:'🔴'};
-  const colors=['#E5002A','#f76707','#f0b429','#27a060','#185FA5','#7c3aed','#db2777','#0891b2','#65a30d','#a16207'];
-  el.innerHTML=filtrelenmis.map(([ay,v],i)=>{
-    const d=new Date(ay+'-01');
-    const gecti=d<today&&d.getMonth()!==today.getMonth();
-    const buAy=d.getFullYear()===today.getFullYear()&&d.getMonth()===today.getMonth();
-    const flagStr=['Yeşil','Sarı','Turuncu','Kırmızı'].filter(r=>v.flags[r]>0).map(r=>`${flagIcons[r]}${v.flags[r]}`).join(' ');
-    const buAyBadge=buAy?' <span style="font-size:10px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:10px">Bu ay</span>':'';
-    return`<div style="margin-bottom:10px;${gecti&&!secilenAy?'opacity:.5':''}">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
-        <span style="font-size:12px;font-weight:600;width:80px;flex-shrink:0">${ay}${buAyBadge}</span>
-        <span style="font-size:11px;color:#71717a;flex:1;padding:0 8px">${flagStr}</span>
-        <span style="font-size:11px;font-weight:600;color:${colors[i%10]};white-space:nowrap">${v.adet} firma · ₺${Math.round(v.value).toLocaleString('tr-TR')} · ₺${Math.round(v.value/12).toLocaleString('tr-TR')}/ay</span>
-      </div>
-      <div style="background:#f4f4f5;border-radius:5px;height:18px;overflow:hidden;position:relative">
-        <div style="position:absolute;left:0;top:0;height:100%;width:${Math.round(v.value/maxVal*100)}%;background:${colors[i%10]};border-radius:5px"></div>
-      </div>
-    </div>`;
-  }).join('');
-}
+
 
 function renderLeadDist(){
   const el=document.getElementById('pf-lead-dist');
@@ -2762,7 +2735,10 @@ function cagriPeriodKey(tarih){
 }
 
 function setCagriGranularity(el,g){
-  document.querySelectorAll('#panel-cagri .card:first-of-type .chip').forEach(c=>c.classList.remove('on'));
+  // Yalnızca tıklanan chip'in kendi grubundaki (kardeş) chip'leri temizle
+  if(el&&el.parentElement){
+    el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  }
   el.classList.add('on');
   S._cagriGranularite=g;
   buildCagriMonthSelector();
