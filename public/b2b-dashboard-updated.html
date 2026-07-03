@@ -297,6 +297,20 @@ body.dark .theme-toggle:hover{background:#1e232b}
         <div id="ob-metrik-ozet"></div>
       </div>
 
+      <!-- 5 Teklife Ulaşma Süresi (kategoriye göre) -->
+      <div class="card">
+        <div class="card-head">
+          <span class="ct">⏱️ Ortalama 5 Teklife Ulaşma Süresi</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:11px;color:#71717a">Kategori</span>
+            <select id="ob-teklif5-kat" onchange="renderTeklif5()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+              <option value="">Tüm kategoriler</option>
+            </select>
+          </div>
+        </div>
+        <div id="ob-teklif5-dist"></div>
+      </div>
+
       <!-- 1 ayı dolan firmalar (varsayılan kapalı) -->
       <div class="card">
         <div class="card-head" onclick="toggleCard('ob-rapor-body','ob-rapor-toggle')" style="cursor:pointer;user-select:none">
@@ -356,6 +370,27 @@ body.dark .theme-toggle:hover{background:#1e232b}
                 <th>Başlangıç</th><th>Gün</th><th>Attempt denemesi</th><th>Durum</th>
               </tr></thead>
               <tbody id="ob-cagri-tbl"><tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">—</td></tr></tbody>
+            </table></div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid #f4f4f5">
+          <div onclick="toggleCard('ob-donem-aranmayan-body','ob-donem-aranmayan-toggle')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
+            <span class="ct">📆 Seçili Dönemde Aranmayan Onboarding Firmaları</span>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span id="ob-donem-aranmayan-info" style="font-size:11px;color:#a1a1aa"></span>
+              <span id="ob-donem-aranmayan-cnt" style="font-size:11px;color:#a1a1aa"></span>
+              <span id="ob-donem-aranmayan-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
+            </div>
+          </div>
+          <div id="ob-donem-aranmayan-body" style="display:none;margin-top:10px">
+            <div style="font-size:11px;color:#a1a1aa;margin-bottom:8px">Dönem, yukarıdaki çağrı trendi tarih aralığı seçicisiyle belirlenir.</div>
+            <div class="tw"><table>
+              <thead><tr>
+                <th>Firma</th><th>PY</th><th>Kategori</th><th>Şehir</th>
+                <th>Attempt denemesi</th><th>Durum</th>
+              </tr></thead>
+              <tbody id="ob-donem-aranmayan-tbl"><tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:14px">—</td></tr></tbody>
             </table></div>
           </div>
         </div>
@@ -1644,6 +1679,76 @@ function renderOB(){
 
   renderObCagriDegerlendirme();
   renderOBTable();
+  renderTeklif5();
+}
+
+// Kategoriye göre ortalama 5 teklife ulaşma süresi (gün). Boş değerler ortalamaya katılmaz.
+function renderTeklif5(){
+  const el=document.getElementById('ob-teklif5-dist');
+  if(!el) return;
+  const all=(S.onboarding||[]).filter(f=>f.mezun_mu!=='Evet');
+  // Kategori dropdown'ını bir kez doldur
+  const katSel=document.getElementById('ob-teklif5-kat');
+  if(katSel&&katSel.options.length<=1){
+    const kats=[...new Set(all.map(x=>x.kategori_adi).filter(k=>k&&k!=='—'))].sort();
+    kats.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;katSel.appendChild(o);});
+  }
+  const secilenKat=katSel?katSel.value:'';
+  const kaynak=secilenKat?all.filter(x=>x.kategori_adi===secilenKat):all;
+
+  // Boş/geçersiz değerleri hariç tut: sadece pozitif sayısal süreler ortalamaya girer
+  const gecerli=v=>{const s=String(v==null?'':v).trim();if(s===''||s==='-')return false;const n=parseFloat(s.replace(',','.'));return !isNaN(n)&&n>0;};
+  const sure=v=>parseFloat(String(v).replace(',','.'));
+
+  // Kategori kırılımı (kategori seçili değilse tüm kategoriler, seçiliyse tek satır)
+  const grup={};
+  kaynak.forEach(f=>{
+    if(!gecerli(f.teklif5_gun)) return;
+    const k=f.kategori_adi||'—';
+    if(!grup[k]) grup[k]={toplam:0,adet:0};
+    grup[k].toplam+=sure(f.teklif5_gun);
+    grup[k].adet++;
+  });
+  const satirlar=Object.entries(grup).map(([kat,v])=>({kat,ort:v.toplam/v.adet,adet:v.adet}))
+    .sort((a,b)=>a.ort-b.ort);
+
+  // Genel ortalama (seçili kapsamdaki tüm geçerli değerler)
+  const tumToplam=satirlar.reduce((s,r)=>s+r.ort*r.adet,0);
+  const tumAdet=satirlar.reduce((s,r)=>s+r.adet,0);
+  const genelOrt=tumAdet?tumToplam/tumAdet:null;
+
+  if(!satirlar.length){
+    el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">Bu kapsamda geçerli 5 teklife ulaşma süresi verisi yok</div>';
+    return;
+  }
+
+  const maxOrt=Math.max(...satirlar.map(r=>r.ort),1);
+  const BAR='#185FA5';
+  const ozet=genelOrt!==null?`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f1f3">
+      <span style="font-size:26px;font-weight:700;color:#18181b">${genelOrt.toFixed(1)}</span>
+      <span style="font-size:12px;color:#71717a">gün ortalama · ${tumAdet} firma${secilenKat?' · '+secilenKat:''}</span>
+    </div>`:'';
+
+  el.innerHTML=ozet+
+    '<table style="width:100%;border-collapse:collapse">'+
+    '<thead><tr>'+
+      '<th style="text-align:left;font-size:11px;color:#71717a;font-weight:600;padding:6px 8px;border-bottom:1px solid #e4e4e7">Kategori</th>'+
+      '<th style="text-align:center;font-size:11px;color:#71717a;font-weight:600;padding:6px 8px;border-bottom:1px solid #e4e4e7">Firma</th>'+
+      '<th style="text-align:right;font-size:11px;color:#71717a;font-weight:600;padding:6px 8px;border-bottom:1px solid #e4e4e7">5 Teklife Ulaşma Süresi (Gün)</th>'+
+    '</tr></thead><tbody>'+
+    satirlar.map(r=>`<tr>
+      <td style="font-size:12px;padding:6px 8px">${r.kat}</td>
+      <td style="font-size:12px;text-align:center;color:#71717a;padding:6px 8px">${r.adet}</td>
+      <td style="padding:6px 8px">
+        <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
+          <div style="flex:1;max-width:160px;background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(r.ort/maxOrt*100)}%;background:${BAR};border-radius:5px"></div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:${BAR};width:44px;text-align:right">${r.ort.toFixed(1)}</span>
+        </div>
+      </td>
+    </tr>`).join('')+
+    '</tbody></table>';
 }
 
 // Onboarding firmalarının çağrı değerlendirmesi — Çağrı Analizi sayfasından bağımsız.
@@ -1706,37 +1811,74 @@ function renderObCagriDegerlendirme(){
 
   if(cntEl) cntEl.textContent=notTouched.length+' firma';
 
+  // Üstteki barlar kaldırıldı — yalnızca tablo gösteriliyor
+  chartEl.innerHTML='';
+
   if(!notTouched.length){
-    chartEl.innerHTML='<div class="empty-state" style="padding:20px 0"><div>✅</div><div class="et">Tüm aktif onboarding firmaları aranmış</div><div class="es">Paket başlangıcından bu yana en az bir touch çağrısı var</div></div>';
     tblEl.innerHTML='<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">Aranmayan firma yok ✅</td></tr>';
-    return;
+  }else{
+    tblEl.innerHTML=notTouched.map(({f,gun,attemptCount})=>`<tr>
+      <td style="font-weight:500;font-size:12px">${f.ob_adi||f.musteri_adi||'—'}</td>
+      <td style="font-size:11px">${f.py_adi||'—'}</td>
+      <td style="font-size:11px;color:#71717a">${f.kategori_adi||'—'}</td>
+      <td style="font-size:11px;color:#71717a">${f.sehir||'—'}</td>
+      <td style="font-size:11px">${f.baslangic?f.baslangic.slice(0,10):'—'}</td>
+      <td><span class="days hot">${gun}g</span></td>
+      <td style="font-size:11px;text-align:center">${attemptCount||0}</td>
+      <td><span class="badge crit">📵 Hiç konuşulmadı</span></td>
+    </tr>`).join('');
   }
 
-  const maxGun=Math.max(...notTouched.map(x=>x.gun),1);
-  chartEl.innerHTML='<div style="display:flex;flex-direction:column;gap:8px;padding:6px 0 14px">'+
-    notTouched.map(({f,gun,attemptCount})=>{
-      const pct=Math.round(gun/maxGun*100);
-      const ad=f.ob_adi||f.musteri_adi||'—';
-      return`<div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:11px;width:150px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${ad}">${ad}</span>
-        <div style="flex:1;background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden;position:relative">
-          <div style="height:100%;width:${pct}%;background:#dc2626;border-radius:5px"></div>
-        </div>
-        <span style="font-size:11px;font-weight:700;color:#dc2626;width:56px;text-align:right">${gun} gün</span>
-        <span style="font-size:10px;color:#a1a1aa;width:70px;text-align:right">${attemptCount?attemptCount+' attempt':'—'}</span>
-      </div>`;
-    }).join('')+'</div>';
+  // ── Seçili dönemde aranmayan firmalar ──────────────────────────────────
+  // Onboarding çağrı trendindeki dönem seçicisiyle (resolveCagriRange('ob')) aynı aralığı kullanır.
+  renderObDonemAranmayan(aktif);
+}
 
-  tblEl.innerHTML=notTouched.map(({f,gun,attemptCount})=>`<tr>
+// Seçili tarih aralığında (dönem) hiç Touch almayan aktif onboarding firmaları
+function renderObDonemAranmayan(aktif){
+  const tblEl=document.getElementById('ob-donem-aranmayan-tbl');
+  const cntEl=document.getElementById('ob-donem-aranmayan-cnt');
+  const infoEl=document.getElementById('ob-donem-aranmayan-info');
+  if(!tblEl) return;
+  aktif=aktif||S.onboarding.filter(f=>f.mezun_mu!=='Evet');
+
+  const gran=S._obCagriGran||'gun';
+  const rng=resolveCagriRange('ob',gran);
+  const from=rng&&rng.from?rng.from:null;
+  const to=rng&&rng.to?rng.to:null;
+
+  // Dönem etiketi
+  if(infoEl){
+    if(from&&to) infoEl.textContent=`${from} – ${to} arası`;
+    else if(from) infoEl.textContent=`${from} tarihinden itibaren`;
+    else if(to) infoEl.textContent=`${to} tarihine kadar`;
+    else infoEl.textContent='Tüm dönem (aralık seçilmedi)';
+  }
+
+  const inRange=g=>{if(!g)return false;const d=String(g).slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false;return true;};
+
+  const liste=aktif.map(f=>{
+    const fid=String(f.ob_id||'').trim();
+    const calls=S.cagrilar.filter(c=>String(c.firma_id||'').trim()===fid&&inRange(c.tarih));
+    const touchCount=calls.filter(c=>c.durum==='Touch').length;
+    const attemptCount=calls.filter(c=>c.durum==='Attempt').length;
+    return{f,touchCount,attemptCount};
+  }).filter(x=>x.touchCount===0).sort((a,b)=>(a.f.ob_adi||a.f.musteri_adi||'').localeCompare(b.f.ob_adi||b.f.musteri_adi||'','tr'));
+
+  if(cntEl) cntEl.textContent=liste.length+' firma';
+
+  if(!S.cagrilar.length){
+    tblEl.innerHTML='<tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:14px">Çağrı verisi bekleniyor</td></tr>';
+    return;
+  }
+  tblEl.innerHTML=liste.length?liste.map(({f,attemptCount})=>`<tr>
     <td style="font-weight:500;font-size:12px">${f.ob_adi||f.musteri_adi||'—'}</td>
     <td style="font-size:11px">${f.py_adi||'—'}</td>
     <td style="font-size:11px;color:#71717a">${f.kategori_adi||'—'}</td>
     <td style="font-size:11px;color:#71717a">${f.sehir||'—'}</td>
-    <td style="font-size:11px">${f.baslangic?f.baslangic.slice(0,10):'—'}</td>
-    <td><span class="days hot">${gun}g</span></td>
     <td style="font-size:11px;text-align:center">${attemptCount||0}</td>
-    <td><span class="badge crit">📵 Hiç konuşulmadı</span></td>
-  </tr>`).join('');
+    <td><span class="badge crit">📵 Dönemde konuşulmadı</span></td>
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:14px">Seçili dönemde tüm firmalar aranmış ✅</td></tr>';
 }
 
 function closeMetrikModal(){ document.getElementById('metrik-modal').classList.remove('open'); }
@@ -2652,7 +2794,7 @@ function renderYN(){
   ):'<div style="color:#a1a1aa;font-size:12px;padding:12px">Seçili aralıkta firma yok</div>';
 
   const custMap={};
-  wd.forEach(f=>{
+  pyData.forEach(f=>{
     const cid=String(f.musteri_id||'').trim();
     if(!cid) return;
     if(!custMap[cid]) custMap[cid]={firmalar:[],toplam:0};
@@ -2672,7 +2814,6 @@ function renderYN(){
     '</tr>';
   }).join(''):'<tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:16px">Customer ID verisi yok</td></tr>';
 }
-function setYnPY(py){S._ynSecilenPY=py;renderYN();}
 function setYnPY(py){S._ynSecilenPY=py;renderYN();}
 
 // ── ÇAĞRI ANALİZİ ─────────────────────────────────────────────────────────────
