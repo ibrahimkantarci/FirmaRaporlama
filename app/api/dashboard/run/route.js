@@ -9,9 +9,77 @@ import {
   selectExact,
   selectLatestDate,
   selectFieldGreaterThan,
+  selectMultiple,
 } from "../../../../lib/qlik";
 import { overwriteSheetTab, readMatrixFromSheet, writeMatrixToSheet } from "../../../../lib/sheets";
 import { DASHBOARD_SOURCES } from "../../../../lib/dashboard-sources";
+
+// Bir tarih hücresinden "YYYY-MM" çıkar (ISO / DD.MM.YYYY / Excel seri no toleranslı).
+function cellMonth(v) {
+  const s = String(v ?? "").trim();
+  if (!s) return "";
+  let m = s.match(/^(\d{4})-(\d{2})/); if (m) return `${m[1]}-${m[2]}`;
+  m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})/); if (m) return `${m[3]}-${m[2]}`;
+  const n = Number(s);
+  if (Number.isFinite(n) && n > 20000 && n < 90000) {
+    const d = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  }
+  return "";
+}
+
+// Canlı URL kaynağından (ör. RENEWAL_DATA) satır nesnelerini çeker (data route ile aynı).
+async function fetchExternalRows(src) {
+  const base = process.env[src.urlEnv];
+  if (!base) return [];
+  const sep = base.includes("?") ? "&" : "?";
+  const url = src.urlParams ? base + sep + src.urlParams : base;
+  const r = await fetch(url, { cache: "no-store" });
+  const j = await r.json();
+  if (!j || j.ok === false) return [];
+  const data = j.data || j;
+  const rows = src.extract ? data[src.extract] : data;
+  return Array.isArray(rows) ? rows : [];
+}
+
+const normProviderId = (v) => String(v == null ? "" : v).trim().replace(/\.0+$/, "");
+
+// BİR KEZ: Provider_Flag_Old'u yenileme (ALL_new RÇİ) provider'larına indirir. Eşleşmeyen
+// provider'ların + hiç eşleşmeyen satırların hepsi silinir (eski veri; güncel firmalar için
+// güncel Provider_Flag kullanılır). GET/POST ?action=prune_flag_old ile tetiklenir.
+async function pruneFlagOld() {
+  const OLD_TAB = "Provider_Flag_Old";
+  const yenSrc = DASHBOARD_SOURCES.find((s) => s.urlEnv);
+  const renProviders = new Set();
+  if (yenSrc) {
+    try {
+      const rows = await fetchExternalRows(yenSrc);
+      rows.forEach((r) => { const p = normProviderId(r["RÇİ"]); if (p) renProviders.add(p); });
+    } catch {}
+  }
+  if (!renProviders.size) {
+    return Response.json({ ok: false, error: "Yenileme (RÇİ) provider'ları alınamadı — prune iptal" }, { status: 400 });
+  }
+  let old = [];
+  try { old = await readMatrixFromSheet({ tab: OLD_TAB }); } catch {}
+  if (!old.length) return Response.json({ ok: false, error: `${OLD_TAB} boş/okunamadı` }, { status: 400 });
+  const hdr = old[0];
+  const pidCol = hdr.findIndex((h) => /provider\s*id/i.test(String(h ?? "")));
+  if (pidCol < 0) return Response.json({ ok: false, error: "Provider ID kolonu bulunamadı" }, { status: 400 });
+  const kept = [];
+  const delProv = new Set();
+  for (let r = 1; r < old.length; r++) {
+    const p = normProviderId(old[r][pidCol]);
+    if (p && renProviders.has(p)) kept.push(old[r]);
+    else if (p) delProv.add(p);
+  }
+  await overwriteSheetTab([hdr, ...kept], { tab: OLD_TAB });
+  return Response.json({
+    ok: true, action: "prune_flag_old", tab: OLD_TAB,
+    before: old.length - 1, after: kept.length, deletedRows: (old.length - 1) - kept.length,
+    deletedProviders: delProv.size, renewalProviders: renProviders.size,
+  });
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +87,11 @@ export const maxDuration = 120;
 
 async function runPipeline(request) {
   const { searchParams } = new URL(request.url);
+  // BİR KEZ tetiklenen bakım aksiyonu: Provider_Flag_Old'u yenileme provider'larına indir.
+  if (searchParams.get("action") === "prune_flag_old") {
+    try { return await pruneFlagOld(); }
+    catch (err) { return Response.json({ ok: false, error: String(err?.message ?? err) }, { status: 500 }); }
+  }
   const only = searchParams.get("only");
   const sources = only
     ? DASHBOARD_SOURCES.filter((s) => s.key === only)
@@ -100,6 +173,38 @@ async function runPipeline(request) {
         continue;
       }
 
+      // ── SEKME-KOLONUNDAN FİLTRELİ ÇEKİM: id'leri başka sekmeden oku → Qlik'te toplu
+      // seç (selectMultiple) → çek → overwrite. (Örn: onboarding sözleşmeleri — yalnız
+      // onboarding provider'ları; obje seçimsizken 0 satır + 114k+ provider olduğundan şart.)
+      if (src.filterByTabColumn) {
+        const fb = src.filterByTabColumn;
+        let ids = [];
+        try {
+          const m = await readMatrixFromSheet({ tab: fb.tab });
+          if (m && m.length > 1) {
+            const hdr = m[0].map((h) => String(h ?? "").trim());
+            const ci = hdr.indexOf(fb.col);
+            if (ci >= 0) {
+              ids = [...new Set(m.slice(1).map((r) => String(r[ci] ?? "").trim().replace(/\.0+$/, "")).filter(Boolean))];
+            }
+          }
+        } catch {
+          ids = [];
+        }
+        if (!ids.length) {
+          out[src.key] = { mode: "skip", reason: `${fb.tab}.${fb.col} boş/okunamadı (önce onboarding çalışmalı)`, tab: src.tab };
+          continue;
+        }
+        const cdata = await withQlikDoc(src.appId, async ({ doc }) => {
+          await doc.clearAll(false);
+          await selectMultiple(doc, fb.field, ids);
+          return fetchObjectData(doc, src.objectId);
+        });
+        const csheet = await overwriteSheetTab([cdata.columns, ...cdata.rows], { tab: src.tab });
+        out[src.key] = { rows: cdata.rows.length, columns: cdata.columns.length, tab: src.tab, sheetUrl: csheet.sheetUrl, providers: ids.length };
+        continue;
+      }
+
       // ── TAM YAZMA (overwrite): kaynağın tamamını çekip sekmenin üzerine yaz ────
       const data = await withQlikDoc(src.appId, async ({ doc }) => {
         // Temiz durumdan başla: clearAll işaretliyse, seçim VEYA en-yeni-tarih varsa.
@@ -164,6 +269,40 @@ async function runPipeline(request) {
         tab: src.tab,
         sheetUrl: sheet.sheetUrl,
       };
+
+      // ── AY 15'İ ARŞİVİ: güncel flag snapshot'ını Provider_Flag_Old'a tarihi veri olarak ekle.
+      // Koşul: bugün ≥ ayın 15'i VE bu ayın snapshot'ı Old'da YOK (idempotent). Aylar cellMonth ile.
+      if (src.archiveToOld) {
+        try {
+          const now = new Date();
+          if (now.getDate() >= 15) {
+            const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+            let old = [];
+            try { old = await readMatrixFromSheet({ tab: src.archiveToOld }); } catch { old = []; }
+            const oldHdr = old.length ? old[0].map((h) => String(h ?? "").trim()) : columns;
+            const dIdx = oldHdr.findIndex((h) => /date|tarih/i.test(h));
+            const monthsInOld = new Set();
+            if (old.length && dIdx >= 0) {
+              for (let r = 1; r < old.length; r++) {
+                const mo = cellMonth(old[r]?.[dIdx]);
+                if (mo) monthsInOld.add(mo);
+              }
+            }
+            if (!old.length) {
+              out[src.key].archived = { month: curMonth, skipped: "Old sekmesi boş (başlık elle kurulmalı)" };
+            } else if (monthsInOld.has(curMonth)) {
+              out[src.key].archived = { month: curMonth, skipped: "zaten arşivlenmiş" };
+            } else {
+              const colIdx = oldHdr.map((h) => columns.indexOf(h));
+              const aligned = rows.map((row) => colIdx.map((ci) => (ci >= 0 ? row[ci] : "")));
+              if (aligned.length) await writeMatrixToSheet(aligned, { tab: src.archiveToOld });
+              out[src.key].archived = { month: curMonth, rows: aligned.length, tab: src.archiveToOld };
+            }
+          }
+        } catch (e) {
+          out[src.key].archiveError = String(e?.message ?? e);
+        }
+      }
     }
     // Son sync (çekim) zamanını Dashboard_Meta'ya yaz → dashboard "son güncelleme" gösterir.
     try {

@@ -790,10 +790,38 @@
         // ile eşlenir (canlı: %99). Onboarding'in kendi kampanya/whatsapp'ı kullanılmaz.
         var firmaKampanya = {};
         if (Array.isArray(d.firma)) d.firma.forEach(function (fr) { var rci = String(fr["RÇİ"] == null ? "" : fr["RÇİ"]).trim().replace(/\.0+$/, ""); if (rci) firmaKampanya[rci] = fr["Kampanya Sayısı"]; });
+        // ── Yeni / Yenileme sınıflaması (Dashboard_Onboarding_Sozlesme'den) ──
+        // Provider başına aktif(1)+geçmiş(0) sözleşmeler. YENİ = (aktif başlangıç − en güncel pasif
+        // bitiş) > 1 yıl VEYA pasif sözleşme yok; aksi YENİLEME; sözleşme verisi yoksa Bilinmiyor.
+        var sozByProv = {};
+        if (Array.isArray(d.onboarding_sozlesme)) {
+          d.onboarding_sozlesme.forEach(function (r) {
+            var pp = String(r["Provider Id"] == null ? "" : r["Provider Id"]).trim().replace(/\.0+$/, "");
+            if (!pp) return;
+            (sozByProv[pp] || (sozByProv[pp] = [])).push({
+              cur: String(r["Is Current Product"] == null ? "" : r["Is Current Product"]).trim(),
+              start: String(r["Product Start"] == null ? "" : r["Product Start"]).slice(0, 10),
+              end: String(r["Product End"] == null ? "" : r["Product End"]).slice(0, 10),
+            });
+          });
+        }
+        function classifyProvider(pp) {
+          var cs = sozByProv[pp];
+          if (!cs || !cs.length) return "Bilinmiyor";
+          var actStarts = cs.filter(function (x) { return x.cur === "1" && x.start; }).map(function (x) { return x.start; }).sort();
+          if (!actStarts.length) return "Bilinmiyor";
+          var actStart = actStarts[0]; // en erken aktif başlangıç
+          var inaEnds = cs.filter(function (x) { return x.cur === "0" && x.end; }).map(function (x) { return x.end; }).sort();
+          if (!inaEnds.length) return "Yeni"; // hiç pasif sözleşme yok → yeni
+          var inaEnd = inaEnds[inaEnds.length - 1]; // en güncel pasif bitiş
+          var gapDays = (Date.parse(actStart) - Date.parse(inaEnd)) / 86400000;
+          return isNaN(gapDays) ? "Bilinmiyor" : (gapDays > 365 ? "Yeni" : "Yenileme");
+        }
         S.onboarding = d.onboarding.map(function (row) {
           var m = mapRow(row, ONBOARDING_MAP);
           var pid = String(m.ob_id == null ? "" : m.ob_id).trim().replace(/\.0+$/, "");
           if (pid in firmaKampanya) m.kampanya = firmaKampanya[pid];
+          m.yeni_yenileme = classifyProvider(pid); // Yeni | Yenileme | Bilinmiyor
           return m;
         });
         S.loaded.onboarding = true;
@@ -878,15 +906,18 @@
         // renewal satırının raw'ına eklenir → Kırılım/filtre kolonu olur.
         var flagByKey = {};
         S._renFlagCols = [];
-        if (Array.isArray(d.provider_flag) && d.provider_flag.length) {
-          var fkeys = Object.keys(d.provider_flag[0] || {});
+        // Old (tarihi Provider_Flag_Old) + GÜNCEL (Provider_Flag, en güncel ph_flag_date) BİRLEŞİK.
+        // Aynı kolonlar; GÜNCEL Old'dan SONRA eklenir → içinde bulunulan ay için güncel değer kazanır.
+        var flagSample = (Array.isArray(d.provider_flag) && d.provider_flag.length) ? d.provider_flag
+          : (Array.isArray(d.provider_flag_current) && d.provider_flag_current.length) ? d.provider_flag_current : null;
+        if (flagSample) {
+          var fkeys = Object.keys(flagSample[0] || {});
           var pidKey = null, dtKey = null;
           for (var fi = 0; fi < fkeys.length; fi++) {
             if (!pidKey && /provider\s*id/i.test(fkeys[fi])) pidKey = fkeys[fi];
             if (!dtKey && /date|tarih/i.test(fkeys[fi])) dtKey = fkeys[fi];
           }
           // Yalnız İZİNLİ flag kolonları (whitelist), tab başlığıyla esnek eşleşen.
-          // Whitelist sırasını korur; eşleşmeyen tab kolonları (renk/isim/ekstra) DIŞARIDA.
           var flagCols = [], usedH = {};
           REN_FLAG_WHITELIST.forEach(function (term) {
             var t = renNormHdr(term);
@@ -898,13 +929,17 @@
           });
           S._renFlagCols = flagCols.map(function (k) { return "⚑ " + k; });
           if (pidKey && dtKey) {
-            d.provider_flag.forEach(function (fr) {
-              var pid = renNormId(fr[pidKey]), mo = renFlagMonth(fr[dtKey]);
-              if (!pid || !mo) return;
-              var rec = {};
-              flagCols.forEach(function (k) { rec["⚑ " + k] = renFlagVal(fr[k]); });
-              flagByKey[pid + "|" + mo] = rec;
-            });
+            var addFlagRows = function (rows) {
+              (rows || []).forEach(function (fr) {
+                var pid = renNormId(fr[pidKey]), mo = renFlagMonth(fr[dtKey]);
+                if (!pid || !mo) return;
+                var rec = {};
+                flagCols.forEach(function (k) { rec["⚑ " + k] = renFlagVal(fr[k]); });
+                flagByKey[pid + "|" + mo] = rec;
+              });
+            };
+            addFlagRows(d.provider_flag);          // Old (tarihi) önce
+            addFlagRows(d.provider_flag_current);   // GÜNCEL sonra → bu ay için üzerine yazar
           } else {
             console.warn("[pipeline] provider_flag: Provider ID / Date kolonu bulunamadı", fkeys);
           }

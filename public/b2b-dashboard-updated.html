@@ -288,6 +288,17 @@ body.dark .theme-toggle:hover{background:#1e232b}
     <!-- ONBOARDING -->
     <div class="panel active" id="panel-onboarding">
 
+      <!-- Firma tipi: Yeni / Yenileme / Toplam (sözleşme geçmişinden) -->
+      <div class="card" style="margin-bottom:14px;padding:10px 16px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">Firma tipi</span>
+          <div class="chip on" id="ob-tip-toplam" style="font-size:11px" onclick="setObTip('toplam')">Toplam</div>
+          <div class="chip" id="ob-tip-Yeni" style="font-size:11px" onclick="setObTip('Yeni')">🆕 Yeni</div>
+          <div class="chip" id="ob-tip-Yenileme" style="font-size:11px" onclick="setObTip('Yenileme')">🔁 Yenileme</div>
+          <span id="ob-tip-info" style="font-size:11px;color:#a1a1aa;margin-left:4px"></span>
+        </div>
+      </div>
+
       <!-- Metrik kartlar -->
       <div class="mg">
         <div class="mc"><div class="mc-label">Aktif onboarding</div><div class="mc-val" id="ob-toplam">—</div><div class="mc-sub" id="ob-aktif-flag-sub"></div></div>
@@ -1584,7 +1595,11 @@ function obGun(f){
 }
 
 function renderOB(){
-  const d=S.onboarding;
+  const _obFull=S.onboarding;
+  const _tip=S._obTip||'toplam';
+  ['toplam','Yeni','Yenileme'].forEach(function(t){var el=document.getElementById('ob-tip-'+t);if(el)el.classList.toggle('on',_tip===t);});
+  const d=(_tip==='toplam')?_obFull:_obFull.filter(f=>String(f.yeni_yenileme||'')===_tip);
+  const _oti=document.getElementById('ob-tip-info'); if(_oti) _oti.textContent=(_tip==='toplam')?'':(d.length+' / '+_obFull.length+' firma');
   if(!d.length){
     const _t=document.getElementById('ob-full-tbl');
     if(_t) _t.innerHTML='<tr><td colspan="15" style="text-align:center;color:#a1a1aa;padding:20px">Onboarding verisi yüklenmedi</td></tr>';
@@ -1660,9 +1675,13 @@ function renderOB(){
   const _obPyc=document.getElementById('ob-py-chips');
   if(_obPyc) _obPyc.innerHTML=pyNames.map(n=>`<div class="chip" style="font-size:11px" onclick="fOBPY(this,'${n}')">${n.split(' ')[0]}</div>`).join('');
 
-  renderObCagriDegerlendirme();
-  renderOBTable();
-  renderTeklif5();
+  // Alt bölümler (çağrı değerlendirmesi, teklif5) de firma tipi filtresine uysun → S.onboarding'i geçici sar.
+  S.onboarding=d;
+  try{
+    renderObCagriDegerlendirme();
+    renderOBTable();
+    renderTeklif5();
+  } finally { S.onboarding=_obFull; }
 }
 
 // Kategoriye göre ortalama 5 teklife ulaşma süresi (gün). Boş değerler ortalamaya katılmaz.
@@ -3397,6 +3416,7 @@ function renderCoverage(){
 
 function selectCagriPYTab(name){S._secilenCagriPY=name;renderCA();}
 function setCaYon(y){S._caYon=y;renderCA();}
+function setObTip(t){S._obTip=t;renderOB();}
 function toggleCard(bodyId, iconId){
   const body=document.getElementById(bodyId);
   const icon=document.getElementById(iconId);
