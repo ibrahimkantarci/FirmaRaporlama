@@ -165,6 +165,12 @@ async function runPipeline(request) {
         sheetUrl: sheet.sheetUrl,
       };
     }
+    // Son sync (çekim) zamanını Dashboard_Meta'ya yaz → dashboard "son güncelleme" gösterir.
+    try {
+      await overwriteSheetTab([["updated_at"], [out.updatedAt]], { tab: "Dashboard_Meta" });
+    } catch {
+      // meta yazımı kritik değil; başarısızlığı yut
+    }
     return Response.json(out);
   } catch (err) {
     return Response.json({ ok: false, error: String(err?.message ?? err) }, { status: 500 });

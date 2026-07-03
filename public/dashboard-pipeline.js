@@ -600,7 +600,6 @@
     window.renderPF = function () {
       var full = S.firmalar;
       if (!full || !full.length) return;
-      var topEl = document.getElementById("pf-top"); if (topEl) topEl.textContent = full.length; // toplam portföy (filtreden bağımsız)
       try { if (typeof renderPYChips === "function") renderPYChips(); } catch (e) {} // PY çipleri tam listeden
       // PY özeti TAM flag dağılımını gösterir (flag % anlamlı olsun diye flag filtresinden bağımsız;
       // PY seçimini kendi içinde yapar). Filtre yalnız içerik kartlarına uygulanır.
@@ -610,6 +609,12 @@
         if (S.fPY && S.fPY !== "tümü" && x.py_adi !== S.fPY) return false;
         return true;
       });
+      // Üst kartlar FLAG/PY filtresine göre: toplam portföy (adet) + toplam aylık value.
+      var topEl = document.getElementById("pf-top"); if (topEl) topEl.textContent = filtered.length;
+      var topSub = document.getElementById("pf-top-sub"); if (topSub) topSub.textContent = (filtered.length !== full.length ? "/ " + full.length + " toplam" : "");
+      var yearly = filtered.reduce(function (s, x) { return s + renNum(x.satis_fiyati); }, 0);
+      var vEl = document.getElementById("pf-top-value"); if (vEl) vEl.textContent = renTL(Math.round(yearly / 12));
+      var vSub = document.getElementById("pf-top-value-sub"); if (vSub) vSub.textContent = renTL(Math.round(yearly)) + " / yıl";
       S.firmalar = filtered;
       try {
         if (typeof renderFirmaTbl === "function") renderFirmaTbl();
@@ -650,10 +655,9 @@
       { k: "odeme_flagi", lbl: "Ödeme Flagi" }, { k: "geri_donus_flagi", lbl: "Geri Dönüş Flagi" },
     ];
     function perfBase() {
+      // Custom Pivot üst FLAG/PY filtresinden BAĞIMSIZ (kullanıcı isteği) — yalnız kendi filtreleri.
       var fs = S._perfFilters || [];
       return (S.firmalar || []).filter(function (x) {
-        if (S.fFlag && S.fFlag !== "tümü" && x.flag_rengi !== S.fFlag) return false; // üst FLAG filtresi
-        if (S.fPY && S.fPY !== "tümü" && x.py_adi !== S.fPY) return false;            // üst PY filtresi
         for (var i = 0; i < fs.length; i++) { var f = fs[i]; if (f.col && f.values && f.values.length && f.values.indexOf(String(x[f.col] == null ? "" : x[f.col]).trim()) < 0) return false; }
         return true;
       });

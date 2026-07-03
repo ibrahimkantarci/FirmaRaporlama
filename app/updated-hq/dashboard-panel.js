@@ -1,14 +1,32 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Updated HQ panelini (public/b2b-dashboard-updated.html) iframe ile gömer.
-// dashboard-panel.js ile birebir aynı mantık; yalnızca iframe src'i sandbox
-// kopyaya işaret eder. Aynı Qlik veri uçlarını (api/dashboard/*) kullanır.
+// Aynı Qlik veri uçlarını (api/dashboard/*) kullanır. Üst çubukta "son güncelleme"
+// (verinin Qlik'ten en son çekildiği tarih+saat) gösterilir.
+function fmtTs(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export default function DashboardPanel() {
   const ref = useRef(null);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+  const [updatedAt, setUpdatedAt] = useState("");
+
+  useEffect(() => {
+    fetch("/api/dashboard/status", { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.updatedAt) setUpdatedAt(d.updatedAt);
+      })
+      .catch(() => {});
+  }, []);
 
   function injectPipeline() {
     const ifr = ref.current;
@@ -27,19 +45,16 @@ export default function DashboardPanel() {
 
   async function refresh() {
     setBusy(true);
-    setMsg("Qlik'ten çekiliyor…");
+    setErr("");
     try {
       const r = await fetch("/api/dashboard/run", { method: "POST" });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error || "Bilinmeyen hata");
-      const parts = Object.keys(d)
-        .filter((k) => d[k] && typeof d[k] === "object" && d[k].rows != null)
-        .map((k) => `${k}: ${d[k].rows}`);
-      setMsg("Yenilendi" + (parts.length ? " · " + parts.join(" · ") : ""));
+      if (d.updatedAt) setUpdatedAt(d.updatedAt);
       const w = ref.current?.contentWindow;
       if (w) w.location.reload();
     } catch (e) {
-      setMsg("Hata: " + (e?.message || e));
+      setErr(e?.message || String(e));
     } finally {
       setBusy(false);
     }
@@ -66,8 +81,14 @@ export default function DashboardPanel() {
         >
           {busy ? "Yenileniyor…" : "⟳ Qlik'ten yenile"}
         </button>
-        <span style={{ fontSize: 12.5, color: "#71717a" }}>
-          {msg || "Açılışta son Qlik verisi yüklenir · manuel Excel yükleme de çalışır."}
+        <span style={{ fontSize: 12.5, color: err ? "#dc2626" : "#71717a" }}>
+          {busy
+            ? "Qlik'ten çekiliyor…"
+            : err
+            ? "Hata: " + err
+            : updatedAt
+            ? "Son güncelleme: " + fmtTs(updatedAt)
+            : "Son güncelleme bilinmiyor — “Qlik'ten yenile” ile çekin"}
         </span>
       </div>
       <iframe

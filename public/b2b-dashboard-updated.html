@@ -17,7 +17,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .logo{padding:16px 18px 13px;border-bottom:1px solid #e4e4e7}
 .logo-mark{font-size:15px;font-weight:700;color:#E5002A}
 .logo-sub{font-size:10px;color:#a1a1aa;margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
-.nav-group{padding:13px 10px 5px;font-size:10px;font-weight:600;color:#a1a1aa;letter-spacing:.8px;text-transform:uppercase}
+.nav-group{padding:14px 12px 5px;font-size:12px;font-weight:700;color:#71717a;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.nav-group-icon{font-size:13px}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;color:#52525b;font-size:13px;border-radius:6px;margin:1px 6px;transition:all .12s;border:1px solid transparent}
 .nav-item:hover{background:#f4f4f5;color:#1a1a1a}
 .nav-item.active{background:#fff1f2;color:#E5002A;border-color:#fecdd3;font-weight:500}
@@ -259,24 +260,16 @@ body.dark .theme-toggle:hover{background:#1e232b}
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="logo">
-    <img src="/dugun-logo-pembe.png" alt="düğün.com" style="height:24px;width:auto;max-width:150px;display:block;flex-shrink:0">
-    <div class="logo-sub">HQ</div>
-  </div>
-  <div class="nav-group">Lifecycle</div>
+  <div class="nav-group"><span class="nav-group-icon">🔄</span>Lifecycle</div>
   <div class="nav-item active" onclick="goTo('onboarding',this)"><span class="nav-icon">🚀</span>Onboarding<span class="nav-badge status-active">aktif</span></div>
   <div class="nav-item" onclick="goTo('performans',this)"><span class="nav-icon">📊</span>Performans<span class="nav-badge status-active">aktif</span></div>
   <div class="nav-item" onclick="goTo('yenileme',this)"><span class="nav-icon">🔄</span>Yenileme Öncesi<span class="nav-badge status-active">aktif</span></div>
-  <div class="nav-group">Analiz</div>
+  <div class="nav-group"><span class="nav-group-icon">📊</span>Analiz</div>
   <div class="nav-item" onclick="goTo('analiz',this)"><span class="nav-icon">🔍</span>Genel Analiz<span class="nav-badge status-active">aktif</span></div>
   <div class="nav-item" onclick="goTo('cagri',this)"><span class="nav-icon">📞</span>Çağrı Analizi<span class="nav-badge status-active">aktif</span></div>
   <div class="nav-item" onclick="goTo('alarm',this)"><span class="nav-icon">🔔</span>Alarm Merkezi<span class="nav-badge red" id="nb-alarm">—</span></div>
-  <div class="nav-group">Özel</div>
+  <div class="nav-group"><span class="nav-group-icon">⭐</span>Özel</div>
   <div class="nav-item" onclick="goTo('ozel',this)"><span class="nav-icon">⭐</span>Özel Fiyat<span class="nav-badge status-wip">yapımda</span></div>
-  <div class="sidebar-footer">
-    <button class="btn-import" onclick="openImport()">⬆ Veri Yükle</button>
-    <div class="data-fresh" id="freshness">Veri yüklenmedi</div>
-  </div>
 </div>
 
 <!-- MAIN -->
@@ -407,7 +400,8 @@ body.dark .theme-toggle:hover{background:#1e232b}
     <!-- PERFORMANS -->
     <div class="panel" id="panel-performans">
       <div class="mg">
-        <div class="mc"><div class="mc-label">Toplam portföy</div><div class="mc-val" id="pf-top">—</div></div>
+        <div class="mc"><div class="mc-label">Toplam portföy</div><div class="mc-val" id="pf-top">—</div><div class="mc-sub" id="pf-top-sub"></div></div>
+        <div class="mc blue"><div class="mc-label">Toplam Value (Aylık)</div><div class="mc-val" id="pf-top-value">—</div><div class="mc-sub" id="pf-top-value-sub"></div></div>
       </div>
       <div class="filter-row">
         <span class="flbl">Flag</span>
@@ -1474,7 +1468,7 @@ function updateTopbar(){
     const p=document.getElementById('pill-cagri');p.classList.add('loaded');p.querySelector('.dot').style.background='#22c55e';
     document.getElementById('ptc').textContent=S.cagrilar.length+' çağrı';
   }
-  document.getElementById('freshness').textContent='Güncelleme: '+new Date().toLocaleTimeString('tr-TR');
+  var _fr=document.getElementById('freshness'); if(_fr) _fr.textContent='Güncelleme: '+new Date().toLocaleTimeString('tr-TR');
 }
 
 function dlTemplate(){
