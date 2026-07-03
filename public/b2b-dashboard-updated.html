@@ -2920,10 +2920,47 @@ function onCagriAyChange(){
 }
 
 function getCagriFiltered(){
+  // Yalnız ÜST bardaki dönem (Granülarite + Dönem) — üstteki 6 özet kartını besler.
+  // PY tab (S._secilenCagriPY) BURADAN ÇIKARILDI: PY detayı seçimi artık trendi/üst
+  // kartları etkilemez. Her filtre yalnız kendi bölümünü etkiler.
   let arr=S.cagrilar;
   if(S._cagriSecilenAy) arr=arr.filter(c=>cagriPeriodKey(c.tarih)===S._cagriSecilenAy);
-  if(S._secilenCagriPY&&S._secilenCagriPY!=='tümü') arr=arr.filter(c=>c.py_adi===S._secilenCagriPY);
   return arr;
+}
+// ── PY Detayı bölümü için KAPSAM (coverage) dönemine göre veri ───────────────
+// PY detayı kartları + Günlük ortalamalar + Verimlilik metrikleri, "Coverage dönemi"
+// barındaki (S._covGran/S._covPeriod, pipeline set eder) seçime göre kapsanır — üst
+// bardan ve trendden BAĞIMSIZ.
+function covPeriodKeyH(tarih){
+  if(!tarih||tarih==='-') return '';
+  const g=S._covGran||'ay';
+  if(g==='gun') return String(tarih).slice(0,10);
+  if(g==='hafta') return getISOWeek(new Date(tarih));
+  return String(tarih).slice(0,7);
+}
+function getCagriCoverage(){
+  const per=S._covPeriod||'';
+  if(!per) return S.cagrilar.slice();
+  return S.cagrilar.filter(c=>covPeriodKeyH(c.tarih)===per);
+}
+// PY detayı blokları için kapsam-dönemli harita (per-PY sayaç + unique müşteri exec).
+function buildCagriMapsCov(){
+  const data=getCagriCoverage();
+  const pm={};const execByPy={};
+  data.forEach(c=>{
+    const pk=c.py_adi||'Bilinmiyor';
+    if(!pm[pk])pm[pk]={toplam:0,basarili:0,cevapsiz:0,sure:0,firmalar:new Set(),gunler:{},musteri:0,yip_musteri:0};
+    pm[pk].toplam++;pm[pk].firmalar.add(c.firma_id||c.firma_adi);
+    if(c.durum==='Touch'){pm[pk].basarili++;const s=parseFloat(c.sure_dakika)||0;if(s)pm[pk].sure+=s;}
+    else if(c.durum==='Attempt')pm[pk].cevapsiz++;
+    if(c.tarih){if(!pm[pk].gunler[c.tarih])pm[pk].gunler[c.tarih]={ok:0,fail:0};if(c.durum==='Touch')pm[pk].gunler[c.tarih].ok++;else pm[pk].gunler[c.tarih].fail++;}
+    if(c.durum==='Touch'){
+      const cid=String(c.musteri_id||c.firma_id||c.customer_name||'').trim();
+      if(cid){if(!execByPy[pk])execByPy[pk]={};if(!(cid in execByPy[pk]))execByPy[pk][cid]=false;if(/executive/i.test(String(c.kullanici_tipi||'')))execByPy[pk][cid]=true;}
+    }
+  });
+  Object.keys(pm).forEach(pk=>{const em=execByPy[pk]||{};const ks=Object.keys(em);pm[pk].musteri=ks.length;pm[pk].yip_musteri=ks.filter(k=>em[k]).length;});
+  return pm;
 }
 
 function buildCagriMaps(){
@@ -3065,7 +3102,9 @@ function renderCA(){
   }
 
   function renderMetrikler(pyFilter){
-    const d=pyFilter&&pyFilter!=='tümü'?data.filter(c=>c.py_adi===pyFilter):data;
+    // Kapsam (coverage) dönemine göre + PY tab — üst bardan ve trendden bağımsız.
+    const covAll=getCagriCoverage();
+    const d=pyFilter&&pyFilter!=='tümü'?covAll.filter(c=>c.py_adi===pyFilter):covAll;
     const m=hesaplaMetrikler(d);
     const gunlukEl=document.getElementById('ca-gunluk-metriks');
     if(gunlukEl) gunlukEl.innerHTML=
@@ -3144,18 +3183,20 @@ function renderCA(){
     document.getElementById('ca-py-tab-chips').innerHTML=h;
   })();
 
+  // PY detayı = KAPSAM (coverage) dönemi + PY tab (üst bardan/trendden bağımsız).
+  const pm2=buildCagriMapsCov();
   if(S._secilenCagriPY==='tümü'){
     // Tümü: toplam istatistikler
-    const topT=Object.values(pm).reduce((a,d)=>a+d.toplam,0);
-    const topB=Object.values(pm).reduce((a,d)=>a+d.basarili,0);
-    const topC=Object.values(pm).reduce((a,d)=>a+d.cevapsiz,0);
-    const topS=Object.values(pm).reduce((a,d)=>a+d.sure,0);
-    const topFirma=new Set(Object.values(pm).flatMap(d=>[...d.firmalar])).size;
+    const topT=Object.values(pm2).reduce((a,d)=>a+d.toplam,0);
+    const topB=Object.values(pm2).reduce((a,d)=>a+d.basarili,0);
+    const topC=Object.values(pm2).reduce((a,d)=>a+d.cevapsiz,0);
+    const topS=Object.values(pm2).reduce((a,d)=>a+d.sure,0);
+    const topFirma=new Set(Object.values(pm2).flatMap(d=>[...d.firmalar])).size;
     const oranAll=topT?Math.round(topB/topT*100):0;
     const oranColor=oranAll>=70?'#16a34a':oranAll>=50?'#ea580c':'#dc2626';
     const covAll=calcPYCoverage('tümü');
-    const execT2=Object.values(pm).reduce((a,d)=>a+(d.yip_musteri||0),0);
-    const execM2=Object.values(pm).reduce((a,d)=>a+(d.musteri||0),0);
+    const execT2=Object.values(pm2).reduce((a,d)=>a+(d.yip_musteri||0),0);
+    const execM2=Object.values(pm2).reduce((a,d)=>a+(d.musteri||0),0);
     const execOran2=execM2>0?Math.round(execT2/execM2*100):null;
     const execEl2=execOran2!==null?`<span style="font-weight:700;color:#7c3aed">%${execOran2}</span> <span style="font-size:10px;color:#71717a">(${execT2}/${execM2})</span>`:'<span style="color:#d4d4d8">—</span>';
     const topCoverageEl=covAll&&covAll.toplam?`<span style="font-size:12px;font-weight:700;color:#185FA5">₺${Math.round(covAll.aranValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#71717a;margin-left:2px">/₺${Math.round(covAll.toplamValue).toLocaleString('tr-TR')}</span><span style="font-size:10px;color:#185FA5;font-weight:700;margin-left:4px">%${covAll.valueOran}</span>`:'<span style="font-size:12px;color:#d4d4d8">—</span>';
@@ -3164,7 +3205,6 @@ function renderCA(){
       <div class="py-cagri-header">
         <div class="py-cagri-av" style="background:#374151;color:#fff">TM</div>
         <div><div class="py-cagri-name">Tüm PY'ler</div><div class="py-cagri-meta">${topFirma} firma · ${topT} toplam çağrı</div></div>
-        <div style="margin-left:auto;text-align:right"><div style="font-size:22px;font-weight:700;color:${oranColor}">${oranAll}%</div><div style="font-size:11px;color:#71717a">başarı oranı</div></div>
       </div>
       <div class="py-cagri-stats">
         <div class="stat-box" style="background:#eff6ff;border-color:#bfdbfe"><div class="stat-val" style="font-size:13px">${topCoverageEl}</div><div class="stat-lbl">Value coverage</div></div>
@@ -3178,8 +3218,8 @@ function renderCA(){
       </div>
       <div class="rate-bar"><div class="rate-fill" style="width:${oranAll}%;background:${oranColor}"></div></div>
     </div>`;
-  } else if(pm[S._secilenCagriPY]){
-    const name=S._secilenCagriPY, d=pm[S._secilenCagriPY];
+  } else if(pm2[S._secilenCagriPY]){
+    const name=S._secilenCagriPY, d=pm2[S._secilenCagriPY];
     const idx=allCagriPY.indexOf(name);
     const ini=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const oran=d.toplam?Math.round(d.basarili/d.toplam*100):0;
@@ -3197,7 +3237,6 @@ function renderCA(){
       <div class="py-cagri-header">
         <div class="py-cagri-av" style="background:${bgs[idx<0?0:idx%6]};color:${fgs[idx<0?0:idx%6]}">${ini}</div>
         <div><div class="py-cagri-name">${name}</div><div class="py-cagri-meta">${d.firmalar.size} firma · ${d.toplam} toplam çağrı</div></div>
-        <div style="margin-left:auto;text-align:right"><div style="font-size:22px;font-weight:700;color:${oranColor}">${oran}%</div><div style="font-size:11px;color:#71717a">başarı oranı</div></div>
       </div>
       <div class="py-cagri-stats">
         <div class="stat-box" style="background:#eff6ff;border-color:#bfdbfe"><div class="stat-val" style="font-size:13px">${coverageEl}</div><div class="stat-lbl">Value coverage</div></div>
@@ -3480,7 +3519,9 @@ function setTrendFlag(fl){ S._trendFlag=fl; renderCagriTrend(); }
 function renderCagriTrend(){
   const chartEl=document.getElementById('ca-trend-chart');
   if(!chartEl) return;
-  const base=getCagriFiltered();
+  // Trend TAMAMEN kendi filtreleriyle (PY/Flag/Sayım/gran/aralık) çalışır — üst dönem
+  // ve PY detayı seçiminden BAĞIMSIZ. Baz = tüm çağrılar.
+  const base=S.cagrilar;
 
   // Firma → flag rengi eşlemesi (mevcut desenle aynı)
   const firmaFlagMap={};
