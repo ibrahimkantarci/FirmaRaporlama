@@ -49,6 +49,15 @@
   function renNormId(v) { var s = String(v == null ? "" : v).trim(); return s.replace(/\.0+$/, ""); }
   // Flag Date hücresi (Excel seri no veya string) → "YYYY-MM" (ayın 15'i → o ay).
   function renFlagMonth(v) { if (typeof v === "number") return renMonth(toDateStr(v)); var s = String(v == null ? "" : v).trim(); return renMonth(s) || renMonth(toDateStr(s)); }
+  // "YYYY-MM"'den n ay geriye: geriye dönük flag eşleme için (2026-03, 2 → 2026-01).
+  function renMonthMinus(ym, n) {
+    var p = String(ym == null ? "" : ym).split("-");
+    if (p.length < 2) return "";
+    var y = parseInt(p[0], 10), m = parseInt(p[1], 10);
+    if (!y || !m) return "";
+    var idx = y * 12 + (m - 1) - n, ny = Math.floor(idx / 12), nm = (idx % 12) + 1;
+    return ny + "-" + (nm < 10 ? "0" : "") + nm;
+  }
   // Binary flag değeri → okunur etiket. 1 = Flag var (kötü), 0 = Flag yok (iyi); renk/metin olduğu gibi.
   function renFlagVal(v) { if (v === 1 || v === "1") return "Flag var"; if (v === 0 || v === "0") return "Flag yok"; return v == null ? "" : v; }
 
@@ -182,8 +191,8 @@
     if (!S._renMetric) S._renMetric = "tutar";
     if (!S._renFilters) S._renFilters = [];
     if (!S._renMonths) S._renMonths = [];
-    if (panel.getAttribute("data-ren") !== "2") {
-      panel.setAttribute("data-ren", "2");
+    if (panel.getAttribute("data-ren") !== "3") {
+      panel.setAttribute("data-ren", "3");
       panel.innerHTML =
         '<div class="card" style="margin-bottom:14px">' +
           '<div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px">' +
@@ -199,6 +208,7 @@
           '<div style="margin-top:8px"><button onclick="addRenFilter()" style="font-size:12px;padding:5px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#185FA5">+ Filtre ekle</button> <span id="ren-info" style="font-size:11px;color:#a1a1aa;margin-left:6px"></span></div>' +
         '</div>' +
         '<div class="mg" id="ren-cards"></div>' +
+        '<div class="card" id="ren-flagcov-card" style="margin-bottom:14px"><div class="card-head"><span class="ct">🚩 Flag kapsama · geriye dönük eşleme</span><span id="ren-flagcov-sum" style="font-size:11px;color:#a1a1aa"></span></div><div id="ren-flagcov-body"></div></div>' +
         '<div class="card"><div class="card-head"><span class="ct" id="ren-brk-title">Kırılım</span><span id="ren-brk-cnt" style="font-size:11px;color:#a1a1aa"></span></div><div id="ren-breakdown"></div></div>';
     }
     document.getElementById("rm-tutar").classList.toggle("on", S._renMetric === "tutar");
@@ -226,6 +236,39 @@
     }
     document.getElementById("ren-cards").innerHTML = cardsHtml;
     document.getElementById("ren-info").textContent = data.length !== rows.length ? (data.length + " / " + rows.length + " satır") : (rows.length + " satır");
+
+    // ── Flag kapsama (geriye dönük eşleme) — filtreye duyarlı (seçili ay/filtre kümesi) ──
+    (function () {
+      var covBody = document.getElementById("ren-flagcov-body"); if (!covBody) return;
+      var fcov = {}, fcovMax = 0, fcovNF = 0, fcovTot = 0;
+      data.forEach(function (d2) {
+        var b = (d2 && d2.raw) ? d2.raw._flagBack : -1;
+        fcovTot++;
+        if (b == null || b < 0) fcovNF++;
+        else { fcov[b] = (fcov[b] || 0) + 1; if (b > fcovMax) fcovMax = b; }
+      });
+      var found = fcovTot - fcovNF;
+      var covChip = function (lbl, cnt, color) {
+        var pct = fcovTot ? Math.round(cnt / fcovTot * 100) : 0;
+        return '<div style="background:#fafafa;border:1px solid #f0f0f0;border-radius:8px;padding:8px 12px;min-width:104px;text-align:center">' +
+          '<div style="font-size:11px;color:#71717a;white-space:nowrap">' + lbl + '</div>' +
+          '<div style="font-size:19px;font-weight:700;color:' + color + '">' + cnt + '</div>' +
+          '<div style="font-size:10px;color:#a1a1aa">%' + pct + '</div></div>';
+      };
+      var html = '<div style="display:flex;gap:10px;flex-wrap:wrap">';
+      for (var oi = 0; oi <= fcovMax; oi++) {
+        var cnt = fcov[oi] || 0;
+        if (!cnt && oi !== 0) continue; // 0. offset (yenileme ayı) hep gösterilir; boş ara aylar atlanır
+        var lbl = oi === 0 ? "Yenileme ayı" : oi + " ay önce";
+        var color = oi === 0 ? "#16a34a" : oi <= 2 ? "#ca8a04" : "#ea580c";
+        html += covChip(lbl, cnt, color);
+      }
+      html += covChip("Bulunamadı", fcovNF, "#dc2626");
+      html += '</div>';
+      covBody.innerHTML = html;
+      var sumEl = document.getElementById("ren-flagcov-sum");
+      if (sumEl) sumEl.textContent = found + " / " + fcovTot + " kayıtta flag eşleşti · %" + (fcovTot ? Math.round(found / fcovTot * 100) : 0);
+    })();
 
     // ── Kırılım (seçilen kolonun her değeri için metrik) ──
     var dim = S._renDim;
@@ -865,8 +908,17 @@
           // Provider flag'lerini (bu ay + RÇİ provider id) satırın raw'ına ekle →
           // Kırılım/filtre kolonu olur. Eşleşme yoksa kolon boş kalır → "—".
           var pid = renNormId(r["RÇİ"]);
-          var frec = (pid && ay) ? flagByKey[pid + "|" + ay] : null;
+          // Geriye dönük eşleme: yenileme ayında snapshot yoksa ay-1, ay-2 … provider'ın
+          // EN YAKIN önceki snapshot'ını bul, o ayın tüm flag'lerini kullan. flagBack=kaç ay geri.
+          var frec = null, flagBack = -1;
+          if (pid && ay) {
+            for (var fb = 0; fb <= 24; fb++) {
+              var cand = flagByKey[pid + "|" + renMonthMinus(ay, fb)];
+              if (cand) { frec = cand; flagBack = fb; break; }
+            }
+          }
           if (frec) for (var fk in frec) { if (frec.hasOwnProperty(fk)) r[fk] = frec[fk]; }
+          r._flagBack = flagBack; // 0=yenileme ayı, 1=1 ay önce, …, -1=bulunamadı
           // provider_segment (firma'dan RÇİ ile) → raw kolonu (Kırılım/filtre "Provider Segment").
           r["Provider Segment"] = (S._segByRci && S._segByRci[pid]) || "";
           return {
