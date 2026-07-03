@@ -26,6 +26,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .nav-badge.red{background:#fee2e2;color:#dc2626}
 .nav-badge.orange{background:#ffedd5;color:#ea580c}
 .nav-badge.blue{background:#dbeafe;color:#1d4ed8}
+.nav-badge.status-active{background:#dcfce7;color:#16a34a}
+.nav-badge.status-wip{background:#fef3c7;color:#b45309}
+.sidebar{transition:width .18s}
+.main{transition:margin-left .18s}
+.nav-toggle{background:none;border:1px solid #e4e4e7;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:15px;color:#52525b;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-toggle:hover{background:#f4f4f5}
+body.nav-collapsed .sidebar{width:56px}
+body.nav-collapsed .main{margin-left:56px}
+body.nav-collapsed .nav-item{font-size:0;justify-content:center;gap:0;padding:8px 0;margin:1px 8px}
+body.nav-collapsed .nav-icon{font-size:16px}
+body.nav-collapsed .nav-badge{display:none}
+body.nav-collapsed .nav-group{display:none}
+body.nav-collapsed .logo-sub{display:none}
+body.nav-collapsed .logo img{display:none}
+body.nav-collapsed .logo{padding:14px 0;text-align:center}
+body.nav-collapsed .sidebar-footer{display:none}
 .sidebar-footer{margin-top:auto;padding:14px}
 .btn-import{width:100%;padding:9px;background:#E5002A;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
 .btn-import:hover{background:#be123c}
@@ -244,15 +260,15 @@ body.dark .theme-toggle:hover{background:#1e232b}
     <div class="logo-sub">HQ</div>
   </div>
   <div class="nav-group">Lifecycle</div>
-  <div class="nav-item active" onclick="goTo('onboarding',this)"><span class="nav-icon">🚀</span>Onboarding<span class="nav-badge" id="nb-ob">—</span></div>
-  <div class="nav-item" onclick="goTo('performans',this)"><span class="nav-icon">📊</span>Performans<span class="nav-badge red" id="nb-red">—</span></div>
-  <div class="nav-item" onclick="goTo('yenileme',this)"><span class="nav-icon">🔄</span>Yenileme Öncesi<span class="nav-badge orange" id="nb-yn">—</span></div>
+  <div class="nav-item active" onclick="goTo('onboarding',this)"><span class="nav-icon">🚀</span>Onboarding<span class="nav-badge status-active">aktif</span></div>
+  <div class="nav-item" onclick="goTo('performans',this)"><span class="nav-icon">📊</span>Performans<span class="nav-badge status-active">aktif</span></div>
+  <div class="nav-item" onclick="goTo('yenileme',this)"><span class="nav-icon">🔄</span>Yenileme Öncesi<span class="nav-badge status-active">aktif</span></div>
   <div class="nav-group">Analiz</div>
-  <div class="nav-item" onclick="goTo('analiz',this)"><span class="nav-icon">🔍</span>Genel Analiz<span class="nav-badge" id="nb-analiz">—</span></div>
-  <div class="nav-item" onclick="goTo('cagri',this)"><span class="nav-icon">📞</span>Çağrı Analizi<span class="nav-badge blue" id="nb-cagri">—</span></div>
+  <div class="nav-item" onclick="goTo('analiz',this)"><span class="nav-icon">🔍</span>Genel Analiz<span class="nav-badge status-active">aktif</span></div>
+  <div class="nav-item" onclick="goTo('cagri',this)"><span class="nav-icon">📞</span>Çağrı Analizi<span class="nav-badge status-active">aktif</span></div>
   <div class="nav-item" onclick="goTo('alarm',this)"><span class="nav-icon">🔔</span>Alarm Merkezi<span class="nav-badge red" id="nb-alarm">—</span></div>
   <div class="nav-group">Özel</div>
-  <div class="nav-item" onclick="goTo('ozel',this)"><span class="nav-icon">⭐</span>Özel Fiyat<span class="nav-badge" id="nb-oz">—</span></div>
+  <div class="nav-item" onclick="goTo('ozel',this)"><span class="nav-icon">⭐</span>Özel Fiyat<span class="nav-badge status-wip">yapımda</span></div>
   <div class="sidebar-footer">
     <button class="btn-import" onclick="openImport()">⬆ Veri Yükle</button>
     <div class="data-fresh" id="freshness">Veri yüklenmedi</div>
@@ -262,6 +278,7 @@ body.dark .theme-toggle:hover{background:#1e232b}
 <!-- MAIN -->
 <div class="main">
   <div class="topbar">
+    <button class="nav-toggle" onclick="toggleSidebar()" title="Menüyü aç/kapat">☰</button>
     <div class="page-title" id="page-title">Onboarding</div>
     <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
       <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Tema değiştir">🌙</button>
@@ -297,14 +314,19 @@ body.dark .theme-toggle:hover{background:#1e232b}
         <div id="ob-metrik-ozet"></div>
       </div>
 
-      <!-- 5 Teklife Ulaşma Süresi (kategoriye göre) -->
+      <!-- 5 Teklife Ulaşma Süresi (kırılıma göre) -->
       <div class="card">
         <div class="card-head">
           <span class="ct">⏱️ Ortalama 5 Teklife Ulaşma Süresi</span>
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:11px;color:#71717a">Kategori</span>
-            <select id="ob-teklif5-kat" onchange="renderTeklif5()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-              <option value="">Tüm kategoriler</option>
+            <span style="font-size:11px;color:#71717a">Kırılım</span>
+            <select id="ob-teklif5-dim" onchange="renderTeklif5()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+              <option value="kategori_adi">Kategori</option>
+              <option value="kategori_grubu">Kategori Grubu</option>
+              <option value="sehir">Şehir</option>
+              <option value="ilce">İlçe</option>
+              <option value="urun_adi">Ürün</option>
+              <option value="py_adi">PY</option>
             </select>
           </div>
         </div>
@@ -374,55 +396,6 @@ body.dark .theme-toggle:hover{background:#1e232b}
           </div>
         </div>
 
-        <div style="margin-top:16px;padding-top:14px;border-top:1px solid #f4f4f5">
-          <div onclick="toggleCard('ob-donem-aranmayan-body','ob-donem-aranmayan-toggle')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
-            <span class="ct">📆 Seçili Dönemde Aranmayan Onboarding Firmaları</span>
-            <div style="display:flex;gap:6px;align-items:center">
-              <span id="ob-donem-aranmayan-info" style="font-size:11px;color:#a1a1aa"></span>
-              <span id="ob-donem-aranmayan-cnt" style="font-size:11px;color:#a1a1aa"></span>
-              <span id="ob-donem-aranmayan-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
-            </div>
-          </div>
-          <div id="ob-donem-aranmayan-body" style="display:none;margin-top:10px">
-            <div style="font-size:11px;color:#a1a1aa;margin-bottom:8px">Dönem, yukarıdaki çağrı trendi tarih aralığı seçicisiyle belirlenir.</div>
-            <div class="tw"><table>
-              <thead><tr>
-                <th>Firma</th><th>PY</th><th>Kategori</th><th>Şehir</th>
-                <th>Attempt denemesi</th><th>Durum</th>
-              </tr></thead>
-              <tbody id="ob-donem-aranmayan-tbl"><tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:14px">—</td></tr></tbody>
-            </table></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tam firma listesi -->
-      <div class="card">
-        <div class="card-head" onclick="toggleCard('ob-body','ob-toggle')" style="cursor:pointer;user-select:none">
-          <span class="ct">Tüm onboarding firmaları</span>
-          <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap" onclick="event.stopPropagation()">
-            <div class="chip on" style="font-size:11px" onclick="fOB(this,'tümü')">Tümü</div>
-            <div class="chip" style="font-size:11px" onclick="fOB(this,'eksik')">⚠️ Eksik var</div>
-            <div class="chip" style="font-size:11px" onclick="fOB(this,'rapor')">🚨 1 ay doldu</div>
-            <div class="chip" style="font-size:11px" onclick="fOB(this,'mezun')">🎓 Mezun</div>
-            <span id="ob-py-chips" style="display:flex;gap:4px"></span>
-            <span id="ob-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
-          </div>
-        </div>
-        <div id="ob-body" style="display:none"><div class="tw"><table>
-          <thead><tr>
-            <th>Firma</th><th>PY</th><th>Kat. Grubu</th><th>Şehir</th>
-            <th>Başlangıç</th><th>Gün</th><th>Teklif</th>
-            <th title="Telefon">📞</th>
-            <th title="Adres">📍</th>
-            <th title="Hakkında metni">📝</th>
-            <th title="Galeri">🖼</th>
-            <th title="Yorum">⭐</th>
-            <th title="Kampanya">📣</th>
-            <th>Durum</th>
-          </tr></thead>
-          <tbody id="ob-full-tbl"><tr><td colspan="15" style="text-align:center;color:#a1a1aa;padding:20px">Onboarding verisi yüklenmedi</td></tr></tbody>
-        </table></div></div>
       </div>
 
     </div>
@@ -780,33 +753,6 @@ body.dark .theme-toggle:hover{background:#1e232b}
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-head" onclick="toggleFirmaCagri()" style="cursor:pointer;user-select:none">
-          <span class="ct">Firma bazlı çağrı özeti</span>
-          <div style="display:flex;gap:5px;align-items:center">
-            <div class="chip on" style="font-size:11px" id="cf-all" onclick="event.stopPropagation();fCagriPY(this,'tümü')">Tümü</div>
-            <span id="cf-chips"></span>
-            <span id="firma-cagri-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
-          </div>
-        </div>
-        <div id="firma-cagri-body" style="display:none">
-          <div class="tw"><table>
-            <thead><tr>
-              <th onclick="srtC('firma_adi')">Firma ↕</th>
-              <th onclick="srtC('customer_name')">Müşteri adı ↕</th>
-              <th>PY</th>
-              <th onclick="srtC('toplam')">Toplam ↕</th>
-              <th onclick="srtC('basarili')">Touch ↕</th>
-              <th onclick="srtC('cevapsiz')">Attempt ↕</th>
-              <th onclick="srtC('oran')">Touch % ↕</th>
-              <th onclick="srtC('ort_sure')">Ort. süre ↕</th>
-              <th>Son 5 çağrı</th>
-            </tr></thead>
-            <tbody id="ca-firma-tbl"></tbody>
-          </table></div>
-        </div>
-      </div>
-
       <!-- Aranmayan müşteriler -->
       <div class="card">
         <div class="card-head" onclick="toggleAranmayan()" style="cursor:pointer;user-select:none">
@@ -839,44 +785,53 @@ body.dark .theme-toggle:hover{background:#1e232b}
 
       <!-- Board 1: 2 aydır iletişime geçilmeyen firmalar -->
       <div class="card">
-        <div class="card-head">
+        <div class="card-head" onclick="toggleCard('al-iletisim-body','al-iletisim-toggle')" style="cursor:pointer;user-select:none">
           <span class="ct">📵 2 aydır iletişime geçilmeyen firmalar</span>
-          <span id="al-iletisim-cnt" style="font-size:11px;color:#a1a1aa"></span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span id="al-iletisim-cnt" style="font-size:11px;color:#a1a1aa"></span>
+            <span id="al-iletisim-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
+          </div>
         </div>
-        <div class="tw"><table>
+        <div id="al-iletisim-body" style="display:none"><div class="tw"><table>
           <thead><tr>
             <th>Firma</th><th>PY</th><th>Flag</th><th>Son çağrı</th><th>Geçen gün</th><th>Bitiş</th>
           </tr></thead>
           <tbody id="al-iletisim-tbl"><tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:16px">Çağrı ve firma verisi yüklenince hesaplanır</td></tr></tbody>
-        </table></div>
+        </table></div></div>
       </div>
 
       <!-- Board 2: 3 ay içinde yenilenecek kırmızı flag firmalar -->
       <div class="card">
-        <div class="card-head">
+        <div class="card-head" onclick="toggleCard('al-kirmizi-body','al-kirmizi-toggle')" style="cursor:pointer;user-select:none">
           <span class="ct">🔴 Yenilemesine 3 ay kalan kırmızı flag firmalar</span>
-          <span id="al-kirmizi-cnt" style="font-size:11px;color:#a1a1aa"></span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span id="al-kirmizi-cnt" style="font-size:11px;color:#a1a1aa"></span>
+            <span id="al-kirmizi-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
+          </div>
         </div>
-        <div class="tw"><table>
+        <div id="al-kirmizi-body" style="display:none"><div class="tw"><table>
           <thead><tr>
             <th>Firma</th><th>PY</th><th>Bitiş</th><th>Kalan gün</th><th>Value (Yıllık)</th><th>Aylık Value</th>
           </tr></thead>
           <tbody id="al-kirmizi-tbl"><tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:16px">Firma verisi yüklenince hesaplanır</td></tr></tbody>
-        </table></div>
+        </table></div></div>
       </div>
 
       <!-- Board 3: Dönüş süresi 20+ saat firmalar -->
       <div class="card">
-        <div class="card-head">
+        <div class="card-head" onclick="toggleCard('al-sure-body','al-sure-toggle')" style="cursor:pointer;user-select:none">
           <span class="ct">⏱ Dönüş süresi 20+ saat olan firmalar</span>
-          <span id="al-sure-cnt" style="font-size:11px;color:#a1a1aa"></span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span id="al-sure-cnt" style="font-size:11px;color:#a1a1aa"></span>
+            <span id="al-sure-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
+          </div>
         </div>
-        <div class="tw"><table>
+        <div id="al-sure-body" style="display:none"><div class="tw"><table>
           <thead><tr>
             <th>Firma</th><th>PY</th><th>Flag</th><th>Dönüş süresi</th><th>Teklif</th><th>Dönüş oranı</th>
           </tr></thead>
           <tbody id="al-sure-tbl"><tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:16px">Firma verisi yüklenince hesaplanır</td></tr></tbody>
-        </table></div>
+        </table></div></div>
       </div>
 
     </div>
@@ -1260,6 +1215,8 @@ function goTo(name,el){
   ({onboarding:renderOB,performans:renderPF,yenileme:renderYN,analiz:renderAnaliz,cagri:renderCA,alarm:renderAL,ozel:renderOZ})[name]?.();
 }
 
+function toggleSidebar(){document.body.classList.toggle('nav-collapsed');}
+
 // ── CSV/TSV PARSER ────────────────────────────────────────────────────────────
 function parseFile(text){
   const firstLine = text.split(/\r?\n/)[0];
@@ -1612,7 +1569,8 @@ function obGun(f){
 function renderOB(){
   const d=S.onboarding;
   if(!d.length){
-    document.getElementById('ob-full-tbl').innerHTML='<tr><td colspan="15" style="text-align:center;color:#a1a1aa;padding:20px">Onboarding verisi yüklenmedi — "Veri Yükle → 2 · Onboarding" adımını kullanın</td></tr>';
+    const _t=document.getElementById('ob-full-tbl');
+    if(_t) _t.innerHTML='<tr><td colspan="15" style="text-align:center;color:#a1a1aa;padding:20px">Onboarding verisi yüklenmedi</td></tr>';
     return;
   }
 
@@ -1679,9 +1637,10 @@ function renderOB(){
     <span style="font-size:10px;color:#71717a;margin-left:6px">${profilVals.length} firma</span>
   </div>`:'');
 
-  // PY filtre chips
+  // PY filtre chips ("Tüm onboarding firmaları" kartı kaldırıldı — varsa doldur)
   const pyNames=[...new Set(d.map(f=>f.py_adi).filter(Boolean))];
-  document.getElementById('ob-py-chips').innerHTML=pyNames.map(n=>`<div class="chip" style="font-size:11px" onclick="fOBPY(this,'${n}')">${n.split(' ')[0]}</div>`).join('');
+  const _obPyc=document.getElementById('ob-py-chips');
+  if(_obPyc) _obPyc.innerHTML=pyNames.map(n=>`<div class="chip" style="font-size:11px" onclick="fOBPY(this,'${n}')">${n.split(' ')[0]}</div>`).join('');
 
   renderObCagriDegerlendirme();
   renderOBTable();
@@ -1693,24 +1652,21 @@ function renderTeklif5(){
   const el=document.getElementById('ob-teklif5-dist');
   if(!el) return;
   const all=(S.onboarding||[]).filter(f=>f.mezun_mu!=='Evet');
-  // Kategori dropdown'ını bir kez doldur
-  const katSel=document.getElementById('ob-teklif5-kat');
-  if(katSel&&katSel.options.length<=1){
-    const kats=[...new Set(all.map(x=>x.kategori_adi).filter(k=>k&&k!=='—'))].sort();
-    kats.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;katSel.appendChild(o);});
-  }
-  const secilenKat=katSel?katSel.value:'';
-  const kaynak=secilenKat?all.filter(x=>x.kategori_adi===secilenKat):all;
+  // Kırılım (breakdown) boyutu — seçime göre grupla
+  const dimSel=document.getElementById('ob-teklif5-dim');
+  const dim=dimSel?dimSel.value:'kategori_adi';
+  const DIM_LABEL={kategori_adi:'Kategori',kategori_grubu:'Kategori Grubu',sehir:'Şehir',ilce:'İlçe',urun_adi:'Ürün',py_adi:'PY'};
+  const dimLbl=DIM_LABEL[dim]||'Kırılım';
 
   // Boş/geçersiz değerleri hariç tut: sadece pozitif sayısal süreler ortalamaya girer
   const gecerli=v=>{const s=String(v==null?'':v).trim();if(s===''||s==='-')return false;const n=parseFloat(s.replace(',','.'));return !isNaN(n)&&n>0;};
   const sure=v=>parseFloat(String(v).replace(',','.'));
 
-  // Kategori kırılımı (kategori seçili değilse tüm kategoriler, seçiliyse tek satır)
+  // Seçili boyuta göre kırılım
   const grup={};
-  kaynak.forEach(f=>{
+  all.forEach(f=>{
     if(!gecerli(f.teklif5_gun)) return;
-    const k=f.kategori_adi||'—';
+    const k=String(f[dim]==null?'':f[dim]).trim()||'—';
     if(!grup[k]) grup[k]={toplam:0,adet:0};
     grup[k].toplam+=sure(f.teklif5_gun);
     grup[k].adet++;
@@ -1732,13 +1688,13 @@ function renderTeklif5(){
   const BAR='#185FA5';
   const ozet=genelOrt!==null?`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f1f3">
       <span style="font-size:26px;font-weight:700;color:#18181b">${genelOrt.toFixed(1)}</span>
-      <span style="font-size:12px;color:#71717a">gün ortalama · ${tumAdet} firma${secilenKat?' · '+secilenKat:''}</span>
+      <span style="font-size:12px;color:#71717a">gün ortalama · ${tumAdet} firma · ${dimLbl} kırılımı</span>
     </div>`:'';
 
   el.innerHTML=ozet+
     '<table style="width:100%;border-collapse:collapse">'+
     '<thead><tr>'+
-      '<th style="text-align:left;font-size:11px;color:#71717a;font-weight:600;padding:6px 8px;border-bottom:1px solid #e4e4e7">Kategori</th>'+
+      '<th style="text-align:left;font-size:11px;color:#71717a;font-weight:600;padding:6px 8px;border-bottom:1px solid #e4e4e7">'+dimLbl+'</th>'+
       '<th style="text-align:center;font-size:11px;color:#71717a;font-weight:600;padding:6px 8px;border-bottom:1px solid #e4e4e7">Firma</th>'+
       '<th style="text-align:right;font-size:11px;color:#71717a;font-weight:600;padding:6px 8px;border-bottom:1px solid #e4e4e7">5 Teklife Ulaşma Süresi (Gün)</th>'+
     '</tr></thead><tbody>'+
@@ -2007,6 +1963,8 @@ function fOB(el,v){ document.querySelectorAll('#panel-onboarding .card:last-chil
 function fOBPY(el,v){ document.querySelectorAll('#ob-py-chips .chip').forEach(c=>c.classList.remove('on')); el.classList.add('on'); S.fOBPY=v; renderOBTable(); }
 
 function renderOBTable(){
+  const _obTbl=document.getElementById('ob-full-tbl');
+  if(!_obTbl) return; // "Tüm onboarding firmaları" kartı kaldırıldı
   let data=[...S.onboarding];
   if(S.fOB==='eksik')    data=data.filter(f=>f.mezun_mu!=='Evet'&&obEksikler(f).length>0);
   else if(S.fOB==='rapor')    data=data.filter(f=>obRaporMu(f));
@@ -3254,22 +3212,6 @@ function renderCA(){
   } else {
     document.getElementById('py-cagri-blocks').innerHTML='<div class="empty-state"><div>📞</div><div class="et">Seçili dönemde '+String(S._secilenCagriPY).split(' ')[0]+' için çağrı yok</div></div>';
   }
-  if(!S.fCagriPY) S.fCagriPY='tümü';
-  const pyNames=[...new Set(S.cagrilar.map(c=>c.py_adi).filter(Boolean))];
-  (function(){
-    const cfSel=S.fCagriPY||'tümü';
-    const allChip=document.getElementById('cf-all'); if(allChip) allChip.classList.toggle('on',cfSel==='tümü');
-    const part=partitionPy(pyNames,cfSel,'cf');
-    const ch=(nm,lbl,active)=>`<div class="chip${active?' on':''}" onclick="fCagriPY(this,'${String(nm).replace(/'/g,"\\'")}')" style="display:inline-flex;margin:0 2px;font-size:11px">${lbl}</div>`;
-    let h='';
-    part.main.forEach(n=>{h+=ch(n,n.split(' ')[0],cfSel===n);});
-    if(part.others.length){
-      h+=`<div class="chip${part.open?' on':''}" onclick="togglePyDiger('cf')" style="display:inline-flex;margin:0 2px;font-size:11px">Diğer ${part.open?'▴':'▾'}</div>`;
-      if(part.open) part.others.forEach(n=>{h+=ch(n,n.split(' ')[0],cfSel===n);});
-    }
-    document.getElementById('cf-chips').innerHTML=h;
-  })();
-  renderCagriTbl();
 }
 
 function renderCagriTbl(){
@@ -4014,14 +3956,10 @@ function renderOzCagriTrend(){
 
 // ── BADGES ────────────────────────────────────────────────────────────────────
 function updateBadges(){
-  const today=new Date();
-  document.getElementById('nb-ob').textContent=S.onboarding.filter(f=>f.mezun_mu!=='Evet'&&obRaporMu(f)).length||S.onboarding.filter(f=>f.mezun_mu!=='Evet').length||'—';
-  document.getElementById('nb-red').textContent=S.firmalar.filter(f=>f.flag_rengi==='Kırmızı').length||'—';
-  document.getElementById('nb-yn').textContent=S.firmalar.filter(f=>{const d=Math.ceil((new Date(f.bitis_tarihi)-today)/864e5);return d>=0&&d<=30;}).length||'—';
-  document.getElementById('nb-cagri').textContent=S.cagrilar.length||'—';
+  // Menü rozetleri artık statik "aktif"/"yapımda"; yalnız Alarm Merkezi sayaç gösterir.
   const alarms=buildAlarms();
-  document.getElementById('nb-alarm').textContent=alarms.filter(a=>a.tip!=='info').length||'—';
-  document.getElementById('nb-oz').textContent=S.ozelFiyat.length||'—';
+  const el=document.getElementById('nb-alarm');
+  if(el) el.textContent=alarms.filter(a=>a.tip!=='info').length||'—';
 }
 
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',3000);}
