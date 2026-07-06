@@ -1691,7 +1691,7 @@ function renderOB(){
   </div>`:'');
 
   // PY filtre chips ("Tüm onboarding firmaları" kartı kaldırıldı — varsa doldur)
-  const pyNames=[...new Set(d.map(f=>f.py_adi).filter(Boolean))];
+  const pyNames=orderedPY(d.map(f=>f.py_adi));   // standart PY sırası
   const _obPyc=document.getElementById('ob-py-chips');
   if(_obPyc) _obPyc.innerHTML=pyNames.map(n=>`<div class="chip" style="font-size:11px" onclick="fOBPY(this,'${n}')">${n.split(' ')[0]}</div>`).join('');
 
@@ -2742,7 +2742,7 @@ function renderKatDist(){
 }
 
 function renderPYChips(){
-  const names=[...new Set(S.firmalar.map(f=>f.py_adi).filter(Boolean))]
+  const names=orderedPY(S.firmalar.map(f=>f.py_adi))   // standart PY sırası
     .filter(n=>{const fw=String(n).split(' ')[0].toLocaleLowerCase('tr');return fw!=='eylul'&&fw!=='eylül';});
   document.getElementById('py-chips').innerHTML=names.map(n=>`<div class="chip${S.fPY===n?' on':''}" onclick="fPY(this,'${n}')" style="display:inline-flex;margin:0 2px">${n.split(' ')[0]}</div>`).join('');
   const allChip=document.getElementById('py-all-chip');
@@ -2817,7 +2817,7 @@ function renderYN(){
   }
   const secilenKat=katSel?.value||'';
 
-  const pyler=['Tümü',...[...new Set(wd.map(f=>f.py_adi).filter(Boolean))].sort()];
+  const pyler=['Tümü',...orderedPY(wd.map(f=>f.py_adi))];   // Berkay,Kubra,Mine,Nidanur,Sinem,Yiğit,Eylül,'-'
   if(!S._ynSecilenPY||!pyler.includes(S._ynSecilenPY)) S._ynSecilenPY='Tümü';
   // Aktif çip = KOYU arka plan + beyaz yazı (renderCA ile aynı). Eski kod aktif arka plan için
   // fgs[0]='#fff' kullanıyordu → i%7===0'a denk gelen çip (Sinem, ayrıca varsayılan "Tümü")
@@ -3166,19 +3166,25 @@ function fmtSureAvg(toplam, adet){
 }
 
 // ── Çağrı PY filtresi — ana isimler + "Diğer" açılır grubu (paylaşılan) ──────
-// Ana çipler: Berkay, Sinem, Kubra, Yigit, Nidanur, Mine. Kalanlar "Diğer ▾" altında.
-const PY_MAIN_ORDER=['berkay','sinem','kubra','yigit','nidanur','mine'];
+// Ana çipler ALFABETİK: Berkay, Kubra, Mine, Nidanur, Sinem, Yiğit. Kalanlar (Eylül, Pelda…)
+// sonra alfabetik; '-'/boş en sonda. (Bu sıra tüm PY filtrelerinde ortak kullanılır.)
+const PY_MAIN_ORDER=['berkay','kubra','mine','nidanur','sinem','yigit'];
 const PY_MAIN_SET=new Set(PY_MAIN_ORDER);
 function pyFoldFirst(s){return String(s==null?'':s).trim().split(/[\s_]/)[0].toLocaleLowerCase('tr').replace(/ı/g,'i').replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o').replace(/ç/g,'c');}
+// PY adı '-'/boş mu (atanmamış PY) — sıralamada en sona atılır.
+function pyIsDash(n){const t=String(n==null?'':n).trim();return t===''||t==='-';}
 S._pyDigerOpen=S._pyDigerOpen||{};
 function togglePyDiger(key){S._pyDigerOpen[key]=!S._pyDigerOpen[key];if(key==='aran')renderAranmayan();else renderCA();}
 function partitionPy(names,selected,key){
   const uniq=[...new Set((names||[]).filter(Boolean))];
   const main=uniq.filter(n=>PY_MAIN_SET.has(pyFoldFirst(n))).sort((a,b)=>PY_MAIN_ORDER.indexOf(pyFoldFirst(a))-PY_MAIN_ORDER.indexOf(pyFoldFirst(b)));
-  const others=uniq.filter(n=>!PY_MAIN_SET.has(pyFoldFirst(n))).sort();
+  const others=uniq.filter(n=>!PY_MAIN_SET.has(pyFoldFirst(n))).sort((a,b)=>{const da=pyIsDash(a),db=pyIsDash(b);if(da!==db)return da?1:-1;return String(a).localeCompare(String(b),'tr');});
   const open=!!S._pyDigerOpen[key]||(!!selected&&selected!=='tümü'&&others.includes(selected));
   return {main,others,open};
 }
+// PY listesini standart sırada DÜZ döndürür (ana PY'ler alfabetik önce, sonra diğerleri, '-' en sonda).
+// "Diğer" açılır grubu OLMAYAN düz filtreler için (Yenileme, Onboarding, Performans, trend dropdown).
+function orderedPY(names){ const p=partitionPy(names,null,'_flat'); return [...p.main,...p.others]; }
 
 function renderCA(){
   const bgs=['#EEF2FF','#F0FDF4','#FFFBEB','#FFF1F2','#F5F3FF','#ECFDF5'];
@@ -3351,7 +3357,7 @@ function renderCA(){
     document.getElementById('py-cagri-blocks').innerHTML=`<div class="py-cagri-block">
       <div class="py-cagri-header">
         <div class="py-cagri-av" style="background:#374151;color:#fff">TM</div>
-        <div><div class="py-cagri-name">Tüm PY'ler</div><div class="py-cagri-meta">${topFirma} firma · ${topT} toplam çağrı</div></div>
+        <div><div class="py-cagri-name">Tüm PY'ler</div></div>
       </div>
       <div class="py-cagri-stats">
         <div class="stat-box" style="background:#eff6ff;border-color:#bfdbfe"><div class="stat-val" style="font-size:13px">${topCoverageEl}</div><div class="stat-lbl">Value coverage</div></div>
@@ -3382,7 +3388,7 @@ function renderCA(){
     document.getElementById('py-cagri-blocks').innerHTML=`<div class="py-cagri-block">
       <div class="py-cagri-header">
         <div class="py-cagri-av" style="background:${bgs[idx<0?0:idx%6]};color:${fgs[idx<0?0:idx%6]}">${ini}</div>
-        <div><div class="py-cagri-name">${name}</div><div class="py-cagri-meta">${d.firmalar.size} firma · ${d.toplam} toplam çağrı</div></div>
+        <div><div class="py-cagri-name">${name}</div></div>
       </div>
       <div class="py-cagri-stats">
         <div class="stat-box" style="background:#eff6ff;border-color:#bfdbfe"><div class="stat-val" style="font-size:13px">${coverageEl}</div><div class="stat-lbl">Value coverage</div></div>
@@ -3793,7 +3799,7 @@ function renderCagriTrend(){
   const flagFilteredForPY=S._trendFlag==='Tümü'?base:base.filter(c=>firmaFlagMap[String(c.firma_id||'').trim()]===S._trendFlag);
   const pyCounts={};
   flagFilteredForPY.forEach(c=>{const k=c.py_adi||'Bilinmiyor';pyCounts[k]=(pyCounts[k]||0)+1;});
-  const pyList=['Tümü',...[...new Set(S.cagrilar.map(c=>c.py_adi).filter(Boolean))].sort()];
+  const pyList=['Tümü',...orderedPY(S.cagrilar.map(c=>c.py_adi))];   // standart PY sırası
   if(!pyList.includes(S._trendPY)) S._trendPY='Tümü';
   const pySelect=document.getElementById('ca-trend-py-select');
   if(pySelect){
