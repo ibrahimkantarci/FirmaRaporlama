@@ -1969,7 +1969,10 @@ function renderObProviderSearch(){
 
 
 function openMetrikModal(key){
-  const d=S.onboarding;
+  // Firma tipi filtresi (Toplam/Yeni/Yenileme) detay modalına da uygulanır — renderOB ile aynı
+  // mantık (S.onboarding modal açılırken tam sete geri sarılmış olur, o yüzden burada süzülür).
+  const _tip=S._obTip||'toplam';
+  const d=(_tip==='toplam')?S.onboarding:(S.onboarding||[]).filter(f=>String(f.yeni_yenileme||'')===_tip);
   if(!d.length) return;
   const METRIK_CONFIG = {
     telefon:      { lbl:'📞 Telefon',    colHeader:'Telefon',     tamFn:f=>obNonempty(f.telefon),    valFn:f=>f.telefon||'—' },
@@ -2428,6 +2431,7 @@ function renderFirmaTbl(){
       <td style="font-size:11px">${x.py_adi||'—'}</td>
       <td style="font-size:11px">${x.bitis_tarihi||'—'}</td>
       <td style="font-size:12px;font-weight:500">${num(x.satis_fiyati)?fmt(num(x.satis_fiyati)):'—'}</td>
+      <td style="font-size:12px;color:#185FA5">${aylikValFmt(x.satis_fiyati)}</td>
       <td style="font-size:12px;text-align:center">${num(x.teklif)||'—'}</td>
       <td style="font-size:12px;text-align:center">${num(x.anlasma_sayisi)||'—'}</td>
       <td><span style="font-size:12px;font-weight:600;color:${ppColor}">${pp||'—'}</span></td>
