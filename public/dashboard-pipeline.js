@@ -797,6 +797,12 @@
           if (pid in firmaKampanya) m.kampanya = firmaKampanya[pid];
           m.yeni_yenileme = classifyProvider(pid); // Yeni | Yenileme | Bilinmiyor
           return m;
+        // Provider İsmi (ob_adi) olmayan satırları dışla — Qlik'te verisi eksik duplike
+        // kayıtlar (tüm alanlar '-'); Sheet'i okurken ele → hiçbir onboarding görünümüne girmez.
+        // (Kendi kendine yeten kontrol; HTML'deki obNonempty'e bağlı değil.)
+        }).filter(function (m) {
+          var v = String(m.ob_adi == null ? "" : m.ob_adi).trim();
+          return v !== "" && v !== "-" && v !== "0";
         });
         S.loaded.onboarding = true;
         S.loaded.flag = S.onboarding.some(function (f) { return f.ob_flag; });
