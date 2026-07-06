@@ -713,6 +713,12 @@
             '<div style="display:flex;gap:8px;align-items:center"><span class="flbl">Görüntüle</span>' +
               '<div class="chip" id="perf-m-value" onclick="perfSetMetric(\'value\')" style="font-size:11px">Value (₺)</div>' +
               '<div class="chip" id="perf-m-teklif" onclick="perfSetMetric(\'teklif\')" style="font-size:11px">Teklif</div></div>' +
+            '<div style="display:flex;gap:8px;align-items:center"><span class="flbl">Firma</span>' +
+              '<div class="chip" id="perf-f-firma" onclick="perfSetFirma(\'firma\')" style="font-size:11px">Firma başına</div>' +
+              '<div class="chip" id="perf-f-toplam" onclick="perfSetFirma(\'toplam\')" style="font-size:11px">Toplam</div></div>' +
+            '<div id="perf-gun-wrap" style="display:flex;gap:8px;align-items:center"><span class="flbl">Gün</span>' +
+              '<div class="chip" id="perf-g-gun" onclick="perfSetGun(\'gun\')" style="font-size:11px">Gün başına</div>' +
+              '<div class="chip" id="perf-g-toplam" onclick="perfSetGun(\'toplam\')" style="font-size:11px">Toplam</div></div>' +
           '</div>' +
           '<div class="flbl" style="margin-bottom:4px">Filtreler</div><div id="perf-filters" style="display:flex;flex-direction:column;gap:6px"></div>' +
           '<div style="margin:8px 0"><button onclick="perfAddFilter()" style="font-size:12px;padding:5px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#185FA5">+ Filtre ekle</button></div>' +
@@ -725,11 +731,19 @@
       if (!injectPerfPivot()) return;
       if (!S._perfDim) S._perfDim = "kategori_adi";
       if (!S._perfMetric) S._perfMetric = "value";
+      if (!S._perfFirma) S._perfFirma = "firma"; // firma başına (varsayılan) | toplam
+      if (!S._perfGun) S._perfGun = "gun";       // gün başına (varsayılan) | toplam
       if (!S._perfFilters) S._perfFilters = [];
       var dimSel = document.getElementById("perf-dim");
       if (dimSel) dimSel.innerHTML = PERF_DIMS.map(function (d) { return '<option value="' + d.k + '"' + (S._perfDim === d.k ? " selected" : "") + '>' + d.lbl + '</option>'; }).join("");
       document.getElementById("perf-m-value").classList.toggle("on", S._perfMetric === "value");
       document.getElementById("perf-m-teklif").classList.toggle("on", S._perfMetric === "teklif");
+      document.getElementById("perf-f-firma").classList.toggle("on", S._perfFirma === "firma");
+      document.getElementById("perf-f-toplam").classList.toggle("on", S._perfFirma === "toplam");
+      document.getElementById("perf-g-gun").classList.toggle("on", S._perfGun === "gun");
+      document.getElementById("perf-g-toplam").classList.toggle("on", S._perfGun === "toplam");
+      // Gün toggle yalnız Teklif metriğinde görünür (Value gün'den etkilenmez).
+      var gunWrap = document.getElementById("perf-gun-wrap"); if (gunWrap) gunWrap.style.display = (S._perfMetric === "teklif") ? "flex" : "none";
       var fHost = document.getElementById("perf-filters");
       if (fHost) fHost.innerHTML = (S._perfFilters || []).map(function (f, i) {
         var opts = '<option value="">— kolon —</option>' + PERF_DIMS.map(function (d) { return '<option value="' + d.k + '"' + (f.col === d.k ? " selected" : "") + '>' + d.lbl + '</option>'; }).join("");
@@ -738,22 +752,46 @@
         return '<div style="display:flex;gap:6px;align-items:flex-start"><select onchange="perfSetCol(' + i + ',this.value)" style="font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:4px">' + opts + '</select>' + valSel + '<button onclick="perfRemFilter(' + i + ')" style="font-size:11px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#71717a;padding:4px 8px">✕</button></div>';
       }).join("");
       var data = perfBase(), dim = S._perfDim, groups = {};
-      data.forEach(function (x) { var g = String(x[dim] == null ? "" : x[dim]).trim() || "—"; var o = groups[g] || (groups[g] = { g: g, n: 0, val: 0, teklif: 0 }); o.n++; o.val += renNum(x.satis_fiyati); o.teklif += renNum(x.teklif); });
+      data.forEach(function (x) {
+        var g = String(x[dim] == null ? "" : x[dim]).trim() || "—";
+        var o = groups[g] || (groups[g] = { g: g, n: 0, val: 0, teklif: 0, sumRate: 0, nRate: 0 });
+        o.n++; o.val += renNum(x.satis_fiyati);
+        var tk = renNum(x.teklif); o.teklif += tk;
+        var gn = renNum(x.yayinlanan_gun); if (gn > 0) { o.sumRate += tk / gn; o.nRate++; } // firma bazlı teklif/gün
+      });
       var arr = Object.keys(groups).map(function (k) { return groups[k]; });
-      var mOf = function (o) { return S._perfMetric === "teklif" ? o.teklif : o.val; }; // "Görüntüle" metriği
-      arr.sort(function (a, b) { return mOf(b) - mOf(a); });
-      var totV = arr.reduce(function (s, o) { return s + o.val; }, 0), totT = arr.reduce(function (s, o) { return s + o.teklif; }, 0);
-      var info = document.getElementById("perf-pivot-info"); if (info) info.textContent = arr.length + " değer · " + data.length + " firma · " + renTL(totV) + " · " + totT + " teklif";
-      var maxM = arr.reduce(function (m, o) { return Math.max(m, mOf(o)); }, 0) || 1;
-      var barCol = S._perfMetric === "teklif" ? "#7c3aed" : "#185FA5";
+      var isT = S._perfMetric === "teklif";
+      // Metrik: Value → firma toggle (ortalama/toplam value). Teklif → önce GÜN (her firmada teklif/gün
+      // ham teklif), sonra FIRMA (firmalar arası ortalama/toplam). Varsayılan (firma+gün)=ort. firma günlük teklifi.
+      var metricOf = function (o) {
+        if (!isT) return S._perfFirma === "firma" ? (o.n ? o.val / o.n : 0) : o.val;
+        if (S._perfGun === "gun") return S._perfFirma === "firma" ? (o.nRate ? o.sumRate / o.nRate : 0) : o.sumRate;
+        return S._perfFirma === "firma" ? (o.n ? o.teklif / o.n : 0) : o.teklif;
+      };
+      arr.sort(function (a, b) { return metricOf(b) - metricOf(a); });
+      var fmtVal = function (v) {
+        if (!isT) return renTL(Math.round(v));
+        if (S._perfGun === "gun") return (Math.round(v * 100) / 100).toLocaleString("tr-TR");
+        if (S._perfFirma === "firma") return (Math.round(v * 10) / 10).toLocaleString("tr-TR");
+        return Math.round(v).toLocaleString("tr-TR");
+      };
+      var modeLbl = !isT ? (S._perfFirma === "firma" ? "firma başına value (₺)" : "toplam value (₺)")
+        : (S._perfFirma === "firma"
+            ? (S._perfGun === "gun" ? "firma başına günlük teklif" : "firma başına teklif")
+            : (S._perfGun === "gun" ? "toplam günlük teklif" : "toplam teklif"));
+      var info = document.getElementById("perf-pivot-info"); if (info) info.textContent = arr.length + " değer · " + data.length + " firma · " + modeLbl;
+      var maxM = arr.reduce(function (m, o) { return Math.max(m, metricOf(o)); }, 0) || 1;
+      var barCol = isT ? "#7c3aed" : "#185FA5";
       var body = document.getElementById("perf-pivot-body");
       body.innerHTML = arr.length ? arr.slice(0, 60).map(function (o) {
-        var pct = Math.round(mOf(o) / maxM * 100);
-        return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:600">' + renEsc(o.g) + '</span><span style="color:#71717a">' + o.n + ' firma · ' + renTL(o.val) + ' (' + renTL(o.val / 12) + '/ay) · ' + o.teklif + ' teklif</span></div><div style="background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, pct) + '%;background:' + barCol + ';border-radius:5px"></div></div></div>';
+        var m = metricOf(o), pct = Math.round(m / maxM * 100);
+        return '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:600">' + renEsc(o.g) + '</span><span style="color:#71717a"><b style="color:#3f3f46">' + fmtVal(m) + '</b> · ' + o.n + ' firma</span></div><div style="background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, pct) + '%;background:' + barCol + ';border-radius:5px"></div></div></div>';
       }).join("") + (arr.length > 60 ? '<div style="color:#a1a1aa;font-size:11px">…+' + (arr.length - 60) + ' değer</div>' : "") : '<div style="color:#a1a1aa;font-size:12px;padding:8px">Veri yok</div>';
     }
     window.perfSetDim = function (v) { S._perfDim = v; renderPerfPivot(); };
     window.perfSetMetric = function (m) { S._perfMetric = m; renderPerfPivot(); };
+    window.perfSetFirma = function (v) { S._perfFirma = v; renderPerfPivot(); };
+    window.perfSetGun = function (v) { S._perfGun = v; renderPerfPivot(); };
     window.perfAddFilter = function () { (S._perfFilters = S._perfFilters || []).push({ col: "", values: [] }); renderPerfPivot(); };
     window.perfRemFilter = function (i) { S._perfFilters.splice(i, 1); renderPerfPivot(); };
     window.perfSetCol = function (i, c) { S._perfFilters[i].col = c; S._perfFilters[i].values = []; renderPerfPivot(); };

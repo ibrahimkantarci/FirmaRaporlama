@@ -437,30 +437,6 @@ body.dark .theme-toggle:hover{background:#1e232b}
         <div class="card">
           <div class="card-head"><span class="ct">PY portföy özeti</span></div>
           <div id="py-cards"></div>
-          <div style="margin-top:12px;padding-top:10px;border-top:1px solid #f4f4f5">
-            <div class="card-head" onclick="toggleCard('pf-body','pf-toggle')" style="cursor:pointer;user-select:none;padding:0 0 8px 0">
-              <span class="ct" style="font-size:12px">Firma portföyü</span>
-              <span id="pf-cnt" style="font-size:11px;color:#a1a1aa"></span>
-              <span id="pf-toggle" style="font-size:14px;color:#a1a1aa;margin-left:4px">▼</span>
-            </div>
-            <div id="pf-body" style="display:none"><div class="tw"><table>
-              <thead><tr>
-                <th onclick="srt('musteri_adi')">Firma ↕</th>
-                <th onclick="srt('kategori_adi')">Kategori</th>
-                <th onclick="srt('sehir')">Şehir</th>
-                <th onclick="srt('flag_rengi')">Flag ↕</th>
-                <th onclick="srt('py_adi')">PY</th>
-                <th onclick="srt('bitis_tarihi')">Bitiş ↕</th>
-                <th onclick="srt('satis_fiyati')">Value (Yıllık) ↕</th><th onclick="srt('satis_fiyati')">Aylık Value ↕</th>
-                <th onclick="srt('teklif')">Teklif ↕</th>
-                <th onclick="srt('anlasma_sayisi')">Anlaşma ↕</th>
-                <th onclick="srt('profil_puani')">Profil ↕</th>
-                <th onclick="srt('ort_donus_sure')">Dönüş süresi ↕</th>
-                <th onclick="srt('donulen_teklif')">Dönüş oranı ↕</th>
-              </tr></thead>
-              <tbody id="pf-tbl"></tbody>
-            </table></div></div>
-          </div>
         </div>
         <div class="card">
           <div class="card-head">
@@ -472,18 +448,6 @@ body.dark .theme-toggle:hover{background:#1e232b}
           </div>
           <div id="kat-dist"></div>
         </div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <span class="ct">📊 Segment bazlı lead dağılımı</span>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:11px;color:#71717a">Kategori</span>
-            <select id="pf-lead-kat" onchange="if(window.renderLeadDist)window.renderLeadDist()" style="padding:4px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-              <option value="">Tüm kategoriler</option>
-            </select>
-          </div>
-        </div>
-        <div id="pf-lead-dist"></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.4px">Value — paket bitiş dönemi</span>
@@ -2412,6 +2376,7 @@ function renderPF(){
 }
 
 function renderFirmaTbl(){
+  if(!document.getElementById('pf-tbl')) return; // Firma portföyü raw tablosu kaldırıldı → no-op
   let data=[...S.firmalar];
   if(S.fFlag!=='tümü')data=data.filter(x=>x.flag_rengi===S.fFlag);
   if(S.fPY!=='tümü')data=data.filter(x=>x.py_adi===S.fPY);
