@@ -3051,7 +3051,7 @@ function buildFirmaCustModel(){
     custPY[cust]=pk;
     (pyCustsByKey[pk]||(pyCustsByKey[pk]=new Set())).add(cust);
     custVal[cust]=(custVal[cust]||0)+((num(f.satis_fiyati)||0)/12);
-    (custProv[cust]||(custProv[cust]=[])).push({ pid:f.provider_id||f.firma_id, flag:f.flag_rengi||'' });
+    (custProv[cust]||(custProv[cust]=[])).push({ pid:f.provider_id||f.firma_id, flag:f.flag_rengi||'', val:(num(f.satis_fiyati)||0)/12 });
   });
   const m={custPY,pyCustsByKey,custVal,custProv};
   S._fcm=m; S._fcmSrc=fl; return m;
@@ -3394,9 +3394,11 @@ function renderCA(){
   renderPyFlagArama();
 }
 
-// Seçili PY'nin (PY DETAYI filtresi) coverage penceresinde aradığı (Touch) müşterilerin
-// SAHİP OLDUĞU PROVIDER'larının flag dağılımı. Her provider KENDİ flag'iyle sayılır
-// (customer≠provider: bir müşterinin farklı flag'li provider'ları olabilir).
+// Seçili PY'nin (PY DETAYI filtresi) PORTFÖY müşterilerinin SAHİP OLDUĞU PROVIDER'ları,
+// her flag için TEK bar = o flag'in tüm provider'ları %100, 3 dilime bölünür:
+//   Ulaşıldı (Touch) · Arandı-ulaşılamadı (çağrı var, Touch yok) · Aranmadı (pencerede çağrı yok).
+// Provider durumu, bağlı olduğu MÜŞTERİNİN coverage penceresi durumundan miras alınır.
+// "Ulaşıldı" = herhangi biri Touch attıysa (coverage kartlarıyla tutarlı; customer≠provider).
 function renderPyFlagArama(){
   const el=document.getElementById('ca-pyflag-dist'); if(!el) return;
   const infoEl=document.getElementById('ca-pyflag-info');
@@ -3404,32 +3406,66 @@ function renderPyFlagArama(){
   if(infoEl) infoEl.textContent=(secPY==='tümü'?'Tümü':secPY.split(' ')[0])+' · son '+(S._covDays||30)+' gün';
   if(!S.cagrilar.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">Çağrı verisi bekleniyor</div>';return;}
   const model=buildFirmaCustModel();
-  const wCalls=getCagriCoverage();
-  // Seçili PY'nin (tümü=herhangi PY) Touch attığı benzersiz müşteriler
-  const touchedCusts=new Set();
-  wCalls.forEach(c=>{ if(c.durum!=='Touch')return; if(secPY!=='tümü'&&c.py_adi!==secPY)return; const cid=String(c.firma_id||'').trim(); if(cid)touchedCusts.add(cid); });
-  if(!touchedCusts.size){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">Bu dönemde aranan müşteri yok</div>';return;}
-  // O müşterilerin PROVIDER'ları → her provider kendi flag'iyle
-  const flagCount={Yeşil:0,Sarı:0,Turuncu:0,Kırmızı:0,Bilinmiyor:0};
-  let provTotal=0;
-  touchedCusts.forEach(cid=>{ (model.custProv[cid]||[]).forEach(p=>{ const fl=(p.flag&&flagCount[p.flag]!=null)?p.flag:'Bilinmiyor'; flagCount[fl]++; provTotal++; }); });
+  // Seçili PY'nin portföy müşterileri (tümü = tüm müşteriler) — aranmış+aranmamış TAM evren
+  let portCusts;
+  if(secPY==='tümü') portCusts=Object.keys(model.custPY);
+  else { const set=model.pyCustsByKey[pyKeyH(secPY)]; portCusts=set?[...set]:[]; }
+  if(!portCusts.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">Bu PY için portföy müşterisi yok</div>';return;}
+  // Coverage penceresinde müşteri durumu: 'touch' (herhangi biri Touch) | 'attempt' (çağrı var, Touch yok)
+  const custStatus={};
+  getCagriCoverage().forEach(c=>{ const cid=String(c.firma_id==null?'':c.firma_id).trim(); if(!cid)return;
+    if(c.durum==='Touch') custStatus[cid]='touch';
+    else if(custStatus[cid]!=='touch') custStatus[cid]='attempt'; });
+  // Flag × durum kırılımı — PROVIDER seviyesi (provider parent müşterisinin durumunu miras alır)
+  const flags=['Yeşil','Sarı','Turuncu','Kırmızı','Bilinmiyor'];
   const flagColors={Yeşil:'#16a34a',Sarı:'#ca8a04',Turuncu:'#ea580c',Kırmızı:'#dc2626',Bilinmiyor:'#a1a1aa'};
+  const flagLight ={Yeşil:'#86efac',Sarı:'#fde68a',Turuncu:'#fdba74',Kırmızı:'#fca5a5',Bilinmiyor:'#d4d4d8'};
   const flagIcons={Yeşil:'🟢',Sarı:'🟡',Turuncu:'🟠',Kırmızı:'🔴',Bilinmiyor:'⚪'};
-  const sira=['Yeşil','Sarı','Turuncu','Kırmızı','Bilinmiyor'];
-  const counts=sira.map(fl=>({fl,n:flagCount[fl]})).filter(x=>x.n>0);
-  const max=Math.max(...counts.map(x=>x.n),1);
-  el.innerHTML=`<div style="font-size:12px;color:#71717a;margin-bottom:10px"><b>${touchedCusts.size}</b> müşteri aranmış · sahip oldukları <b>${provTotal}</b> provider'ın flag dağılımı</div>`+
-    counts.map(({fl,n})=>{
-      const pct=Math.round(n/provTotal*100);
-      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <span style="font-size:12px;width:110px;flex-shrink:0">${flagIcons[fl]} ${fl}</span>
-        <div style="flex:1;background:#f4f4f5;border-radius:5px;height:20px;overflow:hidden">
-          <div style="height:100%;width:${Math.round(n/max*100)}%;background:${flagColors[fl]};border-radius:5px"></div>
-        </div>
-        <span style="font-size:12px;font-weight:700;color:${flagColors[fl]};width:90px;text-align:right">${n} provider</span>
-        <span style="font-size:11px;color:#a1a1aa;width:40px;text-align:right">%${pct}</span>
-      </div>`;
+  const agg={}; flags.forEach(f=>agg[f]={touch:{n:0,v:0},attempt:{n:0,v:0},none:{n:0,v:0},n:0});
+  let grandProv=0, touchedCust=0;
+  portCusts.forEach(cid=>{
+    const st=custStatus[cid]; const bucket=st==='touch'?'touch':st==='attempt'?'attempt':'none';
+    if(st==='touch') touchedCust++;
+    (model.custProv[cid]||[]).forEach(p=>{ const fl=(p.flag&&agg[p.flag])?p.flag:'Bilinmiyor';
+      const v=num(p.val)||0; agg[fl][bucket].n++; agg[fl][bucket].v+=v; agg[fl].n++; grandProv++; });
+  });
+  const rows=flags.filter(f=>agg[f].n>0);
+  if(!rows.length){el.innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:14px;text-align:center">Bu PY için provider bulunamadı</div>';return;}
+  const stMeta={touch:'Ulaşıldı (Touch)',attempt:'Arandı, ulaşılamadı',none:'Aranmadı'};
+  const segColor=(fl,k)=>k==='touch'?flagColors[fl]:k==='attempt'?flagLight[fl]:'#e5e7eb';
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const legend=(sw,txt)=>`<span style="display:flex;align-items:center;gap:5px"><i style="width:11px;height:11px;border-radius:3px;background:${sw};display:inline-block"></i>${txt}</span>`;
+  let html=`<div style="font-size:12px;color:#71717a;margin-bottom:6px"><b>${portCusts.length}</b> müşteri portföyü · <b>${touchedCust}</b> ulaşıldı · <b>${grandProv}</b> provider · her bar = o flag'in %100'ü</div>`+
+    `<div style="display:flex;gap:14px;margin-bottom:12px;font-size:11px;color:#71717a">`+
+      legend('#3f3f46','Ulaşıldı')+legend('#a1a1aa','Arandı, ulaşılamadı')+legend('#e5e7eb','Aranmadı')+`</div>`;
+  html+=rows.map(fl=>{
+    const tot=agg[fl].n;
+    const segs=['touch','attempt','none'].map(k=>{
+      const s=agg[fl][k]; if(!s.n) return '';
+      const pct=s.n/tot*100;
+      const tip=`${flagIcons[fl]} ${fl} · ${stMeta[k]}||${s.n} provider · ₺${Math.round(s.v).toLocaleString('tr-TR')}/ay||${fl} içinde %${Math.round(pct)}`;
+      return `<div class="pyfl-seg" data-tip="${esc(tip)}" style="width:${pct.toFixed(2)}%;height:100%;background:${segColor(fl,k)};cursor:pointer"></div>`;
     }).join('');
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+      <span style="font-size:12px;width:96px;flex-shrink:0">${flagIcons[fl]} ${fl}</span>
+      <div style="flex:1;display:flex;height:22px;border-radius:6px;overflow:hidden;background:#f4f4f5">${segs}</div>
+      <span style="font-size:12px;font-weight:700;color:${flagColors[fl]};width:82px;text-align:right">${tot} provider</span>
+    </div>`;
+  }).join('');
+  el.style.position='relative';
+  el.innerHTML=html+`<div class="pyfl-tip" style="position:absolute;pointer-events:none;opacity:0;transition:opacity .08s;background:#111827;color:#fff;border-radius:8px;padding:7px 10px;font-size:11.5px;line-height:1.5;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:20;transform:translate(-50%,-100%)"></div>`;
+  const tip=el.querySelector('.pyfl-tip');
+  el.querySelectorAll('.pyfl-seg').forEach(seg=>{
+    seg.addEventListener('mousemove',ev=>{
+      const p=(seg.getAttribute('data-tip')||'').split('||');
+      tip.innerHTML=`<div style="font-weight:700;margin-bottom:2px">${p[0]||''}</div><div>${p[1]||''}</div><div style="color:#93c5fd">${p[2]||''}</div>`;
+      const r=el.getBoundingClientRect();
+      tip.style.left=(ev.clientX-r.left)+'px';
+      tip.style.top=(ev.clientY-r.top-8)+'px';
+      tip.style.opacity='1';
+    });
+    seg.addEventListener('mouseleave',()=>{tip.style.opacity='0';});
+  });
 }
 
 function renderCagriTbl(){
