@@ -85,6 +85,9 @@ güncelle + `push.bat`; **Vercel'e dokunma**. (ID'ler gizli değil; sırlar API 
 - `Dashboard_Firma` / `Arama_Ham` (append) — firma performans / çağrı ham veri
 - `Provider_Flag_Old` (elle+arşiv, tarihi flag) / `Provider_Flag` (güncel flag, overwrite)
 - `Dashboard_Yenileme` — RENEWAL_DATA cache (açılış hızı; overwrite) · `Dashboard_Meta` — son sync zamanı
+- `Segmentation` — ELLE güncellenen firma segmentasyonu (provider_id, Provider Segmentation, product_started/
+  ended_ym, özel fiyatlı gün sayısı); `static:true` kaynak, run route atlar, data route okur. (Not: "Aktif
+  Özel Fiyat" AYRI sekme değil — `Dashboard_Firma`'ya run route joinMembership ile KOLON olarak eklenir.)
 
 ## Kimlik / erişim
 
@@ -126,18 +129,29 @@ Build temiz, `main`==`origin/main` (Vercel'de). Aktif alan = **Dashboard** (`/up
   dokunacağın fonksiyon/id'leri grep'le teyit et.**
 - ⚠️ **Vendor HTML'de `firma_id` = MÜŞTERİ İD** (provider RÇİ ezilir); provider id `m.provider_id`'de
   KORUNUR. Çağrılar müşteri seviyesinde (1 müşteri çok provider ama tek PY).
-- Veri: `app/api/dashboard/{run,data,status}` + `lib/dashboard-sources.js`. **7 kaynak**: onboarding,
-  **onboarding_sozlesme** (f53312a1, yeni/yenileme sınıflaması), firma, cagri (xPejmm, "IB OB"=yön),
-  provider_flag (statik Old, prune'landı), **provider_flag_current** (Executive Dashboard 3e66f065/
-  97ca7303, latest ph_flag_date), yenileme (RENEWAL_DATA, `cacheTab:Dashboard_Yenileme`).
+- Veri: `app/api/dashboard/{run,data,status}` + `lib/dashboard-sources.js`. **8 kaynak**: onboarding,
+  **onboarding_sozlesme** (f53312a1, yeni/yenileme sınıflaması), **firma** (joinFields provider_segment +
+  **joinMembership** "Aktif Özel Fiyat" — Executive Dashboard 3e66f065: en güncel date + has_special_offer=1
+  → provider_id kümesi → RÇİ üyeliği Var/Yok), cagri (xPejmm, "IB OB"=yön), provider_flag (statik Old,
+  prune'landı), **provider_flag_current** (Executive Dashboard 3e66f065/97ca7303, latest ph_flag_date),
+  yenileme (RENEWAL_DATA, `cacheTab:Dashboard_Yenileme`), **segmentation** (elle "Segmentation" tabı,
+  `static:true`; pipeline'da yenileme satırına Segment+Özel Fiyat join'lenir → Genel Analiz kırılım/filtre).
 - **run route**: `?except=yenileme`+`?only=yenileme` İKİ PARALEL çağrı (120sn limit); `?action=prune_flag_old`
-  tek-seferlik; Dashboard_Meta'ya updatedAt. **data route** PARALEL okur + sendCols kolon diyeti.
+  tek-seferlik; Dashboard_Meta'ya updatedAt. joinFields (key→value) + **joinMembership** (küme-üyeliği,
+  latestDateField+selections) mekanizmaları. **data route** PARALEL okur + sendCols kolon diyeti.
+
+**Bu oturumda eklenenler (özet):** Çağrı "PY'nin Aradığı Flag Dağılımı" 3-dilimli bar; Onboarding no-provider
+dışlama + "mezun-olmamış/toplam" metrik + modal firma-tipi filtresi; Performans kolon-kayması fix + Firma
+portföyü raw tablo & Segment lead dağılımı KALDIRILDI + Custom Pivot'a Firma başına/Toplam & Gün başına/Toplam
+toggle; PY sırası standart (`orderedPY`); Genel Analiz kırılım sadeleştirme; **Segmentasyon** (8. kaynak) +
+**Aktif Özel Fiyat** (joinMembership, pLpbvq ÇÖZÜLDÜ). Detay: memory [[dashboard-tool]] (en alt).
 
 **⚠️ Doğrulama / kalan:**
-1. Deploy sonrası prod'da "⟳ Qlik'ten yenile" (yeni sekmeler dolsun) + panelleri gözle doğrula.
-2. Custom Pivot (Qlik pivot `pLpbvq`) hâlâ okunmuyor — düşük öncelik (UI custom pivot AYRI, yapıldı).
-3. Claude **canlı veriyle mantık doğrular** (.env.local): Qlik enigma probe (proje köküne `zz*.mjs`) +
-   googleapis Sheets. TUZAK: heredoc YAZMA → **Write tool**. Arama_Ham UNFORMATTED=Excel seri no.
+1. Deploy sonrası prod'da "⟳ Qlik'ten yenile" (yeni sekmeler/kolonlar dolsun — ör. Aktif Özel Fiyat) + gözle
+   doğrula. ⚠️ Kullanıcı deploy BİTMEDEN bakıp "gelmedi" diyebilir → önce Vercel "Deployment completed" teyit.
+2. ✅ **pLpbvq ÇÖZÜLDÜ** (obje değil alanları okunuyor: date/has_special_offer/provider_id + fetchFieldsData).
+3. Claude **canlı veriyle mantık doğrular** (.env.local): Qlik enigma probe (proje köküne `zz*.mjs`, çalıştır→SİL) +
+   googleapis Sheets. TUZAK: heredoc YAZMA → **Write tool**. Arama_Ham/Segmentation tarih UNFORMATTED=Excel seri no.
 
 **Not:** Qlik ID'leri `lib/qlik-sources.js`+`lib/dashboard-sources.js`'te (env değil). Deploy =
 `git add -A && git commit && git push origin main` (push.bat `pause`'da takılır). Kronolojik tam devir:
