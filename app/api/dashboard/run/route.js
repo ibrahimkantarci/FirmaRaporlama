@@ -290,6 +290,28 @@ async function runPipeline(request) {
         });
       }
 
+      // ── ÜYELİK JOIN (joinMembership): başka app'ten SEÇİMLİ bir alanın DEĞER KÜMESİNİ
+      // çek, anahtar kolonla üyelik testi yap → presentValue/absentValue kolonu. Örn: aktif
+      // özel fiyatlı provider_id kümesi (Executive Dashboard: en güncel date + has_special_offer=1)
+      // → RÇİ ∈ küme ? "Var" : "Yok" = "Aktif Özel Fiyat" kolonu. joinFields (key→value) yerine
+      // küme-üyeliği; ayrıca latestDateField ile en güncel snapshot'a sabitlenir.
+      if (src.joinMembership) {
+        const jm = src.joinMembership;
+        const set = await withQlikDoc(jm.appId, async ({ doc }) => {
+          await doc.clearAll(false);
+          if (jm.latestDateField) await selectLatestDate(doc, jm.latestDateField);
+          if (jm.selections?.length) { for (const sel of jm.selections) await selectExact(doc, sel.field, sel.value); }
+          const fd = await fetchFieldsData(doc, [jm.keyField]);
+          return new Set(fd.rows.map((r) => String(r[0] ?? "").trim().replace(/\.0+$/, "")).filter(Boolean));
+        });
+        const mIdx = columns.indexOf(jm.joinOn);
+        columns = [...columns, jm.asColumn];
+        rows = rows.map((row) => {
+          const k = mIdx >= 0 ? String(row[mIdx] ?? "").trim().replace(/\.0+$/, "") : "";
+          return [...row, (k && set.has(k)) ? jm.presentValue : jm.absentValue];
+        });
+      }
+
       const sheet = await overwriteSheetTab([columns, ...rows], { tab: src.tab });
       out[src.key] = {
         rows: rows.length,

@@ -689,6 +689,7 @@
       { k: "sehir", lbl: "Şehir" }, { k: "ilce", lbl: "İlçe" }, { k: "py_adi", lbl: "PY" },
       { k: "musteri_statusu", lbl: "Müşteri Statüsü" }, { k: "urun_adi", lbl: "Ürün" },
       { k: "flag_rengi", lbl: "Flag" }, { k: "provider_segment", lbl: "Segment" },
+      { k: "aktif_ozel_fiyat", lbl: "Aktif Özel Fiyat" },
       { k: "odeme_flagi", lbl: "Ödeme Flagi" }, { k: "geri_donus_flagi", lbl: "Geri Dönüş Flagi" },
     ];
     function perfBase() {
