@@ -85,11 +85,23 @@
   // Kırılım/filtre için İZİNLİ renewal kolonları (diğer ham kolonlar kasıtlı gizli).
   // Provider flag kolonları ("⚑ …") renCols() içinde dinamik eklenir.
   var REN_DIM_COLS = [
-    "Yenileme Ayı", "PY", "Ekip", "Kategori", "Kategori Adı", "Ürün Adı",
+    "Yenileme Ayı", "Segment", "Özel Fiyat", "PY", "Ekip", "Kategori", "Kategori Adı", "Ürün Adı",
     "Şehir", "İlçe", "Müşteri Statüsü", "X Count", "PY Tahmin",
     // NOT: Provider-segment / yenileme-durumu / tahmin-tutarlılık-kodu kırılımları kasıtlı
     // ÇIKARILDI — anlamlı kırılım/filtre vermiyordu (kullanıcı isteği).
+    // "Segment" + "Özel Fiyat" Sheet "Segmentation" tabından yenileme satırına eşlenir (aşağıda).
   ];
+  // Segmentation segment kodu → görseldeki başlık isimleri. Numara öneki sıralamayı korur
+  // (kırılım/filtre alfabetik sıralar). Eşleşmeyen / "-" segment → "Bilinmiyor".
+  var SEG_NAME = {
+    "1. Segment": "1 · Büyük Kıdemliler",
+    "2. Segment": "2 · Küçük Kıdemliler",
+    "3. Segment": "3 · Kıdemsiz Ana Mekanlar",
+    "4. Segment": "4 · Kıdemsiz Yan Mekanlar",
+    "5. Segment": "5 · Ötekiler",
+    "6. Segment": "6 · Kıdemli Mekan Dışı",
+    "7. Segment": "7 · Kıdemsiz Mekan Dışı",
+  };
   // Kırılım/filtre için İZİNLİ provider flag kolonları — Provider_Flag_Old GERÇEK
   // başlıklarıyla BİREBİR (normalize: boşluk/büyük-küçük). Tab'da ayrıca Provider,
   // Customer ID, Account Manager, Total Flag, Discount/Media Count, Profile Score Raw…
@@ -927,6 +939,25 @@
           }
         }
 
+        // ── Firma Segmentasyonu (Sheet "Segmentation") → yenileyen SÖZLEŞMEYE eşle ──
+        // Anahtar: provider_id(=RÇİ) + product_ended_ym(=Yenileme Ayı). Canlı doğrulandı %99.
+        // özel-fiyat gün sayısı bucket'lanır (Yok / 1-30 / 31-90 / 90+ gün).
+        var segMap = {}, segOzKey = null;
+        if (Array.isArray(d.segmentation) && d.segmentation.length) {
+          var sk0 = d.segmentation[0] || {};
+          for (var sk in sk0) { if (/özel/i.test(sk)) { segOzKey = sk; break; } } // "özel fiyatlı gün sayısı"
+          d.segmentation.forEach(function (sr) {
+            var spid = renNormId(sr["provider_id"]);
+            var sem = renFlagMonth(sr["product_ended_ym"]); // Excel seri no / metin → "YYYY-MM"
+            if (!spid || !sem) return;
+            segMap[spid + "|" + sem] = {
+              seg: SEG_NAME[String(sr["Provider Segmentation"] || "").trim()] || "Bilinmiyor",
+              oz: segOzKey ? renNum(sr[segOzKey]) : 0,
+            };
+          });
+        }
+        function ozelBucket(n) { return n <= 0 ? "Yok" : n <= 30 ? "1-30 gün" : n <= 90 ? "31-90 gün" : "90+ gün"; }
+
         S._renewalRows = d.yenileme.map(function (r) {
           var durum = String(r["Yenileme Durumu"] || "").trim();
           var ay = renMonth(r["Yenileme Ayı-Date"]) || renMonth(r["Yenileme Ayı"]);
@@ -946,6 +977,10 @@
           r._flagBack = flagBack; // 0=yenileme ayı, 1=1 ay önce, …, -1=bulunamadı
           // provider_segment (firma'dan RÇİ ile) → raw kolonu (Kırılım/filtre "Provider Segment").
           r["Provider Segment"] = (S._segByRci && S._segByRci[pid]) || "";
+          // Firma Segmentasyonu (dönem-bazlı) → yeni Kırılım/filtre kolonları "Segment" + "Özel Fiyat".
+          var _segHit = segMap[pid + "|" + ay];
+          r["Segment"] = _segHit ? _segHit.seg : "Bilinmiyor";
+          r["Özel Fiyat"] = _segHit ? ozelBucket(_segHit.oz) : "Bilinmiyor";
           return {
             raw: r,
             ay: ay,
