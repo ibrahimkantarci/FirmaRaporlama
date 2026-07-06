@@ -2352,14 +2352,19 @@ function selectAllMonths(){
   applyAnalizFilters();
 }
 
+// Genel Analiz'in YÜKLÜ görünümünü dashboard-pipeline.js (renderRenewalAnaliz) devralır —
+// yenileme verisi gelince window.renderAnaliz override edilir. Veri gelene kadar burada TUTARLI
+// bir "bekleniyor" placeholder'ı gösteririz: yüklenmeden önce/sonra AYNI format, sahte
+// segment/kırılım/board YOK (kullanıcı: insanları farklı beklentiye sokmasın). Aşağıdaki eski
+// board mantığı (populateAnalizFilters/renderAllBoards vb.) pipeline'la değiştirildiği için ölü.
 function renderAnaliz(){
-  if(!S.loaded.yenileme){
-    document.getElementById('analiz-veri-uyari').style.display='flex';
-    ['an-yenileyen','an-yenilemeyen','an-oran','an-kapsam'].forEach(id=>document.getElementById(id).textContent='—');
-    ['an-board-flag','an-board-kat','an-board-donus','an-board-ozel'].forEach(id=>document.getElementById(id).innerHTML='<div class="empty-state"><div>📊</div><div class="et">Veri bekleniyor</div></div>');
-    document.getElementById('an-tbl').innerHTML='<tr><td colspan="10" style="text-align:center;color:#a1a1aa;padding:20px">Veri yüklenmedi</td></tr>';
-    return;
-  }
+  const panel=document.getElementById('panel-analiz');
+  if(!panel||panel.getAttribute('data-ren')==='3') return; // pipeline zaten devraldıysa dokunma
+  panel.innerHTML='<div class="empty-state" style="padding:64px 20px"><div>📊</div>'+
+    '<div class="et">Yenileme verisi bekleniyor</div>'+
+    '<div class="es">"⟳ Qlik\'ten yenile" ile canlı çekilir</div></div>';
+}
+function _renderAnalizEskiBoard_DEVREDISI(){
   document.getElementById('analiz-veri-uyari').style.display='none';
 
   const flagMap={'yeşil':'Yeşil','yesil':'Yeşil','sarı':'Sarı','sari':'Sarı','sa':'Sarı','turuncu':'Turuncu','kırmızı':'Kırmızı','kirmizi':'Kırmızı','red_flag':'Kırmızı'};

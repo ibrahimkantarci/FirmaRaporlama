@@ -86,8 +86,9 @@
   // Provider flag kolonları ("⚑ …") renCols() içinde dinamik eklenir.
   var REN_DIM_COLS = [
     "Yenileme Ayı", "PY", "Ekip", "Kategori", "Kategori Adı", "Ürün Adı",
-    "Şehir", "İlçe", "Müşteri Statüsü", "Provider Segment", "X Count", "PY Tahmin",
-    "Yenileme Durumu", "Tahmin Tutarlılık Kodu",
+    "Şehir", "İlçe", "Müşteri Statüsü", "X Count", "PY Tahmin",
+    // NOT: Provider-segment / yenileme-durumu / tahmin-tutarlılık-kodu kırılımları kasıtlı
+    // ÇIKARILDI — anlamlı kırılım/filtre vermiyordu (kullanıcı isteği).
   ];
   // Kırılım/filtre için İZİNLİ provider flag kolonları — Provider_Flag_Old GERÇEK
   // başlıklarıyla BİREBİR (normalize: boşluk/büyük-küçük). Tab'da ayrıca Provider,
