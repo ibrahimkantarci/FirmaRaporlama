@@ -607,23 +607,14 @@
 
       if (cntEl) cntEl.textContent = notTouched.length + " firma";
       if (!notTouched.length) {
-        chartEl.innerHTML = '<div class="empty-state" style="padding:20px 0"><div>✅</div><div class="et">Tüm aktif onboarding firmaları aranmış</div><div class="es">Paket başlangıcından bu yana en az bir touch çağrısı var</div></div>';
+        chartEl.innerHTML = '';
         tblEl.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#a1a1aa;padding:14px">Aranmayan firma yok ✅</td></tr>';
         return;
       }
 
-      var guns = notTouched.map(function (x) { return x.gun; }); guns.push(1);
-      var maxGun = Math.max.apply(null, guns);
       var prov = function (r) { return r.providerCount > 1 ? ' <span style="font-size:9px;color:#a1a1aa">(' + r.providerCount + " ürün)</span>" : ""; };
-      chartEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;padding:6px 0 14px">' +
-        notTouched.map(function (x) {
-          var f = x.r.f, pct = Math.round(x.gun / maxGun * 100);
-          return '<div style="display:flex;align-items:center;gap:10px">' +
-            '<span style="font-size:11px;width:160px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + renEsc(f.ob_adi || f.musteri_adi || "—") + prov(x.r) + '</span>' +
-            '<div style="flex:1;background:#f4f4f5;border-radius:5px;height:16px;overflow:hidden;position:relative"><div style="height:100%;width:' + pct + '%;background:#dc2626;border-radius:5px"></div></div>' +
-            '<span style="font-size:11px;font-weight:700;color:#dc2626;width:56px;text-align:right">' + x.gun + ' gün</span>' +
-            '<span style="font-size:10px;color:#a1a1aa;width:70px;text-align:right">' + (x.attemptCount ? x.attemptCount + " attempt" : "—") + '</span></div>';
-        }).join("") + "</div>";
+      // Üstteki barlar kaldırıldı — yalnızca tablo gösteriliyor
+      chartEl.innerHTML = '';
 
       tblEl.innerHTML = notTouched.map(function (x) {
         var f = x.r.f;
