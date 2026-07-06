@@ -1422,7 +1422,9 @@ function applyImport(){
       const f=mapRow(row,ONBOARDING_MAP);
       // kampanya, whatsapp, flag — aynı Excel'de sütun varsa gelir, yoksa boş kalır
       return f;
-    });
+    // Provider İsmi (ob_adi) olmayan satırları TAMAMEN dışla — Qlik'te verisi eksik
+    // kayıtlar (tüm alanlar '-'); onboarding'in hiçbir görünümüne dahil edilmez.
+    }).filter(f=>obNonempty(f.ob_adi));
     S.loaded.onboarding=true;n++;
     // loaded.kw ve loaded.flag'i onboarding'den türet
     S.loaded.kw=S.onboarding.some(f=>f.kampanya||f.whatsapp);
@@ -1633,7 +1635,8 @@ function renderOB(){
   const flagRenkleri=['Yeşil','Sarı','Turuncu','Kırmızı'];
   const flagIcons={'Yeşil':'🟢','Sarı':'🟡','Turuncu':'🟠','Kırmızı':'🔴'};
 
-  document.getElementById('ob-toplam').textContent=aktif.length;
+  // Aktif onboarding = mezun olmamış / toplam onboarding firması (oran değil, "130/160" biçimi)
+  document.getElementById('ob-toplam').textContent=aktif.length+'/'+d.length;
   // Aktif firmaların flag dağılımı
   const aktifFlagSub=flagRenkleri.map(r=>{const c=aktif.filter(f=>f.ob_flag===r).length;return c?`${flagIcons[r]}${c}`:null;}).filter(Boolean).join(' · ');
   document.getElementById('ob-aktif-flag-sub').textContent=aktifFlagSub||'—';
