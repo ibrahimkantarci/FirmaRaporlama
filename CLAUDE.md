@@ -81,6 +81,10 @@ güncelle + `push.bat`; **Vercel'e dokunma**. (ID'ler gizli değil; sırlar API 
 - `Fiyat_Ayarlar` — kullanıcı bazlı UI ayarları (e-posta → JSON)
 - `Erişim` — araç erişim matrisi (satır = e-posta, sütun = araç adı, hücre ✓/1/x)
 - `Dashboard_Onboarding` — dashboard onboarding pipeline (overwrite)
+- `Dashboard_Onboarding_Sozlesme` — onboarding sözleşme geçmişi (yeni/yenileme sınıflaması; overwrite)
+- `Dashboard_Firma` / `Arama_Ham` (append) — firma performans / çağrı ham veri
+- `Provider_Flag_Old` (elle+arşiv, tarihi flag) / `Provider_Flag` (güncel flag, overwrite)
+- `Dashboard_Yenileme` — RENEWAL_DATA cache (açılış hızı; overwrite) · `Dashboard_Meta` — son sync zamanı
 
 ## Kimlik / erişim
 
@@ -109,30 +113,32 @@ güncelle + `push.bat`; **Vercel'e dokunma**. (ID'ler gizli değil; sırlar API 
 - **Deploy:** `push.bat` (git add -A → commit → push; Vercel otomatik deploy).
   Silmeleri de stage'ler. Yeni env değişkenlerini Vercel'e de eklemeyi unutma.
 
-## Durum / sonraki adımlar (2026-07-03)
+## Durum / sonraki adımlar (2026-07-06)
 
-Dört araç kurulu, build temiz, her şey commit+push (Vercel'de). Aktif çalışma alanı = **Dashboard**.
+Build temiz, `main`==`origin/main` (Vercel'de). Aktif alan = **Dashboard** (`/updated-hq`; `/dashboard` legacy).
 
 **Dashboard — İKİ gömülü HTML + pipeline enjeksiyonu:**
-- `public/b2b-dashboard.html` (`/dashboard`, orijinal) **ve** `public/b2b-dashboard-updated.html`
-  (`/updated-hq`, **takımın AKTİF geliştirdiği** — kullanıcı bunu kullanıyor). `public/dashboard-pipeline.js`
-  İKİSİNE de enjekte edilir ([app/dashboard/dashboard-panel.js](app/dashboard/dashboard-panel.js),
-  [app/updated-hq/dashboard-panel.js](app/updated-hq/dashboard-panel.js)).
-- ⚠️ **"vendor HTML dokunulmaz" kuralı b2b-dashboard-updated.html için ARTIK GEÇERSİZ** — takım
-  onu doğrudan commit ediyor. Gerektiğinde doğrudan düzenle; AMA pipeline.js override'ları
-  (renderPF/renderCA/renderLeadDist/renderObCagriDegerlendirme/calcPYCoverage/custom pivot…) takımın
-  HTML değişiklikleriyle **ÇAKIŞABİLİR** → **her pull'dan sonra dokunacağın fonksiyon/id'leri teyit et.**
-- Veri: `app/api/dashboard/{run,data}` + `lib/dashboard-sources.js`. Kaynaklar: onboarding, firma
-  (Providers-PY, provider_segment `joinFields` ile Dashboard_Firma'ya kolon), çağrı (append), yenileme
-  (canlı `RENEWAL_DATA`), provider_flag (statik sekme). Paneller yeniden yazıldı (Genel Analiz renewal,
-  Çağrı executive/coverage, Onboarding çağrı fix, Performans flag-filtre+custom pivot). Detay: memory.
+- `public/b2b-dashboard-updated.html` (`/updated-hq`, **takımın AKTİF geliştirdiği**) + `public/b2b-dashboard.html`
+  (`/dashboard`, legacy). `public/dashboard-pipeline.js` İKİSİNE de enjekte edilir
+  ([app/updated-hq/dashboard-panel.js](app/updated-hq/dashboard-panel.js) vb.).
+- ⚠️ Takım updated HTML'i doğrudan commit ediyor → **HER deploy'dan önce `git pull --rebase origin main`**
+  (bu oturumda 4 kez, hep temiz). Pipeline override'ları takım HTML'iyle çakışabilir → **pull sonrası
+  dokunacağın fonksiyon/id'leri grep'le teyit et.**
+- ⚠️ **Vendor HTML'de `firma_id` = MÜŞTERİ İD** (provider RÇİ ezilir); provider id `m.provider_id`'de
+  KORUNUR. Çağrılar müşteri seviyesinde (1 müşteri çok provider ama tek PY).
+- Veri: `app/api/dashboard/{run,data,status}` + `lib/dashboard-sources.js`. **7 kaynak**: onboarding,
+  **onboarding_sozlesme** (f53312a1, yeni/yenileme sınıflaması), firma, cagri (xPejmm, "IB OB"=yön),
+  provider_flag (statik Old, prune'landı), **provider_flag_current** (Executive Dashboard 3e66f065/
+  97ca7303, latest ph_flag_date), yenileme (RENEWAL_DATA, `cacheTab:Dashboard_Yenileme`).
+- **run route**: `?except=yenileme`+`?only=yenileme` İKİ PARALEL çağrı (120sn limit); `?action=prune_flag_old`
+  tek-seferlik; Dashboard_Meta'ya updatedAt. **data route** PARALEL okur + sendCols kolon diyeti.
 
 **⚠️ Doğrulama / kalan:**
-1. Deploy sonrası panelleri gözle doğrula (son Performans + onboarding değişiklikleri).
-2. **Custom Pivot (Qlik pivot objesi `pLpbvq`)** hâlâ TODO — özel okuyucu gerekir (UI custom pivot AYRI, yapıldı).
-3. Claude **canlı veriyle mantık doğrulayabiliyor** (.env.local'de creds): Qlik enigma probe + googleapis
-   Sheets read. TUZAK: script'i heredoc ile yazma (key bozulur) → **Write tool** ile `.mjs` yaz.
+1. Deploy sonrası prod'da "⟳ Qlik'ten yenile" (yeni sekmeler dolsun) + panelleri gözle doğrula.
+2. Custom Pivot (Qlik pivot `pLpbvq`) hâlâ okunmuyor — düşük öncelik (UI custom pivot AYRI, yapıldı).
+3. Claude **canlı veriyle mantık doğrular** (.env.local): Qlik enigma probe (proje köküne `zz*.mjs`) +
+   googleapis Sheets. TUZAK: heredoc YAZMA → **Write tool**. Arama_Ham UNFORMATTED=Excel seri no.
 
-**Not:** Qlik ID'leri `lib/qlik-sources.js`+`lib/dashboard-sources.js`'te (env'de değil). `push.bat`
-Git Bash'te `pause`'da takılır → doğrudan `git add -A && git commit && git push origin main`. Detaylı
-devir: memory/[[handoff-current-state]] + [[dashboard-tool]] (kronolojik panel notları).
+**Not:** Qlik ID'leri `lib/qlik-sources.js`+`lib/dashboard-sources.js`'te (env değil). Deploy =
+`git add -A && git commit && git push origin main` (push.bat `pause`'da takılır). Kronolojik tam devir:
+memory/[[handoff-current-state]] (READ FIRST) + [[dashboard-tool]] (en alt=en yeni).
