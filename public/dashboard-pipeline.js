@@ -330,13 +330,7 @@
       var pm = {}; (S.cagrilar || []).forEach(function (c) { if (c.durum !== "Touch") return; var k = covPeriodKey(c.tarih); if (k) pm[k] = (pm[k] || 0) + 1; }); return pm;
     }
     function ensureCovDefaults() {
-      if (!S._covGran) S._covGran = "ay";
-      var pm = covPeriodsMap();
-      if (S._covPeriod && pm[S._covPeriod]) return;
-      var cur = covCurrentPeriod();
-      if (pm[cur]) { S._covPeriod = cur; return; }
-      var ps = Object.keys(pm).sort();
-      S._covPeriod = ps.length ? ps[ps.length - 1] : "";
+      if (!S._covDays) S._covDays = 30; // son 30 gün (varsayılan)
     }
     function covTouchedSet() {
       var key = (S._covGran || "ay") + "|" + (S._covPeriod || "");
@@ -356,24 +350,11 @@
     function pyKey(s) { s = String(s == null ? "" : s).trim().toLocaleLowerCase("tr").replace(/_/g, " "); return s.replace(/ı/g, "i").replace(/ş/g, "s").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c"); }
     function pyMatch(firmaPY, cagriPY) { var fk = pyKey(firmaPY), ck = pyKey(cagriPY); if (!fk || !ck) return false; return fk === ck || fk.indexOf(ck + " ") === 0; }
 
-    // Coverage: PY portföyü × dönemde touch (herhangi biri, unique). Value = Satış Fiyatı/12.
+    // Coverage: MÜŞTERİ bazlı count/value + executive. Native pyDetayMetrics'e (HTML) delege eder
+    // (provider≠müşteri: müşteri tek PY, çok provider'lı olabilir → count müşteri, value provider).
     window.calcPYCoverage = function (pyName) {
-      var firms = S.firmalar || [];
-      var payda = firms.filter(function (f) { return pyName === "tümü" || pyMatch(f.py_adi, pyName); });
-      if (!payda.length) return { valueOran: null, countOran: null, aranan: 0, toplam: 0, aranValue: 0, toplamValue: 0 };
-      var touched = covTouchedSet();
-      var toplamValue = 0, aranValue = 0, aranan = 0;
-      payda.forEach(function (f) {
-        var val = renNum(f.satis_fiyati) / 12;
-        toplamValue += val;
-        var cid = String(f.firma_id == null ? "" : f.firma_id).trim();
-        if (cid && touched[cid]) { aranValue += val; aranan++; }
-      });
-      return {
-        valueOran: toplamValue ? Math.round(aranValue / toplamValue * 100) : 0,
-        countOran: Math.round(aranan / payda.length * 100),
-        aranan: aranan, toplam: payda.length, aranValue: aranValue, toplamValue: toplamValue,
-      };
+      if (typeof pyDetayMetrics === "function") return pyDetayMetrics(pyName);
+      return { valueOran: null, countOran: null, aranan: 0, toplam: 0, aranValue: 0, toplamValue: 0, execCust: 0, uniqueTouched: 0, execOran: null };
     };
 
     // Executive top kart: üst filtre döneminde UNIQUE dokunulan müşteri bazında executive oranı.
@@ -406,23 +387,25 @@
         bar.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid #f4f4f5;background:#fafafa";
         bar.innerHTML =
           '<span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">Coverage dönemi</span>' +
-          '<div class="chip" id="cov-g-gun" onclick="setCovGran(\'gun\')" style="font-size:11px">Gün</div>' +
-          '<div class="chip" id="cov-g-hafta" onclick="setCovGran(\'hafta\')" style="font-size:11px">Hafta</div>' +
-          '<div class="chip" id="cov-g-ay" onclick="setCovGran(\'ay\')" style="font-size:11px">Ay</div>' +
-          '<select id="cov-period-select" onchange="setCovPeriod(this.value)" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;background:#fff;cursor:pointer"></select>' +
+          '<div class="chip" id="cov-d-30" onclick="setCovDays(30)" style="font-size:11px">Son 30 gün</div>' +
+          '<div class="chip" id="cov-d-45" onclick="setCovDays(45)" style="font-size:11px">Son 45 gün</div>' +
+          '<div class="chip" id="cov-d-60" onclick="setCovDays(60)" style="font-size:11px">Son 60 gün</div>' +
+          '<div class="chip" id="cov-d-90" onclick="setCovDays(90)" style="font-size:11px">Son 90 gün</div>' +
           '<span id="cov-period-info" style="font-size:11px;color:#a1a1aa"></span>';
         blocks.parentNode.insertBefore(bar, blocks);
       }
-      ["gun", "hafta", "ay"].forEach(function (g) { var c = document.getElementById("cov-g-" + g); if (c) c.classList.toggle("on", (S._covGran || "ay") === g); });
-      var pm = covPeriodsMap(); var periods = Object.keys(pm).sort();
-      var sel = document.getElementById("cov-period-select");
-      if (sel) sel.innerHTML = periods.length ? periods.map(function (p) { return '<option value="' + p + '"' + (p === S._covPeriod ? " selected" : "") + '>' + p + " (" + pm[p] + ")</option>"; }).join("") : '<option value="">— touch verisi yok —</option>';
+      var days = S._covDays || 30;
+      [30, 45, 60, 90].forEach(function (dd) { var c = document.getElementById("cov-d-" + dd); if (c) c.classList.toggle("on", days === dd); });
       var info = document.getElementById("cov-period-info");
-      if (info) info.textContent = S._covPeriod ? ("dönemde " + Object.keys(covTouchedSet()).length + " unique müşteriye touch") : "";
+      if (info) {
+        var touchedN = (typeof covTouchedCustomers === "function") ? Object.keys(covTouchedCustomers()).length : 0;
+        var mx = (typeof covMaxCallMs === "function") ? covMaxCallMs() : 0;
+        var toStr = mx ? new Date(mx).toISOString().slice(0, 10) : "-";
+        info.textContent = "son " + days + " gün (…" + toStr + " arası) · " + touchedN + " müşteriye touch";
+      }
     }
 
-    window.setCovGran = function (g) { S._covGran = g; S._covPeriod = ""; S._covTouched = null; ensureCovDefaults(); renderCA(); };
-    window.setCovPeriod = function (v) { S._covPeriod = v; S._covTouched = null; renderCA(); };
+    window.setCovDays = function (d) { S._covDays = d; S._ctc = null; renderCA(); };
 
     // Per-PY Executive: vendor pm[py].musteri/yip_musteri, Arama_Ham'da olmayan
     // musteri_sayisi/yip_musteri_sayisi'ni kullandığından 0 kalıyor → yipEl "—".
@@ -834,6 +817,7 @@
           m.provider_segment = String(row["provider_segment"] == null ? "" : row["provider_segment"]).trim();
           var rci = String(m.firma_id == null ? "" : m.firma_id).trim().replace(/\.0+$/, ""); // RÇİ (override öncesi)
           if (rci) S._segByRci[rci] = m.provider_segment;
+          m.provider_id = rci; // provider (RÇİ) KORUNUR — müşteri/provider ayrımı için (firma_id müşteriye ezilir)
           // Çağrılar MÜŞTERİ (account) seviyesinde → firma-çağrı eşleşmesi için
           // firma_id'yi Müşteri İD'ye hizala (kullanıcı kararı). RÇİ sheet'te durur;
           // yalnız bellek içi join anahtarı değişir. c.firma_id da Müşteri ID.
