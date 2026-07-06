@@ -2819,11 +2819,14 @@ function renderYN(){
 
   const pyler=['Tümü',...[...new Set(wd.map(f=>f.py_adi).filter(Boolean))].sort()];
   if(!S._ynSecilenPY||!pyler.includes(S._ynSecilenPY)) S._ynSecilenPY='Tümü';
-  const bgs=['#374151','#EEF2FF','#F0FDF4','#FFFBEB','#FFF1F2','#F5F3FF','#ECFDF5'];
-  const fgs=['#fff','#3730a3','#15803d','#a16207','#be123c','#6d28d9','#0f766e'];
+  // Aktif çip = KOYU arka plan + beyaz yazı (renderCA ile aynı). Eski kod aktif arka plan için
+  // fgs[0]='#fff' kullanıyordu → i%7===0'a denk gelen çip (Sinem, ayrıca varsayılan "Tümü")
+  // beyaz-üstüne-beyaz görünmez oluyordu. Artık paletin hiçbir rengi beyaz değil.
+  const fgs=['#3730a3','#15803d','#a16207','#be123c','#6d28d9','#0f766e'];
   document.getElementById('yn-py-tabs').innerHTML=pyler.map((py,i)=>{
     const active=S._ynSecilenPY===py;
-    return '<div onclick="setYnPY(\''+py+'\')" style="padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;background:'+(active?fgs[i%7]:'#f4f4f5')+';color:'+(active?'#fff':'#52525b')+';border:1px solid '+(active?fgs[i%7]:'#e4e4e7')+'">'+(py==='Tümü'?'Tümü':py.split(' ')[0])+'</div>';
+    const bg=py==='Tümü'?'#374151':fgs[i%6];   // aktif arka plan hep koyu → her zaman okunur
+    return '<div onclick="setYnPY(\''+py+'\')" style="padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;background:'+(active?bg:'#f4f4f5')+';color:'+(active?'#fff':'#52525b')+';border:1px solid '+(active?bg:'#e4e4e7')+'">'+(py==='Tümü'?'Tümü':py.split(' ')[0])+'</div>';
   }).join('');
 
   let pyData=S._ynSecilenPY==='Tümü'?wd:wd.filter(f=>f.py_adi===S._ynSecilenPY);
@@ -3163,8 +3166,8 @@ function fmtSureAvg(toplam, adet){
 }
 
 // ── Çağrı PY filtresi — ana isimler + "Diğer" açılır grubu (paylaşılan) ──────
-// Ana çipler: Berkay, Sinem, Kubra, Yigit, Nidanur. Kalanlar "Diğer ▾" altında.
-const PY_MAIN_ORDER=['berkay','sinem','kubra','yigit','nidanur'];
+// Ana çipler: Berkay, Sinem, Kubra, Yigit, Nidanur, Mine. Kalanlar "Diğer ▾" altında.
+const PY_MAIN_ORDER=['berkay','sinem','kubra','yigit','nidanur','mine'];
 const PY_MAIN_SET=new Set(PY_MAIN_ORDER);
 function pyFoldFirst(s){return String(s==null?'':s).trim().split(/[\s_]/)[0].toLocaleLowerCase('tr').replace(/ı/g,'i').replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o').replace(/ç/g,'c');}
 S._pyDigerOpen=S._pyDigerOpen||{};
