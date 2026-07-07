@@ -329,7 +329,12 @@ body.dark .theme-toggle:hover{background:#1e232b}
         <div class="card">
           <div class="card-head" style="flex-wrap:wrap;gap:8px">
             <span class="ct">📞 Pelda Şahin — Çağrı Trendi (Touch - Attempt)</span>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-size:11px;color:#71717a">Çağrı günü</span>
+              <input type="date" id="oz-cagri-from" onchange="renderOzCagriTrend()" title="Başlangıç günü" style="padding:3px 6px;border:1px solid #e4e4e7;border-radius:6px;font-size:11px;color:#374151;background:#fff;cursor:pointer">
+              <span style="font-size:11px;color:#a1a1aa">–</span>
+              <input type="date" id="oz-cagri-to" onchange="renderOzCagriTrend()" title="Bitiş günü" style="padding:3px 6px;border:1px solid #e4e4e7;border-radius:6px;font-size:11px;color:#374151;background:#fff;cursor:pointer">
+              <span onclick="document.getElementById('oz-cagri-from').value='';document.getElementById('oz-cagri-to').value='';renderOzCagriTrend()" title="Tarih aralığını temizle" style="font-size:12px;color:#c0c5cc;cursor:pointer;padding:2px 4px">✕</span>
               <span class="ca-info" id="oz-cagri-info"></span>
             </div>
           </div>
@@ -339,6 +344,16 @@ body.dark .theme-toggle:hover{background:#1e232b}
           </div>
           <div id="oz-cagri-chart"></div>
         </div>
+      </div>
+      <div class="card">
+        <div class="card-head" onclick="toggleCard('oz-raw-body','oz-raw-toggle')" style="cursor:pointer;user-select:none">
+          <span class="ct">📋 Firma listesi <span id="oz-raw-cnt" style="font-size:11px;color:#a1a1aa;font-weight:400"></span></span>
+          <span id="oz-raw-toggle" style="font-size:14px;color:#a1a1aa;margin-left:auto">▼</span>
+        </div>
+        <div id="oz-raw-body" style="display:none"><div class="tw"><table>
+          <thead><tr><th>Provider ID</th><th>Provider Name</th><th>Customer ID</th><th>Customer Name</th><th>Ürün</th><th>İl</th><th>Kategori Adı</th><th>Teklif</th></tr></thead>
+          <tbody id="oz-raw-tbl"></tbody>
+        </table></div></div>
       </div>
     </div>
 
@@ -534,6 +549,7 @@ const FIRMA_MAP = {
   firma_id:         ['RÇİ','rci','RCI'],
   musteri_id:       ['Müşteri İD','Müşteri ID','musteri_id'],
   musteri_adi:      ['RÇİ Adı','Müşteri Adı','musteri_adi','firma_adi'],
+  customer_name:    ['Müşteri Adı'], // GERÇEK müşteri adı (musteri_adi = RÇİ/provider adını alır)
   py_adi:           ['Sorumlu PY','py_adi','PY'],
   kategori_adi:     ['Kategori Adı','kategori_adi'],
   kategori_grubu:   ['Kategori Grubu'],
@@ -3569,6 +3585,9 @@ function renderOZ(){
   if(secilenDonem){
     firmaOzel=firmaOzel.filter(f=>f.bitis_tarihi&&String(f.bitis_tarihi).slice(0,7)===secilenDonem);
   }
+  // Çağrı grafiği paket bitişe bağlı: seçili dönemdeki özel-fiyatlı firmaların MÜŞTERİ id kümesi
+  // (çağrılar müşteri seviyesinde; c.firma_id = Müşteri ID). renderOzCagriTrend bunu kullanır.
+  S._ozCustSet=new Set(firmaOzel.map(f=>String(f.firma_id==null?'':f.firma_id).trim()).filter(Boolean));
 
   if(firmaOzel.length){
     data=firmaOzel;
@@ -3583,6 +3602,7 @@ function renderOZ(){
     document.getElementById('oz-sehir-dist').innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:16px 0;text-align:center">'+bosMsg+'</div>';
     const kd=document.getElementById('oz-kategori-dist');if(kd)kd.innerHTML='';
     document.getElementById('oz-bitis-dist').innerHTML='';
+    renderOzRawTable([]);
     renderOzCagriTrend();
     return;
   }
@@ -3627,8 +3647,26 @@ function renderOZ(){
   drawOzSimpleDist('sehir');
   drawOzSimpleDist('kategori');
   drawOzBitisDist();
+  renderOzRawTable(data);
 
   renderOzCagriTrend();
+}
+
+// Özel Fiyat — raw firma listesi (açılır-kapanır). Üstteki paket bitiş dönemine göre filtrelenmiş
+// özel-fiyatlı firmaları gösterir. Provider Name = RÇİ Adı; Customer Name = Müşteri Adı.
+function renderOzRawTable(data){
+  const cnt=document.getElementById('oz-raw-cnt'); if(cnt) cnt.textContent=(data&&data.length?data.length:0)+' firma';
+  const tbl=document.getElementById('oz-raw-tbl'); if(!tbl) return;
+  tbl.innerHTML=(data&&data.length)?data.map(f=>`<tr>
+    <td style="font-size:11px;color:#71717a">${f.provider_id||'—'}</td>
+    <td style="font-size:12px;font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${f.musteri_adi||''}">${f.musteri_adi||'—'}</td>
+    <td style="font-size:11px;color:#71717a">${f.musteri_id||f.firma_id||'—'}</td>
+    <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${f.customer_name||''}">${f.customer_name||'—'}</td>
+    <td style="font-size:11px;color:#71717a">${f.urun_adi||'—'}</td>
+    <td style="font-size:11px">${f.sehir||'—'}</td>
+    <td style="font-size:11px;color:#71717a">${f.kategori_adi||'—'}</td>
+    <td style="font-size:12px;text-align:center">${num(f.teklif)||0}</td>
+  </tr>`).join(''):'<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">Firma yok</td></tr>';
 }
 
 // Özel Fiyat dağılım kartları — Adet / Value sekme durumu
@@ -3701,8 +3739,14 @@ function renderOzCagriTrend(){
     if(info) info.textContent='';
     return;
   }
-  const peldaCalls=S.cagrilar.filter(c=>String(c.py_adi||'').toLocaleLowerCase('tr').includes('pelda'));
-  // Dönem filtresi kaldırıldı — her zaman günlük, tüm tarih aralığı.
+  let peldaCalls=S.cagrilar.filter(c=>String(c.py_adi||'').toLocaleLowerCase('tr').includes('pelda'));
+  // Paket bitiş bağımlılığı: seçili dönemdeki özel-fiyatlı firmaların MÜŞTERİLERİNE yapılan çağrılar
+  // (S._ozCustSet renderOZ'da set edilir; tanımlıysa uygula — boş küme = o dönemde firma yok → çağrı yok).
+  const custSet=S._ozCustSet;
+  if(custSet) peldaCalls=peldaCalls.filter(c=>custSet.has(String(c.firma_id==null?'':c.firma_id).trim()));
+  // Çağrı günü tarih aralığı filtresi (oz-cagri-from / oz-cagri-to, YYYY-MM-DD)
+  const _cf=(document.getElementById('oz-cagri-from')||{}).value||'', _ct=(document.getElementById('oz-cagri-to')||{}).value||'';
+  if(_cf||_ct) peldaCalls=peldaCalls.filter(c=>{const d=String(c.tarih||'').slice(0,10);if(!d||d==='-')return false;if(_cf&&d<_cf)return false;if(_ct&&d>_ct)return false;return true;});
   const grouped=cagriGroupByPeriod(peldaCalls,'gun',null);
   drawCagriTrendChart('oz-cagri-chart',grouped.keys,grouped.touch,grouped.attempt);
   if(info){
