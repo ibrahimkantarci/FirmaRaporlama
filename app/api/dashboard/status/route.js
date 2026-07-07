@@ -7,7 +7,7 @@ import { readMatrixFromSheet } from "../../../../lib/sheets";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export const GET = withAccess("dashboard", async () => {
+export const GET = withAccess(["dashboard","ozelfiyat"], async () => {
   let updatedAt = null;
   try {
     const m = await readMatrixFromSheet({ tab: "Dashboard_Meta" });
