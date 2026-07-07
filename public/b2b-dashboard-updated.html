@@ -3334,7 +3334,7 @@ function renderCA(){
         <div class="stat-box" style="background:#eff6ff;border-color:#bfdbfe"><div class="stat-val" style="font-size:13px">${topCoverageEl}</div><div class="stat-lbl">Value coverage</div></div>
         <div class="stat-box" style="background:#f5f3ff;border-color:#ddd6fe"><div class="stat-val" style="font-size:13px">${topCountCoverageEl}</div><div class="stat-lbl">Count coverage</div></div>
         <div class="stat-box" style="background:#f5f3ff;border-color:#ddd6fe"><div class="stat-val" style="font-size:13px">${execEl2}</div><div class="stat-lbl">Executive Employee oranı</div></div>
-        <div class="stat-box s-sure"><div class="stat-val">${topS?fmtSure(topS):'—'}</div><div class="stat-lbl">Toplam süre</div></div>
+        <div class="stat-box s-sure"><div class="stat-val">${topS?fmtSureSaat(topS):'—'}</div><div class="stat-lbl">Toplam süre</div></div>
         <div class="stat-box s-bas"><div class="stat-val">${topB}</div><div class="stat-lbl">Touch</div></div>
         <div class="stat-box s-cevaps"><div class="stat-val">${topC}</div><div class="stat-lbl">Attempt</div></div>
         <div class="stat-box s-attempt"><div class="stat-val">${topT}</div><div class="stat-lbl">Toplam</div></div>
@@ -4108,13 +4108,20 @@ function ozDonusOran(f){
 
 function renderOZ(){
   let data=[];
-  if(S.loaded.ozel && S.ozelFiyat.length){
+  // Kaynak: Dashboard_Firma'daki "Aktif Özel Fiyat" sütununda değeri olan firmalar.
+  const ozelVar=v=>{const s=String(v==null?'':v).trim().toLocaleLowerCase('tr');return s==='var'||s==='evet'||s==='1'||s==='true'||s==='x';};
+  const firmaOzel=(S.firmalar||[]).filter(f=>ozelVar(f.aktif_ozel_fiyat));
+
+  if(firmaOzel.length){
+    data=firmaOzel;
+  } else if(S.loaded.ozel && S.ozelFiyat.length){
+    // Geriye dönük: Dashboard_Firma'da alan yoksa eski Pelda listesine düş
     data=S.ozelFiyat;
   } else {
     ['oz-top','oz-aylik-top'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.textContent='—';
     });
-    document.getElementById('oz-sehir-dist').innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:16px 0;text-align:center">Özel Fiyat listesi yüklenmedi</div>';
+    document.getElementById('oz-sehir-dist').innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:16px 0;text-align:center">Aktif özel fiyatlı firma bulunamadı (Dashboard_Firma · Aktif Özel Fiyat)</div>';
     const kd=document.getElementById('oz-kategori-dist');if(kd)kd.innerHTML='';
     document.getElementById('oz-bitis-dist').innerHTML='';
     renderOzCagriTrend();
