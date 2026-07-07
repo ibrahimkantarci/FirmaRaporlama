@@ -282,10 +282,9 @@ body.dark .theme-toggle:hover{background:#1e232b}
     <div class="panel active" id="panel-ozel">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.4px">Paket bitiş dönemi</span>
-        <input type="month" id="oz-donem-from" onchange="renderOZ()" title="Başlangıç ayı" style="padding:4px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-        <span style="font-size:11px;color:#a1a1aa">–</span>
-        <input type="month" id="oz-donem-to" onchange="renderOZ()" title="Bitiş ayı" style="padding:4px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-        <span onclick="clearOzDonem()" title="Dönemi temizle" style="font-size:12px;color:#c0c5cc;cursor:pointer;padding:2px 6px;border-radius:6px">✕ temizle</span>
+        <select id="oz-donem-sel" onchange="renderOZ()" style="padding:5px 12px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer;min-width:160px">
+          <option value="">Tüm dönemler</option>
+        </select>
         <span id="oz-donem-info" style="font-size:11px;color:#a1a1aa"></span>
       </div>
       <div class="mg">
@@ -3543,51 +3542,44 @@ function ozDonusOran(f){
   return match ? parseFloat(match[1]) : null;
 }
 
-function clearOzDonem(){
-  const f=document.getElementById('oz-donem-from');
-  const t=document.getElementById('oz-donem-to');
-  if(f) f.value=''; if(t) t.value='';
-  renderOZ();
-}
-
 function renderOZ(){
   let data=[];
   // Kaynak: Dashboard_Firma'daki "Aktif Özel Fiyat" sütununda değeri olan firmalar.
   const ozelVar=v=>{const s=String(v==null?'':v).trim().toLocaleLowerCase('tr');return s==='var'||s==='evet'||s==='1'||s==='true'||s==='x';};
   let firmaOzel=(S.firmalar||[]).filter(f=>ozelVar(f.aktif_ozel_fiyat));
 
-  // En üstteki paket bitiş dönem filtresi — tüm kartları etkiler
-  const fromEl=document.getElementById('oz-donem-from');
-  const toEl=document.getElementById('oz-donem-to');
-  const donFrom=fromEl&&fromEl.value?fromEl.value:'';
-  const donTo=toEl&&toEl.value?toEl.value:'';
-  const infoEl=document.getElementById('oz-donem-info');
-  if(infoEl){
-    if(donFrom&&donTo) infoEl.textContent=`${donFrom} – ${donTo}`;
-    else if(donFrom) infoEl.textContent=`${donFrom} ve sonrası`;
-    else if(donTo) infoEl.textContent=`${donTo} ve öncesi`;
-    else infoEl.textContent='Tüm dönemler';
+  // Paket bitiş dönemi dropdown'ı — verideki mevcut bitiş aylarından otomatik doldurulur
+  const AYLAR=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const ayEtiket=ym=>{const[y,m]=ym.split('-');return AYLAR[parseInt(m,10)-1]+' '+y;};
+  const sel=document.getElementById('oz-donem-sel');
+  if(sel){
+    // Mevcut özel fiyatlı firmaların bitiş aylarını topla, sırala
+    const donemler=[...new Set(firmaOzel.filter(f=>f.bitis_tarihi).map(f=>String(f.bitis_tarihi).slice(0,7)))].sort();
+    // Dropdown'ı yalnızca içerik değiştiyse yeniden doldur (seçim kaybolmasın)
+    const mevcut=Array.from(sel.options).slice(1).map(o=>o.value).join(',');
+    if(mevcut!==donemler.join(',')){
+      const secili=sel.value;
+      sel.innerHTML='<option value="">Tüm dönemler</option>'+donemler.map(d=>`<option value="${d}">${ayEtiket(d)}</option>`).join('');
+      if(donemler.includes(secili)) sel.value=secili;
+    }
   }
-  if(donFrom||donTo){
-    firmaOzel=firmaOzel.filter(f=>{
-      if(!f.bitis_tarihi) return false;
-      const ay=String(f.bitis_tarihi).slice(0,7);
-      if(donFrom&&ay<donFrom) return false;
-      if(donTo&&ay>donTo) return false;
-      return true;
-    });
+  const secilenDonem=sel?sel.value:'';
+  const infoEl=document.getElementById('oz-donem-info');
+  if(infoEl) infoEl.textContent=secilenDonem?ayEtiket(secilenDonem):'Tüm dönemler';
+  if(secilenDonem){
+    firmaOzel=firmaOzel.filter(f=>f.bitis_tarihi&&String(f.bitis_tarihi).slice(0,7)===secilenDonem);
   }
 
   if(firmaOzel.length){
     data=firmaOzel;
-  } else if(S.loaded.ozel && S.ozelFiyat.length && !donFrom && !donTo){
-    // Geriye dönük: Dashboard_Firma'da alan yoksa eski Pelda listesine düş (dönem filtresi yokken)
+  } else if(S.loaded.ozel && S.ozelFiyat.length && !secilenDonem){
+    // Geriye dönük: Dashboard_Firma'da alan yoksa eski Pelda listesine düş (dönem seçilmemişken)
     data=S.ozelFiyat;
   } else {
     ['oz-top','oz-aylik-top'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.textContent='—';
     });
-    const bosMsg=(donFrom||donTo)?'Seçili dönemde aktif özel fiyatlı firma yok':'Aktif özel fiyatlı firma bulunamadı (Dashboard_Firma · Aktif Özel Fiyat)';
+    const bosMsg=secilenDonem?'Seçili dönemde aktif özel fiyatlı firma yok':'Aktif özel fiyatlı firma bulunamadı (Dashboard_Firma · Aktif Özel Fiyat)';
     document.getElementById('oz-sehir-dist').innerHTML='<div style="color:#a1a1aa;font-size:12px;padding:16px 0;text-align:center">'+bosMsg+'</div>';
     const kd=document.getElementById('oz-kategori-dist');if(kd)kd.innerHTML='';
     document.getElementById('oz-bitis-dist').innerHTML='';
