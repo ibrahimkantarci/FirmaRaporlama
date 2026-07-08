@@ -163,10 +163,13 @@ başına/Toplam & Gün başına/Toplam toggle; PY sırası standart (`orderedPY`
 2. ✅ **pLpbvq ÇÖZÜLDÜ** (obje değil alanları okunuyor: date/has_special_offer/provider_id + fetchFieldsData).
 3. Claude **canlı veriyle mantık doğrular** (.env.local): Qlik enigma probe (proje köküne `zz*.mjs`, çalıştır→SİL) +
    googleapis Sheets. TUZAK: heredoc YAZMA → **Write tool**. Arama_Ham/Segmentation tarih UNFORMATTED=Excel seri no.
-4. **AÇIK İŞ — run route optimizasyonu (kullanıcı istedi):** "Qlik'ten yenile" bazen yavaş (firma 3 app açar;
-   General 3×, Executive 2× açılıyor). Timeout riskini azaltmak için ÇÖZÜM = **split DEĞİL** (Qlik paralel bölünemez,
-   yukarı bkz.) → run route'ta redundant app-open'ları azalt (kaynaklar arası tek Qlik `doc` oturumu paylaşımı,
-   ör. Executive'i provider_flag_current + firma joinMembership tek açılışta). Henüz yapılmadı.
+4. ✅ **ÇÖZÜLDÜ (2026-07-08) — run route optimizasyonu (A+B):** (A) İstek-kapsamlı `docPool` +
+   `withPooledDoc` → her app 1× açılır (**7→4 app-open**; General 3×→1×, Executive 2×→1×). Overwrite
+   dalı artık KOŞULSUZ `clearAll` (paylaşılan doc'ta seçim sızmasın; onboarding'in seçimi yoktu).
+   (B) `applyWriteTrim` → Sheet'e yazmadan kolon kırpar: firma `writeDropCols` (DENYLIST 20 boş kolon,
+   fail-safe) 58→38, provider_flag_current `writeKeepCols` 32→11, onboarding_sozlesme `writeKeepCols`
+   14→4 → run yazma + dashboard açılış okuma küçülür. Canlı doğrulandı (abort yok, clearAll izolasyon,
+   kolon adları eşleşti). Detay: memory/[[dashboard-column-audit]]. Kalan: lean Performans objesi (Qlik ekibi).
 5. **Qlik API sınırları:** hypercube okuma bizim sayfalama = `CELL_LIMIT=10000` hücre/istek (lib/qlik.js; Qlik hard
    limiti değil, ayarlanabilir). Qlik Cloud REST + engine-session/rate limitleri plana bağlı (Management Console →
    tenant limits). Bizim gerçek darboğaz: Vercel 120sn fn timeout + Qlik eşzamanlı-seçim serileştirmesi (Exclusive

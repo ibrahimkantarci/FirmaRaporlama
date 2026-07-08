@@ -3,7 +3,7 @@
 // Tek tek (?only=onboarding) veya tümü çalıştırılabilir. /api/fiyat/run ile aynı desen.
 import { withAccess } from "../../../../lib/api";
 import {
-  withQlikDoc,
+  openQlikDoc,
   fetchObjectData,
   fetchFieldsData,
   selectExact,
@@ -43,6 +43,30 @@ async function fetchExternalRows(src) {
 }
 
 const normProviderId = (v) => String(v == null ? "" : v).trim().replace(/\.0+$/, "");
+
+// HIZ: Sheet'e yazmadan önce kolon kırp. İki mod (kaynak yapılandırmasından):
+//   writeKeepCols (whitelist) → yalnız bu başlıkları tut. Hiçbiri eşleşmezse DOKUNMA (güvenlik).
+//   writeDropCols (denylist)  → bu başlıkları düş, gerisini tut (yeni kolonlar fail-safe korunur).
+// Başlık eşleşmesi kenar-boşluğu toleranslı; orijinal kolon sırası korunur.
+function applyWriteTrim(columns, rows, src) {
+  if (!Array.isArray(columns) || !columns.length) return { columns, rows };
+  const norm = (c) => String(c == null ? "" : c).trim();
+  let keep;
+  if (Array.isArray(src.writeKeepCols) && src.writeKeepCols.length) {
+    const want = new Set(src.writeKeepCols.map(norm));
+    keep = columns.map((c, i) => (want.has(norm(c)) ? i : -1)).filter((i) => i >= 0);
+    if (!keep.length) return { columns, rows }; // hiçbiri yoksa eski/farklı başlık — bozma
+  } else if (Array.isArray(src.writeDropCols) && src.writeDropCols.length) {
+    const drop = new Set(src.writeDropCols.map(norm));
+    keep = columns.map((c, i) => (drop.has(norm(c)) ? -1 : i)).filter((i) => i >= 0);
+  } else {
+    return { columns, rows };
+  }
+  return {
+    columns: keep.map((i) => columns[i]),
+    rows: (rows || []).map((r) => keep.map((i) => r[i])),
+  };
+}
 
 // BİR KEZ: Provider_Flag_Old'u yenileme (ALL_new RÇİ) provider'larına indirir. Eşleşmeyen
 // provider'ların + hiç eşleşmeyen satırların hepsi silinir (eski veri; güncel firmalar için
@@ -105,6 +129,27 @@ async function runPipeline(request) {
   }
 
   const out = { ok: true, updatedAt: new Date().toISOString() };
+
+  // İstek-kapsamlı Qlik oturum HAVUZU: her app'i BİR KEZ aç, o app'in tüm kaynaklarında aynı
+  // doc'u yeniden kullan (General 3×→1×, Executive 2×→1× açılıştan kurtulur; handshake azalır).
+  // Kaynaklar SIRALI işlendiğinden paylaşım güvenli — "Exclusive request aborted" yalnız aynı
+  // app'e PARALEL istek atınca olur (bkz. istemci except/only ayrımı). Havuz İSTEK-KAPSAMLI
+  // (module-level DEĞİL) ki eşzamanlı çağrılar aynı doc'u paylaşıp birbirine seçim sızdırmasın.
+  const docPool = new Map(); // appId -> { session, global, doc }
+  async function getDoc(appId) {
+    let e = docPool.get(appId);
+    if (!e) { e = await openQlikDoc(appId); docPool.set(appId, e); }
+    return e.doc;
+  }
+  async function closePool() {
+    for (const e of docPool.values()) { try { await e.session.close(); } catch {} }
+    docPool.clear();
+  }
+  // withQlikDoc'un havuzlu karşılığı (aynı imza). Kapatma finally'de topluca yapılır.
+  // ⚠️ Paylaşılan doc'ta önceki kaynağın seçimi sızmasın diye her okuma KENDİ başında
+  // clearAll yapar; bu garanti aşağıdaki tüm dallarda mevcut (overwrite dalı da koşulsuz).
+  async function withPooledDoc(appId, cb) { return cb({ doc: await getDoc(appId) }); }
+
   try {
     for (const src of sources) {
       // ── CANLI URL kaynağı (ör. RENEWAL_DATA): cacheTab varsa buraya YAZILIR (açılış
@@ -174,7 +219,7 @@ async function runPipeline(request) {
         // Qlik: yalnız id > maxId olan (yeni) satırları oku. maxId=0 → ilk tam yükleme.
         // KRİTİK: id > maxId eşleşmesi YOKSA seçim uygulanmaz → obje TÜM satırları döner.
         // Bu durumda (senkron, yeni yok) hiç çekme — yoksa tüm veri tekrar eklenirdi.
-        const fresh = await withQlikDoc(src.appId, async ({ doc }) => {
+        const fresh = await withPooledDoc(src.appId, async ({ doc }) => {
           await doc.clearAll(false);
           if (maxId > 0) {
             const sel = await selectFieldGreaterThan(doc, src.appendById, maxId);
@@ -223,22 +268,22 @@ async function runPipeline(request) {
           out[src.key] = { mode: "skip", reason: `${fb.tab}.${fb.col} boş/okunamadı (önce onboarding çalışmalı)`, tab: src.tab };
           continue;
         }
-        const cdata = await withQlikDoc(src.appId, async ({ doc }) => {
+        const cdata = await withPooledDoc(src.appId, async ({ doc }) => {
           await doc.clearAll(false);
           await selectMultiple(doc, fb.field, ids);
           return fetchObjectData(doc, src.objectId);
         });
-        const csheet = await overwriteSheetTab([cdata.columns, ...cdata.rows], { tab: src.tab });
-        out[src.key] = { rows: cdata.rows.length, columns: cdata.columns.length, tab: src.tab, sheetUrl: csheet.sheetUrl, providers: ids.length };
+        const cTrim = applyWriteTrim(cdata.columns, cdata.rows, src);
+        const csheet = await overwriteSheetTab([cTrim.columns, ...cTrim.rows], { tab: src.tab });
+        out[src.key] = { rows: cdata.rows.length, columns: cTrim.columns.length, tab: src.tab, sheetUrl: csheet.sheetUrl, providers: ids.length };
         continue;
       }
 
       // ── TAM YAZMA (overwrite): kaynağın tamamını çekip sekmenin üzerine yaz ────
-      const data = await withQlikDoc(src.appId, async ({ doc }) => {
-        // Temiz durumdan başla: clearAll işaretliyse, seçim VEYA en-yeni-tarih varsa.
-        if (src.clearAll || src.selections?.length || src.latestDateField) {
-          await doc.clearAll(false);
-        }
+      const data = await withPooledDoc(src.appId, async ({ doc }) => {
+        // Paylaşılan doc'ta önceki kaynağın seçimi sızmasın diye HER ZAMAN temiz başla
+        // (ör. onboarding'in seçimi yok; eski davranışta clearAll atlanıyordu — havuzda şart).
+        await doc.clearAll(false);
         // En güncel snapshot'a sabitle (kararsız satır sayısını önler).
         if (src.latestDateField) await selectLatestDate(doc, src.latestDateField);
         if (src.selections?.length) {
@@ -269,7 +314,7 @@ async function runPipeline(request) {
       let columns = data.columns;
       if (src.joinFields) {
         const jf = src.joinFields;
-        const lookup = await withQlikDoc(jf.appId, async ({ doc }) => {
+        const lookup = await withPooledDoc(jf.appId, async ({ doc }) => {
           await doc.clearAll(false);
           if (jf.selections?.length) {
             for (const sel of jf.selections) await selectExact(doc, sel.field, sel.value);
@@ -297,7 +342,7 @@ async function runPipeline(request) {
       // küme-üyeliği; ayrıca latestDateField ile en güncel snapshot'a sabitlenir.
       if (src.joinMembership) {
         const jm = src.joinMembership;
-        const set = await withQlikDoc(jm.appId, async ({ doc }) => {
+        const set = await withPooledDoc(jm.appId, async ({ doc }) => {
           await doc.clearAll(false);
           if (jm.latestDateField) await selectLatestDate(doc, jm.latestDateField);
           if (jm.selections?.length) { for (const sel of jm.selections) await selectExact(doc, sel.field, sel.value); }
@@ -311,6 +356,11 @@ async function runPipeline(request) {
           return [...row, (k && set.has(k)) ? jm.presentValue : jm.absentValue];
         });
       }
+
+      // HIZ: kullanılmayan kolonları Sheet'e yazmadan düş (join kolonları eklendikten SONRA,
+      // ki provider_segment/Aktif Özel Fiyat korunsun). Arşiv de bu kırpılmış columns/rows'u kullanır.
+      const wTrim = applyWriteTrim(columns, rows, src);
+      columns = wTrim.columns; rows = wTrim.rows;
 
       const sheet = await overwriteSheetTab([columns, ...rows], { tab: src.tab });
       out[src.key] = {
@@ -363,6 +413,9 @@ async function runPipeline(request) {
     return Response.json(out);
   } catch (err) {
     return Response.json({ ok: false, error: String(err?.message ?? err) }, { status: 500 });
+  } finally {
+    // Havuzdaki tüm Qlik oturumlarını topluca kapat (başarı VEYA hata farketmez).
+    await closePool();
   }
 }
 
