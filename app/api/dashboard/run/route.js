@@ -28,6 +28,20 @@ function cellMonth(v) {
   return "";
 }
 
+// Bir tarih hücresini epoch-ms'e çevir (Excel seri no VEYA "YYYY-MM-DD"/"DD.MM.YYYY" string).
+// Arama_Ham "Arama Tarihi" karışık formatlı (eski satırlar seri no, yeni satırlar string).
+// Çözülemeyen (NaN) hücreler prune'da KORUNUR (yaşı belirsiz veriyi silme).
+function cellToMs(v) {
+  if (typeof v === "number") return (v > 20000 && v < 90000) ? Date.UTC(1899, 11, 30) + v * 86400000 : NaN;
+  const s = String(v ?? "").trim();
+  if (!s) return NaN;
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  m = s.match(/^(\d{2})[.\/](\d{2})[.\/](\d{4})/); if (m) return Date.UTC(+m[3], +m[2] - 1, +m[1]);
+  const n = Number(s);
+  if (Number.isFinite(n) && n > 20000 && n < 90000) return Date.UTC(1899, 11, 30) + n * 86400000;
+  const t = Date.parse(s); return Number.isNaN(t) ? NaN : t;
+}
+
 // Canlı URL kaynağından (ör. RENEWAL_DATA) satır nesnelerini çeker (data route ile aynı).
 async function fetchExternalRows(src) {
   const base = process.env[src.urlEnv];
@@ -105,6 +119,46 @@ async function pruneFlagOld() {
   });
 }
 
+// BAKIM: Arama_Ham'ı kayan pencereye indir + kullanılmayan kolonları düş. Tek overwrite.
+// İki iş bir arada: (1) son `keepDays` günden eski çağrıları at (Arama Tarihi'ne göre; çözülemeyen
+// yaş KORUNUR), (2) writeKeepCols ile 9 kolona kırp. İlk çalıştırma 13→9 kolona indirir → sonraki
+// append'ler mevcut 9-kolon başlığına hizalanıp otomatik dar kalır. GET/POST ?action=prune_arama_ham
+// (opsiyonel ?days=N ile pencereyi geçersiz kıl). Idempotent; tekrar çalıştırmak güvenli.
+async function pruneAramaHam(daysOverride) {
+  const src = DASHBOARD_SOURCES.find((s) => s.key === "cagri");
+  const TAB = src?.tab || "Arama_Ham";
+  const dateCol = src?.pruneDateCol || "Arama Tarihi";
+  const keepDays = Number.isFinite(daysOverride) && daysOverride > 0 ? daysOverride : (src?.pruneKeepDays || 180);
+  let m = [];
+  try { m = await readMatrixFromSheet({ tab: TAB }); } catch {}
+  if (!m.length) return Response.json({ ok: false, error: `${TAB} boş/okunamadı` }, { status: 400 });
+  const hdr = m[0].map((h) => String(h ?? "").trim());
+  const dIdx = hdr.indexOf(dateCol);
+  if (dIdx < 0) return Response.json({ ok: false, error: `"${dateCol}" kolonu bulunamadı` }, { status: 400 });
+
+  const cutoff = Date.now() - keepDays * 86400000;
+  const kept = [];
+  let droppedOld = 0, undated = 0;
+  for (let r = 1; r < m.length; r++) {
+    const ms = cellToMs(m[r][dIdx]);
+    if (Number.isFinite(ms)) {
+      if (ms < cutoff) { droppedOld++; continue; } // pencereden eski → at
+    } else { undated++; } // yaşı belirsiz → KORU
+    kept.push(m[r]);
+  }
+  // Kolon kırp (writeKeepCols eşleşen başlıklar; hiçbiri yoksa tüm kolonları koru — güvenlik).
+  const keepCols = Array.isArray(src?.writeKeepCols) ? src.writeKeepCols.map((c) => String(c).trim()) : [];
+  let colIdx = keepCols.map((c) => hdr.indexOf(c)).filter((i) => i >= 0);
+  if (!colIdx.length) colIdx = hdr.map((_, i) => i);
+  const outMatrix = [colIdx.map((i) => hdr[i]), ...kept.map((row) => colIdx.map((i) => row[i]))];
+  await overwriteSheetTab(outMatrix, { tab: TAB });
+  return Response.json({
+    ok: true, action: "prune_arama_ham", tab: TAB, keepDays,
+    before: m.length - 1, after: kept.length, droppedOld, undatedKept: undated,
+    colsBefore: hdr.length, colsAfter: colIdx.length,
+  });
+}
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -114,6 +168,11 @@ async function runPipeline(request) {
   // BİR KEZ tetiklenen bakım aksiyonu: Provider_Flag_Old'u yenileme provider'larına indir.
   if (searchParams.get("action") === "prune_flag_old") {
     try { return await pruneFlagOld(); }
+    catch (err) { return Response.json({ ok: false, error: String(err?.message ?? err) }, { status: 500 }); }
+  }
+  // BAKIM: Arama_Ham kayan pencere + 9-kolon indirgeme (periyodik çalıştırılabilir).
+  if (searchParams.get("action") === "prune_arama_ham") {
+    try { return await pruneAramaHam(Number(searchParams.get("days"))); }
     catch (err) { return Response.json({ ok: false, error: String(err?.message ?? err) }, { status: 500 }); }
   }
   const only = searchParams.get("only");
@@ -229,9 +288,11 @@ async function runPipeline(request) {
         });
 
         if (!header) {
-          // Sekme boş/yok → başlık + tüm satırlar (overwrite ile kur).
-          const sheet = await overwriteSheetTab([fresh.columns, ...fresh.rows], { tab: src.tab });
-          out[src.key] = { mode: "full", rows: fresh.rows.length, tab: src.tab, sheetUrl: sheet.sheetUrl };
+          // Sekme boş/yok → başlık + tüm satırlar (overwrite ile kur). writeKeepCols varsa
+          // yalnız kullanılan kolonlar yazılır (append sonraki turlarda bu başlığa hizalanır).
+          const ft = applyWriteTrim(fresh.columns, fresh.rows, src);
+          const sheet = await overwriteSheetTab([ft.columns, ...ft.rows], { tab: src.tab });
+          out[src.key] = { mode: "full", rows: ft.rows.length, columns: ft.columns.length, tab: src.tab, sheetUrl: sheet.sheetUrl };
         } else {
           // DEDUPE: id'si zaten sekmede olan satırları at (çift-eklemeye karşı emniyet).
           // Sonra mevcut BAŞLIK sırasına hizala ve EKLE.
