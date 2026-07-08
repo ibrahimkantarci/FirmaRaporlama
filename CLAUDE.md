@@ -116,9 +116,10 @@ güncelle + `push.bat`; **Vercel'e dokunma**. (ID'ler gizli değil; sırlar API 
 - **Deploy:** `push.bat` (git add -A → commit → push; Vercel otomatik deploy).
   Silmeleri de stage'ler. Yeni env değişkenlerini Vercel'e de eklemeyi unutma.
 
-## Durum / sonraki adımlar (2026-07-06)
+## Durum / sonraki adımlar (2026-07-08)
 
-Build temiz, `main`==`origin/main` (Vercel'de). Aktif alan = **Dashboard** (`/updated-hq`; `/dashboard` legacy).
+Build temiz, `main`==`origin/main` (Vercel'de). Aktif alan = **Dashboard** (`/updated-hq`; `/dashboard` legacy)
++ yeni **/ozel-fiyat** (Pelda). 5 araç: provider, fiyat, dashboard, updatedhq, **ozelfiyat**.
 
 **Dashboard — İKİ gömülü HTML + pipeline enjeksiyonu:**
 - `public/b2b-dashboard-updated.html` (`/updated-hq`, **takımın AKTİF geliştirdiği**) + `public/b2b-dashboard.html`
@@ -136,15 +137,25 @@ Build temiz, `main`==`origin/main` (Vercel'de). Aktif alan = **Dashboard** (`/up
   prune'landı), **provider_flag_current** (Executive Dashboard 3e66f065/97ca7303, latest ph_flag_date),
   yenileme (RENEWAL_DATA, `cacheTab:Dashboard_Yenileme`), **segmentation** (elle "Segmentation" tabı,
   `static:true`; pipeline'da yenileme satırına Segment+Özel Fiyat join'lenir → Genel Analiz kırılım/filtre).
-- **run route**: `?except=yenileme`+`?only=yenileme` İKİ PARALEL çağrı (120sn limit); `?action=prune_flag_old`
-  tek-seferlik; Dashboard_Meta'ya updatedAt. joinFields (key→value) + **joinMembership** (küme-üyeliği,
-  latestDateField+selections) mekanizmaları. **data route** PARALEL okur + sendCols kolon diyeti.
+- **run route**: `?except=yenileme`+`?only=yenileme` İKİ PARALEL çağrı (120sn limit). ⚠️ **Qlik kaynakları
+  DAHA FAZLA paralel BÖLÜNEMEZ** — app paylaşırlar (General: onboarding+sözleşme+firma[joinFields]; Executive:
+  provider_flag_current+firma[joinMembership]) → 2 paralel istek aynı app'e seçim atınca Qlik **"Exclusive
+  request aborted"** verir. `except=yenileme` = TÜM Qlik SIRALI tek çağrı; yalnız yenileme (Apps Script) ayrı.
+  `?action=prune_flag_old` tek-seferlik; Dashboard_Meta'ya updatedAt. joinFields (key→value) + **joinMembership**
+  (küme-üyeliği, latestDateField+selections). **data route** PARALEL okur + sendCols kolon diyeti.
 
-**Bu oturumda eklenenler (özet):** Çağrı "PY'nin Aradığı Flag Dağılımı" 3-dilimli bar; Onboarding no-provider
-dışlama + "mezun-olmamış/toplam" metrik + modal firma-tipi filtresi; Performans kolon-kayması fix + Firma
-portföyü raw tablo & Segment lead dağılımı KALDIRILDI + Custom Pivot'a Firma başına/Toplam & Gün başına/Toplam
-toggle; PY sırası standart (`orderedPY`); Genel Analiz kırılım sadeleştirme; **Segmentasyon** (8. kaynak) +
-**Aktif Özel Fiyat** (joinMembership, pLpbvq ÇÖZÜLDÜ). Detay: memory [[dashboard-tool]] (en alt).
+**5. araç (takım ekledi):** **`/ozel-fiyat`** = "Özel Fiyat Dinamik - Pelda İçin" (`ozelfiyat` erişim anahtarı;
+`withAccess` çoklu-anahtar `["dashboard","ozelfiyat"]`; pelda.cirpan whitelist). `public/ozel-fiyat-standalone.html`
+= yalnız Özel Fiyat paneli, aynı `dashboard-pipeline.js` iframe'e enjekte, aynı `/api/dashboard/*`. Kaynağı =
+Dashboard_Firma "Aktif Özel Fiyat"=Var firmaları (benim joinMembership kolonum). Özel Fiyat panelinde raw firma
+listesi (Provider/Customer ID+Name, Ürün, İl, Kategori, Teklif) + çağrı grafiği paket-bitiş bağımlı & tarih
+aralığı filtresi (ana dashboard + standalone SENKRON — ikisine de aynı edit).
+
+**Önceki oturum (2026-07-06) eklenenler:** Çağrı "PY'nin Aradığı Flag Dağılımı" 3-dilimli bar; Onboarding
+no-provider dışlama + "mezun-olmamış/toplam" metrik + teklif5 "75/136 firma" + modal firma-tipi filtresi;
+Performans kolon-kayması fix + Firma portföyü raw tablo & Segment lead dağılımı KALDIRILDI + Custom Pivot'a Firma
+başına/Toplam & Gün başına/Toplam toggle; PY sırası standart (`orderedPY`); Genel Analiz kırılım sadeleştirme;
+**Segmentasyon** (8. kaynak) + **Aktif Özel Fiyat** (joinMembership, pLpbvq ÇÖZÜLDÜ). Detay: [[dashboard-tool]].
 
 **⚠️ Doğrulama / kalan:**
 1. Deploy sonrası prod'da "⟳ Qlik'ten yenile" (yeni sekmeler/kolonlar dolsun — ör. Aktif Özel Fiyat) + gözle
@@ -152,6 +163,14 @@ toggle; PY sırası standart (`orderedPY`); Genel Analiz kırılım sadeleştirm
 2. ✅ **pLpbvq ÇÖZÜLDÜ** (obje değil alanları okunuyor: date/has_special_offer/provider_id + fetchFieldsData).
 3. Claude **canlı veriyle mantık doğrular** (.env.local): Qlik enigma probe (proje köküne `zz*.mjs`, çalıştır→SİL) +
    googleapis Sheets. TUZAK: heredoc YAZMA → **Write tool**. Arama_Ham/Segmentation tarih UNFORMATTED=Excel seri no.
+4. **AÇIK İŞ — run route optimizasyonu (kullanıcı istedi):** "Qlik'ten yenile" bazen yavaş (firma 3 app açar;
+   General 3×, Executive 2× açılıyor). Timeout riskini azaltmak için ÇÖZÜM = **split DEĞİL** (Qlik paralel bölünemez,
+   yukarı bkz.) → run route'ta redundant app-open'ları azalt (kaynaklar arası tek Qlik `doc` oturumu paylaşımı,
+   ör. Executive'i provider_flag_current + firma joinMembership tek açılışta). Henüz yapılmadı.
+5. **Qlik API sınırları:** hypercube okuma bizim sayfalama = `CELL_LIMIT=10000` hücre/istek (lib/qlik.js; Qlik hard
+   limiti değil, ayarlanabilir). Qlik Cloud REST + engine-session/rate limitleri plana bağlı (Management Console →
+   tenant limits). Bizim gerçek darboğaz: Vercel 120sn fn timeout + Qlik eşzamanlı-seçim serileştirmesi (Exclusive
+   request aborted) — bunlar Qlik satır-çekme limiti DEĞİL.
 
 **Not:** Qlik ID'leri `lib/qlik-sources.js`+`lib/dashboard-sources.js`'te (env değil). Deploy =
 `git add -A && git commit && git push origin main` (push.bat `pause`'da takılır). Kronolojik tam devir:
