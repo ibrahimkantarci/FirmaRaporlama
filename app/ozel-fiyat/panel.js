@@ -61,19 +61,18 @@ export default function DashboardPanel() {
       // toplam süre Vercel fonksiyon limitini aşıyordu; bölününce her biri kendi 120sn
       // bütçesinde çalışır. Yenileme cache'i güncellenemezse ölümcül değil (eski cache /
       // canlı fallback devrede kalır).
-      const [main, firma, yen] = await Promise.allSettled([
-        fetch("/api/dashboard/run?except=yenileme,firma", { method: "POST" }).then(parseJson),
-        fetch("/api/dashboard/run?only=firma", { method: "POST" }).then(parseJson),
+      // ⚠️ Qlik KAYNAKLARI PARALEL BÖLÜNEMEZ: birden çok kaynak aynı Qlik app'ini kullanıp
+      // seçim (clearAll/select) yapıyor (General: onboarding+sözleşme+firma joinFields; Executive:
+      // provider_flag_current+firma joinMembership). İki paralel istek aynı app'e seçim atınca
+      // Qlik "Exclusive request aborted" verir. O yüzden TÜM Qlik kaynakları TEK sıralı çağrıda;
+      // yalnız yenileme (Apps Script, Qlik değil) ayrı paralel çağrıda.
+      const [main, yen] = await Promise.allSettled([
+        fetch("/api/dashboard/run?except=yenileme", { method: "POST" }).then(parseJson),
         fetch("/api/dashboard/run?only=yenileme", { method: "POST" }).then(parseJson),
       ]);
       if (main.status === "rejected") throw main.reason;
       if (!main.value.ok) throw new Error(main.value.error || "Bilinmeyen hata");
       if (main.value.updatedAt) setUpdatedAt(main.value.updatedAt);
-      // firma AĞIR (joinFields provider_segment + joinMembership Aktif Özel Fiyat = 3 Qlik app);
-      // kendi 120sn bütçesinde paralel çalışır. Hatası kritik değil (onboarding vb. yine güncellenir).
-      if (firma.status === "rejected" || (firma.value && firma.value.ok === false)) {
-        console.warn("[dashboard] firma güncellenemedi:", firma.status === "rejected" ? firma.reason : firma.value);
-      }
       if (yen.status === "rejected" || (yen.value && yen.value.ok === false)) {
         console.warn("[dashboard] yenileme cache güncellenemedi:", yen.status === "rejected" ? yen.reason : yen.value);
       }
