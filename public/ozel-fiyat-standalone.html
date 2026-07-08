@@ -1162,7 +1162,7 @@ function renderTeklif5(){
   const BAR='#185FA5';
   const ozet=genelOrt!==null?`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f1f3">
       <span style="font-size:26px;font-weight:700;color:#18181b">${genelOrt.toFixed(1)}</span>
-      <span style="font-size:12px;color:#71717a">gün ortalama · ${tumAdet} firma · ${dimLbl} kırılımı</span>
+      <span style="font-size:12px;color:#71717a">gün ortalama · <b>${tumAdet}/${all.length}</b> firma (5 teklife ulaşan) · ${dimLbl} kırılımı</span>
     </div>`:'';
 
   el.innerHTML=ozet+
