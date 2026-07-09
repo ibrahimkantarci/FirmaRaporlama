@@ -125,12 +125,16 @@ güncelle + `push.bat`; **Vercel'e dokunma**. (ID'ler gizli değil; sırlar API 
 
 ## Durum / sonraki adımlar (2026-07-08)
 
-Build temiz, `main`==`origin/main` (Vercel'de). Aktif alan = **Dashboard** (`/updated-hq`; `/dashboard` legacy)
-+ yeni **/ozel-fiyat** (Pelda). 5 araç: provider, fiyat, dashboard, updatedhq, **ozelfiyat**.
+Build temiz, `main`==`origin/main` (Vercel'de). **4 araç:** provider, fiyat, **updatedhq (hub'da "Dashboard")**,
+ozelfiyat. ⚠️ **Legacy `/dashboard` KALDIRILDI (2026-07-09):** eski `public/b2b-dashboard.html` + `app/dashboard/`
+silindi; "dashboard" araç anahtarı emekli. Rota `/updated-hq` KALDI (link kırılmasın) ama hub'da "Dashboard"
+adıyla görünür (key hâlâ `updatedhq`; sayfa + `/api/dashboard/*` artık `["updatedhq","ozelfiyat"]` ile korunuyor).
+Erişim: "Erişim" sekmesindeki **"Dashboard" kolonu** → updatedhq'ya eşleşir (headerToToolKey title match); eski
+"Updated HQ" kolonu artık ölü (elle silinecek).
 
-**Dashboard — İKİ gömülü HTML + pipeline enjeksiyonu:**
-- `public/b2b-dashboard-updated.html` (`/updated-hq`, **takımın AKTİF geliştirdiği**) + `public/b2b-dashboard.html`
-  (`/dashboard`, legacy). `public/dashboard-pipeline.js` İKİSİNE de enjekte edilir
+**Dashboard — TEK gömülü HTML + pipeline enjeksiyonu:**
+- `public/b2b-dashboard-updated.html` (`/updated-hq`, **takımın AKTİF geliştirdiği tek dashboard**).
+  `public/dashboard-pipeline.js` buna (+ ozel-fiyat standalone'a) enjekte edilir
   ([app/updated-hq/dashboard-panel.js](app/updated-hq/dashboard-panel.js) vb.).
 - ⚠️ Takım updated HTML'i doğrudan commit ediyor → **HER deploy'dan önce `git pull --rebase origin main`**
   (bu oturumda 4 kez, hep temiz). Pipeline override'ları takım HTML'iyle çakışabilir → **pull sonrası

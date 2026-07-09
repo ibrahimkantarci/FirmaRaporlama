@@ -50,7 +50,7 @@ function trimColumns(values, wanted) {
   return values.map((r) => idx.map((i) => (Array.isArray(r) && r[i] != null ? r[i] : "")));
 }
 
-export const GET = withAccess(["dashboard","ozelfiyat"], async () => {
+export const GET = withAccess(["updatedhq","ozelfiyat"], async () => {
   const out = { ok: true };
   try {
     // HIZ: tüm kaynaklar PARALEL okunur (sıralı ~8sn → ~1.5-2sn).

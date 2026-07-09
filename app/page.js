@@ -34,7 +34,7 @@ const DashIcon = (
 );
 
 // İkonlar araç anahtarına göre eşlenir (veri tarafı registry'de, görsel burada).
-const ICONS = { provider: ReportIcon, fiyat: PriceIcon, dashboard: DashIcon };
+const ICONS = { provider: ReportIcon, fiyat: PriceIcon, updatedhq: DashIcon };
 
 export default async function Home({ searchParams }) {
   const session = await auth();

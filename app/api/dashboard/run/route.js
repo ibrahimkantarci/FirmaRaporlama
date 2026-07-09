@@ -480,5 +480,5 @@ async function runPipeline(request) {
   }
 }
 
-export const POST = withAccess(["dashboard","ozelfiyat"], (request) => runPipeline(request));
-export const GET = withAccess(["dashboard","ozelfiyat"], (request) => runPipeline(request));
+export const POST = withAccess(["updatedhq","ozelfiyat"], (request) => runPipeline(request));
+export const GET = withAccess(["updatedhq","ozelfiyat"], (request) => runPipeline(request));

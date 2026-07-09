@@ -4,16 +4,15 @@ import { requireToolAccess } from "../../lib/access";
 
 export const runtime = "nodejs";
 
-// Updated HQ: canlı /dashboard'a dokunmadan üzerinde çalışılan sandbox kopya.
-// Aynı Qlik veri hattını (api/dashboard/*) kullanır, ama kendi HTML dosyası
-// (public/b2b-dashboard-updated.html) üzerinden render eder. Buradaki
-// değişiklikler onaylandıktan sonra /dashboard'a taşınır.
+// Dashboard: B2B yaşam döngüsü panoları (public/b2b-dashboard-updated.html).
+// Rota /updated-hq kalır (link/bookmark kırılmasın), ama hub'da "Dashboard" adıyla görünür.
+// Eski legacy /dashboard 2026-07-09'da kaldırıldı; bu artık TEK dashboard.
 export default async function UpdatedHQPage() {
-  const session = await requireToolAccess("dashboard");
+  const session = await requireToolAccess("updatedhq");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <AppHeader back={{ href: "/", label: "Hub" }} subtitle="Updated HQ" email={session.user.email} />
+      <AppHeader back={{ href: "/", label: "Hub" }} subtitle="Dashboard" email={session.user.email} />
       <DashboardPanel />
     </div>
   );
