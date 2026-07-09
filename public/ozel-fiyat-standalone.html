@@ -351,7 +351,7 @@ body.dark .theme-toggle:hover{background:#1e232b}
           <span id="oz-raw-toggle" style="font-size:14px;color:#a1a1aa;margin-left:auto">▼</span>
         </div>
         <div id="oz-raw-body" style="display:none"><div class="tw"><table>
-          <thead><tr><th>Provider ID</th><th>Provider Name</th><th>Customer ID</th><th>Customer Name</th><th>Ürün</th><th>İl</th><th>Kategori Adı</th><th>Teklif</th></tr></thead>
+          <thead><tr><th>Provider ID</th><th>Provider Name</th><th>Customer ID</th><th>Customer Name</th><th>Ürün</th><th>İl</th><th>Kategori Adı</th><th>Teklif</th><th style="text-align:right">Yıllık Value</th><th style="text-align:right">Aylık Value</th></tr></thead>
           <tbody id="oz-raw-tbl"></tbody>
         </table></div></div>
       </div>
@@ -3666,7 +3666,9 @@ function renderOzRawTable(data){
     <td style="font-size:11px">${f.sehir||'—'}</td>
     <td style="font-size:11px;color:#71717a">${f.kategori_adi||'—'}</td>
     <td style="font-size:12px;text-align:center">${num(f.teklif)||0}</td>
-  </tr>`).join(''):'<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:14px">Firma yok</td></tr>';
+    <td style="font-size:12px;text-align:right;white-space:nowrap">₺${(num(f.satis_fiyati)||0).toLocaleString('tr-TR')}</td>
+    <td style="font-size:12px;text-align:right;white-space:nowrap;color:#185FA5;font-weight:500">₺${(ozAylikValue(f)||0).toLocaleString('tr-TR')}</td>
+  </tr>`).join(''):'<tr><td colspan="10" style="text-align:center;color:#a1a1aa;padding:14px">Firma yok</td></tr>';
 }
 
 // Özel Fiyat dağılım kartları — Adet / Value sekme durumu
