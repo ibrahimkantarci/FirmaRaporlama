@@ -1,34 +1,31 @@
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
-import { izinliMailler } from "./izinli-mailler";
+import { authConfig } from "./auth.config";
+import { canAccessHome, isAdmin } from "./lib/access-core";
 
-// İzinli e-postalar izinli-mailler.js dosyasından gelir (env'e bağımlı değil).
-const allowed = izinliMailler.map((e) => e.trim().toLowerCase()).filter(Boolean);
-
-// Liste boşken: canlıda KİMSE giremez (fail-closed), yerelde herkes (test kolay).
+// Sheet okunamazsa: canlıda KİMSE giremez (fail-closed), yerelde herkes (test kolay).
 const isDev = process.env.NODE_ENV !== "production";
 
+// Tam yapılandırma (Node runtime): Edge-güvenli authConfig + Sheet okuyan giriş kontrolü.
+// Uygulama (server component / API / server actions) bunu kullanır; middleware KULLANMAZ
+// (o auth.config'i kullanır — googleapis Edge'de çalışmaz).
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET / AUTH_SECRET env'leri v5 tarafından
-  // otomatik okunur.
-  providers: [Google],
-  pages: { signIn: "/" }, // giriş ana sayfada (Performans Yönetimi)
-
-  session: {
-    strategy: "jwt",
-    maxAge: 90 * 24 * 60 * 60, // 90 gün
-  },
-
+  ...authConfig,
   callbacks: {
-    // Whitelist: yalnızca izinli e-postalar giriş yapabilir.
-    signIn({ user }) {
+    ...authConfig.callbacks,
+    // GİRİŞ KAPISI: kimin giriş yapabileceği artık "Erişim" sekmesi "Ana Sayfa" kolonundan
+    // gelir (izinli-mailler.js EMEKLİ). Güvenlik invaryantı:
+    //  - ADMIN_EMAILS (env, Sheet DIŞINDA) her zaman girer → Sheet çökse bile kilitlenme YOK.
+    //  - Diğerleri: "Ana Sayfa" = 1 ise girer. Sheet okunamazsa canlıda reddet (fail-closed).
+    // Aktif oturumun iptali hub (app/page.js) + requireToolAccess/withAccess'te (Node) yapılır.
+    async signIn({ user }) {
       const email = (user?.email || "").toLowerCase();
-      if (allowed.length === 0) return isDev;
-      return allowed.includes(email);
-    },
-    // middleware bununla korumalı sayfalara erişimi denetler.
-    authorized({ auth }) {
-      return !!auth?.user;
+      if (!email) return false;
+      if (isAdmin(email)) return true;
+      try {
+        return await canAccessHome(email);
+      } catch {
+        return isDev;
+      }
     },
   },
 });

@@ -55,8 +55,10 @@ Qlik bağlantısı `lib/qlik.js`, Sheets `lib/sheets.js`, fiyat mantığı `lib/
     # Auth (NextAuth v5)
     AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, AUTH_TRUST_HOST
 
-İzinli e-postalar `izinli-mailler.js` dosyasında. Google Sheet, Service
-Account e-postasına **Editör** olarak paylaşılmalıdır.
+Kim giriş yapabilir Google Sheet "Erişim" sekmesindeki **"Ana Sayfa"** kolonundan
+belirlenir (=1 giriş açık; `izinli-mailler.js` emekli). `ADMIN_EMAILS` env'i (Sheet
+dışında) kilitlenme koruması — her zaman girer. Google Sheet, Service Account
+e-postasına **Editör** olarak paylaşılmalıdır.
 
 ## Vercel
 

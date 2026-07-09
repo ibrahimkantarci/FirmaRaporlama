@@ -3,7 +3,9 @@ import Link from "next/link";
 import { Brand } from "./brand";
 import { AppHeader } from "./app-header";
 import { TOOLS } from "../lib/registry";
-import { allowedToolKeys } from "../lib/access";
+import { allowedToolKeys, canAccessHome } from "../lib/access";
+import { signOutAction } from "./actions";
+import RevokedSignOut from "./revoked-signout";
 
 export const runtime = "nodejs";
 
@@ -74,6 +76,12 @@ export default async function Home({ searchParams }) {
         </div>
       </main>
     );
+  }
+
+  // HARD-REVOKE: giriş yapmış ama "Ana Sayfa" erişimi (Sheet) kaldırılmışsa → otomatik çıkış.
+  // (Oturum JWT ve 90 gün; iptal edilen kişinin aktif oturumu burada düşer, ~cache TTL içinde.)
+  if (!(await canAccessHome(session.user.email))) {
+    return <RevokedSignOut action={signOutAction} />;
   }
 
   // YETKİLENDİRME: kullanıcı yalnızca erişebildiği araçları görür.

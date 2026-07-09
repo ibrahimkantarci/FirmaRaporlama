@@ -1,4 +1,11 @@
-export { auth as middleware } from "@/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "./auth.config";
+
+// Middleware Edge runtime'da çalışır → YALNIZ Edge-güvenli authConfig kullanılır
+// (Node-only googleapis içeren auth.js'i İÇE AKTARMAZ; aksi halde Edge build kırılır).
+// Yalnız oturum var mı diye bakar; Sheet tabanlı erişim kontrolü Node katmanında
+// (auth signIn + hub + requireToolAccess/withAccess) yapılır.
+export const { auth: middleware } = NextAuth(authConfig);
 
 // Ana sayfa (/) giriş ekranıdır → korumadan HARİÇ ($ = kök yol).
 // auth API'si ve statik dosyalar da hariç.
