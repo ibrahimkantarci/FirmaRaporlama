@@ -73,6 +73,22 @@
     "Yiğit_Ziya": "Yigit YAGIZ",
   };
 
+  // Özel Fiyat "Tüm Firmalar" filtreleri için performans flag'leri: provider_flag_current'tan
+  // (en güncel snapshot) RÇİ ile firmaya eklenir. src = flag sekmesindeki kolon adı, k = firma
+  // property'si (filtre/kolon anahtarı), lbl = görünen ad. Provider Health Flag renk/statü,
+  // diğerleri binary (renFlagVal → "Flag var"/"Flag yok").
+  var OZ_FLAG_COLS = [
+    { src: "Provider Health Flag", k: "pf_health", lbl: "Provider Health Flag" },
+    { src: "Campaign Flag", k: "pf_campaign", lbl: "Campaign Flag" },
+    { src: "Gallery Flag", k: "pf_gallery", lbl: "Gallery Flag" },
+    { src: "Last Seen Flag", k: "pf_lastseen", lbl: "Last Seen Flag" },
+    { src: "Lead Count Flag", k: "pf_leadcount", lbl: "Lead Count Flag" },
+    { src: "Response Rate Flag", k: "pf_resprate", lbl: "Response Rate Flag" },
+    { src: "Response Time Flag", k: "pf_resptime", lbl: "Response Time Flag" },
+    { src: "Review Flag", k: "pf_review", lbl: "Review Flag" },
+    { src: "CR Flag", k: "pf_cr", lbl: "CR Flag" },
+  ];
+
   // ── Yenileme (Genel Analiz) — 1'e 1 hedef + kırılım + esnek filtre ────────
   // İki metrik (görünüm biçimi):
   //   • "tutar" · 1'e 1 Hedef = Σ Yenilenen Tutar / Σ Yenileme Öncesi Tutar
@@ -801,6 +817,121 @@
     moveYenilemeCard(); // yükleme anında kartı taşı (Performans'ta görünmesin)
   }
 
+  // ══ Özel Fiyat — "Tüm Firmalar" tablosu + PAYLAŞILAN filtre (özel + tüm firmalar birlikte) ══
+  // Özel Fiyat panelinin altına, özel-fiyatlı raw tablosunun ALTINA bir bölüm enjekte eder:
+  //   • Filtre bar: Performans kırılım kolonları + Renk + 9 performans flag'i (Provider Health,
+  //     Campaign, Gallery, Last Seen, Lead Count, Response Rate/Time, Review, CR).
+  //   • Tüm Firmalar tablosu (özel fiyatlı olsun olmasın): ilk 200 + "daha fazla yükle".
+  // Filtre HER İKİ bölümü etkiler: renderPF deseniyle S.firmalar geçici filtreli listeye çevrilir,
+  // orijinal renderOZ çağrılır (üst özel bölüm otomatik daralır), sonra geri konur; tüm-firmalar
+  // tablosu filtreli TAM listeyle çizilir. Kolonlar üstteki özel raw tabloyla aynı + "Özel Fiyat".
+  if (typeof window.renderOZ === "function" && !window.__ozAllPatched) {
+    window.__ozAllPatched = true;
+
+    var OZ_DIMS = [
+      { k: "kategori_adi", lbl: "Kategori" }, { k: "kategori_grubu", lbl: "Kategori Grubu" },
+      { k: "sehir", lbl: "Şehir" }, { k: "ilce", lbl: "İlçe" }, { k: "py_adi", lbl: "PY" },
+      { k: "musteri_statusu", lbl: "Müşteri Statüsü" }, { k: "urun_adi", lbl: "Ürün" },
+      { k: "flag_rengi", lbl: "Renk (Flag)" }, { k: "provider_segment", lbl: "Segment" },
+      { k: "aktif_ozel_fiyat", lbl: "Aktif Özel Fiyat" },
+      { k: "odeme_flagi", lbl: "Ödeme Flagi" }, { k: "geri_donus_flagi", lbl: "Geri Dönüş Flagi" },
+    ].concat(OZ_FLAG_COLS.map(function (fc) { return { k: fc.k, lbl: fc.lbl }; }));
+
+    function ozVal(x, col) { return String(x && x[col] == null ? "" : x[col]).trim(); }
+    function ozPredicate(x) {
+      var fs = S._ozFilters || [];
+      for (var i = 0; i < fs.length; i++) { var f = fs[i]; if (f.col && f.values && f.values.length && f.values.indexOf(ozVal(x, f.col)) < 0) return false; }
+      return true;
+    }
+    function ozDistinct(col) { var set = {}; (S.firmalar || []).forEach(function (x) { var v = ozVal(x, col); if (v) set[v] = 1; }); return Object.keys(set).sort(function (a, b) { return a.localeCompare(b, "tr"); }); }
+
+    function injectOzAll() {
+      var at = document.getElementById("oz-raw-tbl"); if (!at) return null;
+      var ac = at.closest ? at.closest(".card") : null;
+      var host = ac && ac.parentNode ? ac.parentNode : (document.getElementById("panel-ozel") || document.body);
+      var card = document.getElementById("oz-all-card");
+      if (!card) {
+        card = document.createElement("div");
+        card.className = "card"; card.id = "oz-all-card"; card.style.marginTop = "14px";
+        card.innerHTML =
+          '<div class="card-head"><span class="ct">📇 Tüm Firmalar <span id="oz-all-cnt" style="font-size:11px;color:#a1a1aa;font-weight:400"></span></span></div>' +
+          '<div style="font-size:11.5px;color:#71717a;margin-bottom:8px">Özel fiyatlı olsun olmasın tüm firmalar. Filtreler yukarıdaki özel-fiyatlı bölümü de daraltır.</div>' +
+          '<div class="flbl" style="margin-bottom:4px">Filtreler</div><div id="oz-filters" style="display:flex;flex-direction:column;gap:6px"></div>' +
+          '<div style="margin:8px 0"><button onclick="ozAddFilter()" style="font-size:12px;padding:5px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#185FA5">+ Filtre ekle</button></div>' +
+          '<div class="tw" style="overflow-x:auto"><table><thead><tr>' +
+            '<th>Provider ID</th><th>Provider Name</th><th>Customer ID</th><th>Customer Name</th><th>Ürün</th><th>İl</th><th>Kategori Adı</th><th>Teklif</th>' +
+            '<th style="text-align:right">Yıllık Value</th><th style="text-align:right">Aylık Value</th><th>Özel Fiyat</th>' +
+          '</tr></thead><tbody id="oz-all-tbl"></tbody></table></div>' +
+          '<div id="oz-all-more" style="text-align:center;margin-top:10px"></div>';
+        if (ac && ac.nextSibling) host.insertBefore(card, ac.nextSibling); else host.appendChild(card);
+      }
+      return card;
+    }
+
+    function renderOzFilters() {
+      var host = document.getElementById("oz-filters"); if (!host) return;
+      host.innerHTML = (S._ozFilters || []).map(function (f, i) {
+        var opts = '<option value="">— kolon —</option>' + OZ_DIMS.map(function (d2) { return '<option value="' + d2.k + '"' + (f.col === d2.k ? " selected" : "") + '>' + renEsc(d2.lbl) + '</option>'; }).join("");
+        var valSel = "";
+        if (f.col) {
+          valSel = '<select multiple size="4" onchange="ozSetVals(' + i + ',this)" style="min-width:190px;max-width:320px;font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:3px">' +
+            ozDistinct(f.col).map(function (v) { return '<option value="' + renEsc(v) + '"' + (f.values.indexOf(v) >= 0 ? " selected" : "") + '>' + renEsc(v) + '</option>'; }).join("") + '</select>';
+        }
+        return '<div style="display:flex;gap:6px;align-items:flex-start">' +
+          '<select onchange="ozSetCol(' + i + ',this.value)" style="font-size:12px;border:1px solid #e4e4e7;border-radius:6px;padding:4px">' + opts + '</select>' +
+          valSel + '<button onclick="ozRemFilter(' + i + ')" style="font-size:11px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#71717a;padding:4px 8px">✕</button></div>';
+      }).join("");
+    }
+
+    function renderOzAllTable(rows) {
+      var tbl = document.getElementById("oz-all-tbl"); if (!tbl) return;
+      if (!S._ozAllLimit) S._ozAllLimit = 200;
+      var cnt = document.getElementById("oz-all-cnt");
+      if (cnt) cnt.textContent = rows.length + " firma" + (rows.length > S._ozAllLimit ? (" · ilk " + S._ozAllLimit) : "");
+      var shown = rows.slice(0, S._ozAllLimit);
+      tbl.innerHTML = shown.length ? shown.map(function (f) {
+        var yil = renNum(f.satis_fiyati) || 0, ay = Math.round(yil / 12);
+        return "<tr>" +
+          '<td style="font-size:11px;color:#71717a">' + (f.provider_id || "—") + "</td>" +
+          '<td style="font-size:12px;font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + renEsc(f.musteri_adi || "") + '">' + renEsc(f.musteri_adi || "—") + "</td>" +
+          '<td style="font-size:11px;color:#71717a">' + (f.musteri_id || f.firma_id || "—") + "</td>" +
+          '<td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + renEsc(f.customer_name || "") + '">' + renEsc(f.customer_name || "—") + "</td>" +
+          '<td style="font-size:11px;color:#71717a">' + renEsc(f.urun_adi || "—") + "</td>" +
+          '<td style="font-size:11px">' + renEsc(f.sehir || "—") + "</td>" +
+          '<td style="font-size:11px;color:#71717a">' + renEsc(f.kategori_adi || "—") + "</td>" +
+          '<td style="font-size:12px;text-align:center">' + (renNum(f.teklif) || 0) + "</td>" +
+          '<td style="font-size:12px;text-align:right;white-space:nowrap">₺' + yil.toLocaleString("tr-TR") + "</td>" +
+          '<td style="font-size:12px;text-align:right;white-space:nowrap;color:#185FA5;font-weight:500">₺' + ay.toLocaleString("tr-TR") + "</td>" +
+          '<td style="font-size:11px;text-align:center">' + renEsc(ozVal(f, "aktif_ozel_fiyat") || "—") + "</td>" +
+          "</tr>";
+      }).join("") : '<tr><td colspan="11" style="text-align:center;color:#a1a1aa;padding:14px">Filtreye uyan firma yok</td></tr>';
+      var more = document.getElementById("oz-all-more");
+      if (more) {
+        if (rows.length > S._ozAllLimit) {
+          more.innerHTML = '<button onclick="ozLoadMore()" style="font-size:12px;padding:6px 16px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#185FA5">+200 firma daha yükle (' + (rows.length - S._ozAllLimit) + ' kaldı)</button>';
+        } else more.innerHTML = "";
+      }
+    }
+
+    window.ozAddFilter = function () { (S._ozFilters = S._ozFilters || []).push({ col: "", values: [] }); S._ozAllLimit = 200; renderOZ(); };
+    window.ozRemFilter = function (i) { S._ozFilters.splice(i, 1); S._ozAllLimit = 200; renderOZ(); };
+    window.ozSetCol = function (i, c) { S._ozFilters[i].col = c; S._ozFilters[i].values = []; S._ozAllLimit = 200; renderOZ(); };
+    window.ozSetVals = function (i, sel) { var v = []; for (var o = 0; o < sel.options.length; o++) if (sel.options[o].selected) v.push(sel.options[o].value); S._ozFilters[i].values = v; S._ozAllLimit = 200; renderOZ(); };
+    window.ozLoadMore = function () { S._ozAllLimit = (S._ozAllLimit || 200) + 200; renderOZ(); };
+
+    var _origRenderOZ = window.renderOZ;
+    window.renderOZ = function () {
+      if (!S._ozFilters) S._ozFilters = [];
+      var full = S.firmalar || [];
+      var filtered = full.filter(ozPredicate);
+      // Üst özel-fiyatlı bölümü de daralt: S.firmalar'ı geçici filtreli listeye çevir, çiz, geri koy.
+      S.firmalar = filtered;
+      try { _origRenderOZ.apply(this, arguments); } finally { S.firmalar = full; }
+      // Tüm-firmalar bölümü (filtreli TAM liste — özel olsun olmasın).
+      try { if (injectOzAll()) { renderOzFilters(); renderOzAllTable(filtered); } } catch (e) { console.warn("[oz-all]", e); }
+    };
+  }
+
   fetch("/api/dashboard/data", { credentials: "same-origin" })
     .then(function (r) { return r.json(); })
     .then(function (d) {
@@ -869,12 +1000,25 @@
         // provider_segment artık Dashboard_Firma'da bir KOLON (run route join). Ayrıca
         // RÇİ → segment arama tablosu kur (yenileme/Genel Analiz kırılımı bunu kullanır).
         S._segByRci = {};
+        // Performans flag lookup (en güncel snapshot) → RÇİ ile firmaya eklenir (Özel Fiyat filtreleri).
+        var pfRows = (Array.isArray(d.provider_flag_current) && d.provider_flag_current.length) ? d.provider_flag_current
+                   : (Array.isArray(d.provider_flag) && d.provider_flag.length) ? d.provider_flag : [];
+        var pfLookup = {};
+        if (pfRows.length) {
+          var pfKeys = Object.keys(pfRows[0] || {});
+          var pfPidKey = null;
+          for (var pfi = 0; pfi < pfKeys.length; pfi++) { if (/provider\s*id/i.test(pfKeys[pfi])) { pfPidKey = pfKeys[pfi]; break; } }
+          if (pfPidKey) pfRows.forEach(function (fr) { var p = renNormId(fr[pfPidKey]); if (p && !pfLookup[p]) pfLookup[p] = fr; });
+        }
         S.firmalar = d.firma.map(function (row) {
           var m = mapRow(row, FIRMA_MAP);
           m.flag_rengi = calcFlag(m);
           m.provider_segment = String(row["provider_segment"] == null ? "" : row["provider_segment"]).trim();
           var rci = String(m.firma_id == null ? "" : m.firma_id).trim().replace(/\.0+$/, ""); // RÇİ (override öncesi)
           if (rci) S._segByRci[rci] = m.provider_segment;
+          // 9 performans flag'ini firmaya ekle (eşleşme yoksa boş → filtrede "—"/değersiz).
+          var pf = pfLookup[rci];
+          OZ_FLAG_COLS.forEach(function (fc) { m[fc.k] = pf ? renFlagVal(pf[fc.src]) : ""; });
           m.provider_id = rci; // provider (RÇİ) KORUNUR — müşteri/provider ayrımı için (firma_id müşteriye ezilir)
           // Çağrılar MÜŞTERİ (account) seviyesinde → firma-çağrı eşleşmesi için
           // firma_id'yi Müşteri İD'ye hizala (kullanıcı kararı). RÇİ sheet'te durur;
