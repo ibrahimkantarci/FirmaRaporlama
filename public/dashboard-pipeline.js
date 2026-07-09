@@ -828,8 +828,10 @@
   if (typeof window.renderOZ === "function" && !window.__ozAllPatched) {
     window.__ozAllPatched = true;
 
+    // NOT: "kategori_grubu" OZ_DIMS'te YOK — ayrı "Kategori Grubu" chip toplu-seçimi (default Big5
+    // hariç = Venue+Others) ile yönetilir; jenerik filtreye eklenmez (çift kontrol olmasın).
     var OZ_DIMS = [
-      { k: "kategori_adi", lbl: "Kategori" }, { k: "kategori_grubu", lbl: "Kategori Grubu" },
+      { k: "kategori_adi", lbl: "Kategori" },
       { k: "sehir", lbl: "Şehir" }, { k: "ilce", lbl: "İlçe" }, { k: "py_adi", lbl: "PY" },
       { k: "musteri_statusu", lbl: "Müşteri Statüsü" }, { k: "urun_adi", lbl: "Ürün" },
       { k: "flag_rengi", lbl: "Renk (Flag)" }, { k: "provider_segment", lbl: "Segment" },
@@ -839,6 +841,8 @@
 
     function ozVal(x, col) { return String(x && x[col] == null ? "" : x[col]).trim(); }
     function ozPredicate(x) {
+      // Kategori Grubu chip toplu-seçimi (her zaman aktif): yalnız seçili gruplar geçer.
+      if (S._ozKatGrup && S._ozKatGrup.indexOf(ozVal(x, "kategori_grubu")) < 0) return false;
       var fs = S._ozFilters || [];
       for (var i = 0; i < fs.length; i++) { var f = fs[i]; if (f.col && f.values && f.values.length && f.values.indexOf(ozVal(x, f.col)) < 0) return false; }
       return true;
@@ -855,7 +859,8 @@
         card.className = "card"; card.id = "oz-all-card"; card.style.marginTop = "14px";
         card.innerHTML =
           '<div class="card-head"><span class="ct">📇 Tüm Firmalar <span id="oz-all-cnt" style="font-size:11px;color:#a1a1aa;font-weight:400"></span></span></div>' +
-          '<div style="font-size:11.5px;color:#71717a;margin-bottom:8px">Özel fiyatlı olsun olmasın tüm firmalar. Filtreler yukarıdaki özel-fiyatlı bölümü de daraltır.</div>' +
+          '<div style="font-size:11.5px;color:#71717a;margin-bottom:8px">Özel fiyatlı olsun olmasın tüm firmalar. Buradaki Kategori Grubu + filtreler ve üstteki paket bitiş dönemi yukarıdaki özel-fiyatlı bölümü de daraltır.</div>' +
+          '<div class="flbl" style="margin-bottom:4px">Kategori Grubu <span style="font-weight:400;color:#a1a1aa">(tıkla-seç · Big 5 varsayılan kapalı)</span></div><div id="oz-katgrup" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>' +
           '<div class="flbl" style="margin-bottom:4px">Filtreler</div><div id="oz-filters" style="display:flex;flex-direction:column;gap:6px"></div>' +
           '<div style="margin:8px 0"><button onclick="ozAddFilter()" style="font-size:12px;padding:5px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;cursor:pointer;color:#185FA5">+ Filtre ekle</button></div>' +
           '<div class="tw" style="overflow-x:auto"><table><thead><tr>' +
@@ -866,6 +871,16 @@
         if (ac && ac.nextSibling) host.insertBefore(card, ac.nextSibling); else host.appendChild(card);
       }
       return card;
+    }
+
+    // Kategori Grubu toplu-seçim chip'leri (Big 5 / Others / Venue). Seçili = dahil.
+    function renderOzKatChips() {
+      var host = document.getElementById("oz-katgrup"); if (!host) return;
+      var groups = ozDistinct("kategori_grubu");
+      host.innerHTML = groups.map(function (g) {
+        var on = (S._ozKatGrup || []).indexOf(g) >= 0;
+        return '<div class="chip' + (on ? " on" : "") + '" data-v="' + renEsc(g) + '" onclick="ozToggleKat(this.getAttribute(\'data-v\'))" style="font-size:11px">' + renEsc(g) + '</div>';
+      }).join("");
     }
 
     function renderOzFilters() {
@@ -918,17 +933,32 @@
     window.ozSetCol = function (i, c) { S._ozFilters[i].col = c; S._ozFilters[i].values = []; S._ozAllLimit = 200; renderOZ(); };
     window.ozSetVals = function (i, sel) { var v = []; for (var o = 0; o < sel.options.length; o++) if (sel.options[o].selected) v.push(sel.options[o].value); S._ozFilters[i].values = v; S._ozAllLimit = 200; renderOZ(); };
     window.ozLoadMore = function () { S._ozAllLimit = (S._ozAllLimit || 200) + 200; renderOZ(); };
+    window.ozToggleKat = function (g) {
+      if (!S._ozKatGrup) S._ozKatGrup = [];
+      var i = S._ozKatGrup.indexOf(g);
+      if (i >= 0) S._ozKatGrup.splice(i, 1); else S._ozKatGrup.push(g);
+      S._ozAllLimit = 200; renderOZ();
+    };
 
     var _origRenderOZ = window.renderOZ;
     window.renderOZ = function () {
       if (!S._ozFilters) S._ozFilters = [];
       var full = S.firmalar || [];
+      // Kategori Grubu default'u: Big 5 HARİÇ tüm gruplar (Venue + Others) — ilk açılışta bir kez kurulur.
+      if (S._ozKatGrup === undefined) S._ozKatGrup = ozDistinct("kategori_grubu").filter(function (g) { return !/big\s*5/i.test(g); });
       var filtered = full.filter(ozPredicate);
       // Üst özel-fiyatlı bölümü de daralt: S.firmalar'ı geçici filtreli listeye çevir, çiz, geri koy.
+      // (Paket bitiş dönemi filtresini BURAYA katma — orijinal renderOZ dropdown'ı ondan kuruyor;
+      //  ay-filtresi tüm-firmalar'a AŞAĞIDA ayrıca uygulanır.)
       S.firmalar = filtered;
       try { _origRenderOZ.apply(this, arguments); } finally { S.firmalar = full; }
-      // Tüm-firmalar bölümü (filtreli TAM liste — özel olsun olmasın).
-      try { if (injectOzAll()) { renderOzFilters(); renderOzAllTable(filtered); } } catch (e) { console.warn("[oz-all]", e); }
+      // Tüm-firmalar bölümü: paylaşılan filtreler + ÜST paket bitiş dönemi (dropdown değeri).
+      var donemSel = document.getElementById("oz-donem-sel");
+      var secilenDonem = donemSel ? donemSel.value : "";
+      var allRows = secilenDonem
+        ? filtered.filter(function (x) { return String(x.bitis_tarihi || "").slice(0, 7) === secilenDonem; })
+        : filtered;
+      try { if (injectOzAll()) { renderOzKatChips(); renderOzFilters(); renderOzAllTable(allRows); } } catch (e) { console.warn("[oz-all]", e); }
     };
   }
 
