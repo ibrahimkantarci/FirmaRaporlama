@@ -40,6 +40,19 @@ td{padding:7px 8px;border-bottom:1px solid #f4f4f5;font-size:12.5px}
 </div>
 <div class="wrap">
 
+  <div class="card" style="padding:12px 18px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">PY</span>
+      <span id="f-py-chips"><span class="chip on">Tümü</span></span>
+      <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;margin-left:12px">Ay</span>
+      <select id="f-ay" onchange="setErceAy(this.value)" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
+        <option value="">Tüm aylar</option>
+      </select>
+      <span id="f-info" style="font-size:11px;color:#a1a1aa;margin-left:4px"></span>
+    </div>
+    <div style="font-size:10.5px;color:#a1a1aa;margin-top:8px">Ay filtresi: çağrı/yenileme/decay board'larında ilgili ay; flag board'unda paket bitiş ayı. Prim hesabı için PY + ay seçin.</div>
+  </div>
+
   <div class="card">
     <div class="card-head"><span class="ct">⚡ Verimlilik</span><span class="note">PY bazlı — çağrı logları</span></div>
     <div id="b-verimlilik" class="empty">Veri bekleniyor</div>
@@ -231,12 +244,47 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',3000);}
 function updateTopbar(){}
 
+// ── GLOBAL FİLTRELER (PY + Ay) — prim hesabı için tüm boardlara uygulanır ───
+S._ercePY='Tümü';S._erceAy='';
+function setErcePY(py){S._ercePY=py;renderAll();}
+function setErceAy(ay){S._erceAy=ay;renderAll();}
+function ayOf(t){return t?String(t).slice(0,7):'';}
+function bitisAyOf(f){const d=new Date(f.bitis_tarihi||'');return isNaN(d)?'':d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+// Filtreli veri kaynakları
+function fCagri(){return S.cagrilar.filter(c=>(S._ercePY==='Tümü'||c.py_adi===S._ercePY)&&(!S._erceAy||ayOf(c.tarih)===S._erceAy));}
+function fRen(){return (S._renewalRows||[]).filter(r=>(S._ercePY==='Tümü'||r.py_adi===S._ercePY)&&(!S._erceAy||r.ay===S._erceAy));}
+function fFirma(){return S.firmalar.filter(f=>(S._ercePY==='Tümü'||f.py_adi===S._ercePY)&&(!S._erceAy||bitisAyOf(f)===S._erceAy));}
+
+function buildErceFilters(){
+  // PY listesi: çağrı + yenileme + firma kaynaklarının birleşimi
+  const pys=new Set();
+  S.cagrilar.forEach(c=>{if(c.py_adi)pys.add(c.py_adi);});
+  (S._renewalRows||[]).forEach(r=>{if(r.py_adi)pys.add(r.py_adi);});
+  S.firmalar.forEach(f=>{if(f.py_adi)pys.add(f.py_adi);});
+  const list=['Tümü',...[...pys].filter(p=>p&&p!=='-').sort()];
+  if(!list.includes(S._ercePY))S._ercePY='Tümü';
+  const chipEl=document.getElementById('f-py-chips');
+  if(chipEl)chipEl.innerHTML=list.map(py=>'<span class="chip'+(S._ercePY===py?' on':'')+'" onclick="setErcePY(\''+py.replace(/'/g,"\\'")+'\')" style="margin-right:4px">'+(py==='Tümü'?'Tümü':esc(py.split(' ')[0]))+'</span>').join('');
+  // Ay listesi: çağrı tarihleri + yenileme ayları birleşimi
+  const aylar=new Set();
+  S.cagrilar.forEach(c=>{const a=ayOf(c.tarih);if(a)aylar.add(a);});
+  (S._renewalRows||[]).forEach(r=>{if(r.ay)aylar.add(r.ay);});
+  const sel=document.getElementById('f-ay');
+  if(sel){
+    const cur=S._erceAy;
+    sel.innerHTML='<option value="">Tüm aylar</option>'+[...aylar].sort().map(a=>'<option value="'+a+'"'+(cur===a?' selected':'')+'>'+a+'</option>').join('');
+  }
+  const info=document.getElementById('f-info');
+  if(info)info.textContent=(S._ercePY!=='Tümü'||S._erceAy)?[S._ercePY!=='Tümü'?S._ercePY:'',S._erceAy].filter(Boolean).join(' · '):'';
+}
+
 // ── 1) VERİMLİLİK — PY bazlı çağrı verimliliği ──────────────────────────────
 function renderVerimlilik(){
   const el=document.getElementById('b-verimlilik');
-  if(!S.cagrilar.length){el.innerHTML='<div class="empty">Çağrı verisi yok</div>';return;}
+  const data=fCagri();
+  if(!data.length){el.innerHTML='<div class="empty">Filtreye uyan çağrı verisi yok</div>';return;}
   const pm={};
-  S.cagrilar.forEach(c=>{
+  data.forEach(c=>{
     const k=c.py_adi||'—';
     if(!pm[k])pm[k]={t:0,touch:0,att:0,sure:0,gunler:new Set(),firmalar:new Set()};
     pm[k].t++;
@@ -260,8 +308,8 @@ function renderVerimlilik(){
 // ── 2) YENİLEME YÜZDESİ — ay bazlı ──────────────────────────────────────────
 function renderYenilemeYuzdesi(){
   const el=document.getElementById('b-yenileme');
-  const rows=S._renewalRows||[];
-  if(!rows.length){el.innerHTML='<div class="empty">Yenileme verisi yok</div>';return;}
+  const rows=fRen();
+  if(!rows.length){el.innerHTML='<div class="empty">Filtreye uyan yenileme verisi yok</div>';return;}
   const ayMap={};
   rows.forEach(r=>{
     if(!r.ay)return;
@@ -287,9 +335,10 @@ function renderYenilemeYuzdesi(){
 // ── 3) DOKUNMA ORANI — ay bazlı touch oranı ─────────────────────────────────
 function renderDokunma(){
   const el=document.getElementById('b-dokunma');
-  if(!S.cagrilar.length){el.innerHTML='<div class="empty">Çağrı verisi yok</div>';return;}
+  const data=fCagri();
+  if(!data.length){el.innerHTML='<div class="empty">Filtreye uyan çağrı verisi yok</div>';return;}
   const ayMap={};
-  S.cagrilar.forEach(c=>{
+  data.forEach(c=>{
     if(!c.tarih)return;
     const ay=String(c.tarih).slice(0,7);
     if(!ayMap[ay])ayMap[ay]={t:0,touch:0};
@@ -297,8 +346,8 @@ function renderDokunma(){
     else if(c.durum==='Attempt')ayMap[ay].t++;
   });
   const aylar=Object.keys(ayMap).sort();
-  const topT=S.cagrilar.filter(c=>c.durum==='Touch').length;
-  const topA=S.cagrilar.filter(c=>c.durum==='Attempt').length;
+  const topT=data.filter(c=>c.durum==='Touch').length;
+  const topA=data.filter(c=>c.durum==='Attempt').length;
   const genel=(topT+topA)?Math.round(topT/(topT+topA)*100):0;
   el.classList.remove('empty');
   el.innerHTML='<div class="stat-grid">'+
@@ -316,16 +365,17 @@ function renderDokunma(){
 // ── 4) FLAG DURUMU — portföy flag dağılımı + aylık value ────────────────────
 function renderFlagDurumu(){
   const el=document.getElementById('b-flag');
-  if(!S.firmalar.length){el.innerHTML='<div class="empty">Firma verisi yok</div>';return;}
+  const data=fFirma();
+  if(!data.length){el.innerHTML='<div class="empty">Filtreye uyan firma verisi yok</div>';return;}
   const flags=['Yeşil','Sarı','Turuncu','Kırmızı'];
   const colors={Yeşil:'#16a34a',Sarı:'#ca8a04',Turuncu:'#ea580c',Kırmızı:'#dc2626'};
   const icons={Yeşil:'🟢',Sarı:'🟡',Turuncu:'🟠',Kırmızı:'🔴'};
   const dist={};flags.forEach(f=>dist[f]={n:0,v:0});
-  S.firmalar.forEach(f=>{
+  data.forEach(f=>{
     const fl=f.flag_rengi;if(!dist[fl])return;
     dist[fl].n++;dist[fl].v+=(num(f.satis_fiyati)||0)/12;
   });
-  const top=S.firmalar.length;
+  const top=data.length;
   el.classList.remove('empty');
   el.innerHTML='<div class="stat-grid"><div class="stat"><div class="v">'+top+'</div><div class="l">Toplam firma</div></div>'+
     flags.map(fl=>'<div class="stat"><div class="v" style="color:'+colors[fl]+'">'+dist[fl].n+'</div><div class="l">'+icons[fl]+' '+fl+'</div></div>').join('')+
@@ -339,8 +389,8 @@ function renderFlagDurumu(){
 // ── 5) DECAY — yenilenen sözleşmelerde tutar değişimi ───────────────────────
 function renderDecay(){
   const el=document.getElementById('b-decay');
-  const rows=(S._renewalRows||[]).filter(r=>r.yeniledi&&r.oncesi>0&&r.sonrasi>0);
-  if(!rows.length){el.innerHTML='<div class="empty">Yenilenen sözleşme verisi yok</div>';return;}
+  const rows=fRen().filter(r=>r.yeniledi&&r.oncesi>0&&r.sonrasi>0);
+  if(!rows.length){el.innerHTML='<div class="empty">Filtreye uyan yenilenen sözleşme yok</div>';return;}
   const ayMap={};
   rows.forEach(r=>{
     if(!r.ay)return;
@@ -370,6 +420,7 @@ function renderDecay(){
 
 // ── PIPELINE GİRİŞ NOKTASI ──────────────────────────────────────────────────
 function renderAll(){
+  try{buildErceFilters();}catch(e){console.warn('filters:',e);}
   try{renderVerimlilik();}catch(e){console.warn('verimlilik:',e);}
   try{renderYenilemeYuzdesi();}catch(e){console.warn('yenileme:',e);}
   try{renderDokunma();}catch(e){console.warn('dokunma:',e);}
