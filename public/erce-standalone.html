@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Erce İçin — Düğün.com</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fb;color:#18181b;font-size:14px}
+.topbar{background:#fff;border-bottom:1px solid #e4e4e7;padding:14px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.topbar h1{font-size:17px;font-weight:700;color:#185FA5}
+.topbar .sub{font-size:12px;color:#a1a1aa}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 24px 60px}
+.card{background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:18px;margin-bottom:16px}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.ct{font-size:14px;font-weight:700;color:#18181b}
+.note{font-size:11px;color:#a1a1aa}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.lbl{font-size:12px;width:110px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track{flex:1;background:#f4f4f5;border-radius:5px;height:17px;overflow:hidden;position:relative}
+.fill{height:100%;border-radius:5px;background:#185FA5;transition:width .3s}
+.val{font-size:12px;font-weight:700;width:110px;text-align:right;color:#185FA5}
+.stat-grid{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.stat{background:#f8fafc;border:1px solid #e4e4e7;border-radius:8px;padding:10px 16px;text-align:center;min-width:105px}
+.stat .v{font-size:20px;font-weight:800;color:#185FA5}
+.stat .l{font-size:10.5px;color:#71717a;margin-top:2px}
+.chip{display:inline-flex;padding:4px 11px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;background:#f4f4f5;color:#52525b;border:1px solid #e4e4e7;user-select:none}
+.chip.on{background:#374151;color:#fff;border-color:#374151}
+table{width:100%;border-collapse:collapse}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#71717a;text-align:left;padding:6px 8px;border-bottom:1px solid #e4e4e7}
+td{padding:7px 8px;border-bottom:1px solid #f4f4f5;font-size:12.5px}
+.empty{color:#a1a1aa;font-size:12px;padding:14px;text-align:center}
+#toast{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#18181b;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:99}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Erce İçin</h1>
+  <span class="sub" id="freshness">Veri bekleniyor…</span>
+</div>
+<div class="wrap">
+
+  <div class="card">
+    <div class="card-head"><span class="ct">⚡ Verimlilik</span><span class="note">PY bazlı — çağrı logları</span></div>
+    <div id="b-verimlilik" class="empty">Veri bekleniyor</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="ct">🔄 Yenileme yüzdesi</span><span class="note">ay bazlı — Yenilendi / karar verilen</span></div>
+    <div id="b-yenileme" class="empty">Veri bekleniyor</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="ct">📞 Dokunma oranı</span><span class="note">ay bazlı — Touch / (Touch+Attempt)</span></div>
+    <div id="b-dokunma" class="empty">Veri bekleniyor</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="ct">🏳️ Flag durumu</span><span class="note">portföy dağılımı + aylık value</span></div>
+    <div id="b-flag" class="empty">Veri bekleniyor</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="ct">📉 Decay</span><span class="note">yenilenen sözleşmelerde tutar değişimi — (yeni − eski) / eski</span></div>
+    <div id="b-decay" class="empty">Veri bekleniyor</div>
+  </div>
+
+</div>
+<div id="toast"></div>
+<script>
+const ONBOARDING_MAP = {
+  ob_id:          ['Provider Id'],
+  ob_adi:         ['Provider İsmi','Provider Ismi'],
+  musteri_id:     ['Customer Id'],
+  musteri_adi:    ['Customer İsmi','Customer Ismi'],
+  py_adi:         ['PY'],
+  kategori_adi:   ['Kategori'],
+  kategori_grubu: ['Kategori Grubu'],
+  sehir:          ['Şehir','Sehir'],
+  ilce:           ['İlçe','Ilce'],
+  baslangic:      ['Ürün Başlangıcı','Urun Baslangici'],
+  ob_baslangic:   ['Onboarding Başlangıcı','Onboarding Baslangici'],
+  mezuniyet_tarihi:['Mezuniyet Tarihi'],
+  mezun_mu:       ['Mezun mu?','Mezun mu'],
+  statu:          ['Statü','Statu'],
+  hakkinda:       ['Hakkında','Hakkinda'],
+  galeri:         ['Galeri'],
+  yorum:          ['Yorum'],
+  telefon:        ['Inbound Numarası','Inbound Numarasi'],
+  adres:          ['Adres'],
+  instagram:      ['Instagram'],
+  web:            ['Web Sitesi'],
+  toplam_teklif:  ['Toplam Teklif'],
+  teklif5_gun:    ['5 Teklife Ulaşma Süresi (Gün)','5 Teklife Ulasma Suresi (Gun)'],
+  one_cikanlar:   ['Öne Çıkanlar Sayısı','One Cikanlar Sayisi'],
+  profil_puani:   ['Profil Puanı','Profil Puani','Ham Profil Skoru','Profil Skoru','Normalize Edilmiş Profil Skoru'],
+  url:            ['Url'],
+  // flag rengi — ayrı Excel'den gelir, ob_id ile eşleştirilir
+  ob_flag:        ['Provider Health Flag','Flag Rengi','Flag','flag_rengi','Renk'],
+  whatsapp:       ['WhatsApp','Whatsapp'],
+};
+
+const FIRMA_MAP = {
+  firma_id:         ['RÇİ','rci','RCI'],
+  musteri_id:       ['Müşteri İD','Müşteri ID','musteri_id'],
+  musteri_adi:      ['RÇİ Adı','Müşteri Adı','musteri_adi','firma_adi'],
+  customer_name:    ['Müşteri Adı'], // GERÇEK müşteri adı (musteri_adi = RÇİ/provider adını alır)
+  py_adi:           ['Sorumlu PY','py_adi','PY'],
+  kategori_adi:     ['Kategori Adı','kategori_adi'],
+  kategori_grubu:   ['Kategori Grubu'],
+  urun_adi:         ['Ürün Adı','Urun Adi'],
+  sehir:            ['Şehir','sehir'],
+  ilce:             ['İlçe','ilce'],
+  musteri_statusu:  ['Segment','Müşteri Statüsü','Müşteri Statusu'],
+  soz_id:           ['Söz. ID','Soz. ID'],
+  baslama_tarihi:   ['Başlama Tarihi','Baslama Tarihi'],
+  bitis_tarihi:     ['Bitiş Tarihi','Bitis Tarihi'],
+  satis_fiyati:     ['Satış Fiyatı','Satis Fiyati','Liste Fiyatı'],
+  teklif:           ['Teklif'],
+  arama_teklifi:    ['Arama Teklifi'],
+  form_teklifi:     ['Form Teklifi'],
+  anlasma_sayisi:   ['Anlaşma Sayısı','Anlasma Sayisi'],
+  donulen_teklif:   ['Dönülen Teklif Sayısı'],
+  ort_donus_sure:   ['Ortalama Dönüş Süresi (Saat)'],
+  yayinlanan_gun:   ['Yayınlanan Gün Sayısı'],
+  aktif_ozel_fiyat: ['Aktif Özel Fiyat'], // run route joinMembership: Var/Yok (Executive Dashboard has_special_offer)
+  sayfa_ziyareti:   ['Sayfa Ziyareti'],
+  toplam_odeme:     ['Toplam Ödenmesi Gereken'],
+  basarili_odeme:   ['Başarılı Ödeme Miktarı'],
+  ort_odeme_gecikmesi: ['Ortalama Ödeme Gecikmesi'],
+  max_odeme_gecikmesi: ['Max Ödeme Gecikmesi'],
+  profil_puani:     ['Profil Puanı'],
+  ham_profil_puani: ['Ham Profil Puanı'],
+  inceleme_sayisi:  ['İnceleme Sayısı'],
+  aciklama_uzunlugu:['Açıklama Uzunluğu'],
+  gorsel_sayisi:    ['Görsel Sayısı'],
+  video_sayisi:     ['Video Sayısı'],
+  odeme_flagi:      ['Ödeme Flagi'],
+  geri_donus_flagi: ['Geri Dönüş Flagi','Geri Donus Flagi'],
+};
+
+function calcFlag(f) {
+  if(f.flag_rengi && f.flag_rengi!=='') return f.flag_rengi;
+  const st = (f.musteri_statusu||'').toLowerCase().trim();
+  const pp = parseFloat(f.profil_puani)||0;
+  const gdf = (f.geri_donus_flagi||'').toLowerCase();
+  const mg = parseFloat(f.max_odeme_gecikmesi)||0;
+
+  // prime + iyi profil = Yeşil
+  if(st==='prime' && pp>=60) return 'Yeşil';
+  if(st==='prime' && pp>=40) return 'Sarı';
+  if(st==='prime') return 'Turuncu';
+
+  // standard: geri dönüş yüksekse iyi
+  if(gdf.includes('75-100')) return 'Yeşil';
+  if(gdf.includes('50-75')) return pp>=60 ? 'Sarı' : 'Turuncu';
+  if(gdf.includes('25-50')) return 'Turuncu';
+
+  // profil puanı fallback
+  if(pp>=70) return 'Yeşil';
+  if(pp>=50) return 'Sarı';
+  if(pp>=30) return 'Turuncu';
+  if(pp>0)   return 'Kırmızı';
+  return 'Sarı';
+}
+
+function mapRow(rawRow, fieldMap){
+  const headers = Object.keys(rawRow);
+  const headersLower = headers.map(h=>h.trim().toLowerCase());
+  const result = {};
+  for(const [targetKey, candidates] of Object.entries(fieldMap)){
+    let actualHeader = null;
+    for(const c of candidates){
+      const exactIdx = headers.findIndex(h=>h.trim()===c.trim());
+      if(exactIdx>=0){actualHeader=headers[exactIdx];break;}
+      const lowerIdx = headersLower.findIndex(h=>h===c.trim().toLowerCase());
+      if(lowerIdx>=0){actualHeader=headers[lowerIdx];break;}
+    }
+    // değeri string'e çevir, tarih objelerini formatla
+    let val = actualHeader ? rawRow[actualHeader] : '';
+    if(val===null||val===undefined) val='';
+    if(val instanceof Date||String(val).match(/\d{2}[.\-\/]\d{2}[.\-\/]\d{4}/)) val=parseTarih(val);
+    result[targetKey] = String(val).trim();
+  }
+  return result;
+}
+
+function parseTarih(v){
+  if(!v||v==='-'||v==='') return '';
+  if(v instanceof Date) return isNaN(v)?'':v.toISOString().slice(0,10);
+  const s=String(v).trim();
+  // YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+  // DD-MM-YYYY veya DD.MM.YYYY veya DD/MM/YYYY
+  const m1=s.match(/^(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);
+  if(m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
+  // MM/DD/YYYY
+  const m2=s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if(m2) return `${m2[3]}-${m2[1]}-${m2[2]}`;
+  // ISO datetime: 2026-08-01T00:00:00
+  if(s.length>10) return s.slice(0,10);
+  return s;
+}
+
+function num(v){
+  if(v===null||v===undefined||v==='') return 0;
+  if(typeof v==='number') return v;
+  const s=String(v).trim();
+  // Türkçe format: 63.500,48 veya 63.500 → binlik nokta
+  // Sadece tek nokta ile biten sayılar Türkçe format: \d{1,3}(\.\d{3})+(,\d+)?
+  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+  // Virgüllü ondalık: 49.666,20 → 49666.20
+  if(/^\d+,\d+$/.test(s)) return parseFloat(s.replace(',','.')) || 0;
+  // Parantezli yüzde: "654 (98.49%)" → ilk sayı
+  const m=s.match(/^[\d]+/);
+  if(m) return parseFloat(m[0]) || 0;
+  return parseFloat(s) || 0;
+}
+
+// ── STATE (pipeline sözleşmesi) ──────────────────────────────────────────────
+const S = {
+  firmalar:[],firmaYenileme:[],cagrilar:[],ozelFiyat:[],onboarding:[],kwData:{},flagData:{},yenilemeData:{},
+  loaded:{firma_performans:false,firma_yenileme:false,cagri:false,ozel:false,onboarding:false,kw:false,flag:false,yenileme:false},
+  pending:{},
+  fFlag:'tümü',fPY:'tümü',
+};
+
+function fmtTL(v){return '₺'+Math.round(v||0).toLocaleString('tr-TR');}
+function fmtSure(dk){if(!dk)return '—';const s=Math.round(dk);const h=Math.floor(s/60),m=s%60;return h?h+'s '+m+'dk':m+'dk';}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',3000);}
+function updateTopbar(){}
+
+// ── 1) VERİMLİLİK — PY bazlı çağrı verimliliği ──────────────────────────────
+function renderVerimlilik(){
+  const el=document.getElementById('b-verimlilik');
+  if(!S.cagrilar.length){el.innerHTML='<div class="empty">Çağrı verisi yok</div>';return;}
+  const pm={};
+  S.cagrilar.forEach(c=>{
+    const k=c.py_adi||'—';
+    if(!pm[k])pm[k]={t:0,touch:0,att:0,sure:0,gunler:new Set(),firmalar:new Set()};
+    pm[k].t++;
+    if(c.durum==='Touch'){pm[k].touch++;pm[k].sure+=parseFloat(c.sure_dakika)||0;}
+    else if(c.durum==='Attempt')pm[k].att++;
+    if(c.tarih)pm[k].gunler.add(String(c.tarih).slice(0,10));
+    const fid=String(c.firma_id||'').trim();if(fid)pm[k].firmalar.add(fid);
+  });
+  const rows=Object.entries(pm).filter(([k])=>k!=='—').sort((a,b)=>b[1].touch-a[1].touch);
+  el.classList.remove('empty');
+  el.innerHTML='<table><thead><tr><th>PY</th><th>Toplam çağrı</th><th>Touch</th><th>Attempt</th><th>Touch oranı</th><th>Günlük ort. touch</th><th>Unique firma</th><th>Konuşma süresi</th></tr></thead><tbody>'+
+    rows.map(([py,d])=>{
+      const oran=d.t?Math.round(d.touch/d.t*100):0;
+      const gAvg=d.gunler.size?(d.touch/d.gunler.size).toFixed(1):'—';
+      const c=oran>=60?'#16a34a':oran>=40?'#ea580c':'#dc2626';
+      return '<tr><td style="font-weight:600">'+esc(py)+'</td><td>'+d.t+'</td><td style="color:#16a34a;font-weight:600">'+d.touch+'</td><td style="color:#71717a">'+d.att+'</td>'+
+        '<td style="font-weight:700;color:'+c+'">%'+oran+'</td><td>'+gAvg+'</td><td>'+d.firmalar.size+'</td><td>'+fmtSure(d.sure)+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ── 2) YENİLEME YÜZDESİ — ay bazlı ──────────────────────────────────────────
+function renderYenilemeYuzdesi(){
+  const el=document.getElementById('b-yenileme');
+  const rows=S._renewalRows||[];
+  if(!rows.length){el.innerHTML='<div class="empty">Yenileme verisi yok</div>';return;}
+  const ayMap={};
+  rows.forEach(r=>{
+    if(!r.ay)return;
+    if(!ayMap[r.ay])ayMap[r.ay]={yen:0,dec:0};
+    if(r.decided){ayMap[r.ay].dec++;if(r.yeniledi)ayMap[r.ay].yen++;}
+  });
+  const aylar=Object.keys(ayMap).sort();
+  const topYen=rows.filter(r=>r.yeniledi).length,topDec=rows.filter(r=>r.decided).length;
+  const genel=topDec?Math.round(topYen/topDec*100):0;
+  el.classList.remove('empty');
+  el.innerHTML='<div class="stat-grid">'+
+    '<div class="stat"><div class="v">%'+genel+'</div><div class="l">Genel yenileme</div></div>'+
+    '<div class="stat"><div class="v">'+topYen+'</div><div class="l">Yenilendi</div></div>'+
+    '<div class="stat"><div class="v">'+(topDec-topYen)+'</div><div class="l">Yenilemedi</div></div>'+
+  '</div>'+
+  aylar.map(ay=>{
+    const d=ayMap[ay];const p=d.dec?Math.round(d.yen/d.dec*100):0;
+    const c=p>=70?'#16a34a':p>=50?'#ea580c':'#dc2626';
+    return '<div class="row"><span class="lbl">'+ay+'</span><div class="track"><div class="fill" style="width:'+p+'%;background:'+c+'"></div></div><span class="val" style="color:'+c+'">%'+p+' <span style="font-weight:400;color:#a1a1aa;font-size:10px">('+d.yen+'/'+d.dec+')</span></span></div>';
+  }).join('');
+}
+
+// ── 3) DOKUNMA ORANI — ay bazlı touch oranı ─────────────────────────────────
+function renderDokunma(){
+  const el=document.getElementById('b-dokunma');
+  if(!S.cagrilar.length){el.innerHTML='<div class="empty">Çağrı verisi yok</div>';return;}
+  const ayMap={};
+  S.cagrilar.forEach(c=>{
+    if(!c.tarih)return;
+    const ay=String(c.tarih).slice(0,7);
+    if(!ayMap[ay])ayMap[ay]={t:0,touch:0};
+    if(c.durum==='Touch'){ayMap[ay].t++;ayMap[ay].touch++;}
+    else if(c.durum==='Attempt')ayMap[ay].t++;
+  });
+  const aylar=Object.keys(ayMap).sort();
+  const topT=S.cagrilar.filter(c=>c.durum==='Touch').length;
+  const topA=S.cagrilar.filter(c=>c.durum==='Attempt').length;
+  const genel=(topT+topA)?Math.round(topT/(topT+topA)*100):0;
+  el.classList.remove('empty');
+  el.innerHTML='<div class="stat-grid">'+
+    '<div class="stat"><div class="v">%'+genel+'</div><div class="l">Genel dokunma</div></div>'+
+    '<div class="stat"><div class="v">'+topT+'</div><div class="l">Touch</div></div>'+
+    '<div class="stat"><div class="v">'+topA+'</div><div class="l">Attempt</div></div>'+
+  '</div>'+
+  aylar.map(ay=>{
+    const d=ayMap[ay];const p=d.t?Math.round(d.touch/d.t*100):0;
+    const c=p>=60?'#16a34a':p>=40?'#ea580c':'#dc2626';
+    return '<div class="row"><span class="lbl">'+ay+'</span><div class="track"><div class="fill" style="width:'+p+'%;background:'+c+'"></div></div><span class="val" style="color:'+c+'">%'+p+' <span style="font-weight:400;color:#a1a1aa;font-size:10px">('+d.touch+'/'+d.t+')</span></span></div>';
+  }).join('');
+}
+
+// ── 4) FLAG DURUMU — portföy flag dağılımı + aylık value ────────────────────
+function renderFlagDurumu(){
+  const el=document.getElementById('b-flag');
+  if(!S.firmalar.length){el.innerHTML='<div class="empty">Firma verisi yok</div>';return;}
+  const flags=['Yeşil','Sarı','Turuncu','Kırmızı'];
+  const colors={Yeşil:'#16a34a',Sarı:'#ca8a04',Turuncu:'#ea580c',Kırmızı:'#dc2626'};
+  const icons={Yeşil:'🟢',Sarı:'🟡',Turuncu:'🟠',Kırmızı:'🔴'};
+  const dist={};flags.forEach(f=>dist[f]={n:0,v:0});
+  S.firmalar.forEach(f=>{
+    const fl=f.flag_rengi;if(!dist[fl])return;
+    dist[fl].n++;dist[fl].v+=(num(f.satis_fiyati)||0)/12;
+  });
+  const top=S.firmalar.length;
+  el.classList.remove('empty');
+  el.innerHTML='<div class="stat-grid"><div class="stat"><div class="v">'+top+'</div><div class="l">Toplam firma</div></div>'+
+    flags.map(fl=>'<div class="stat"><div class="v" style="color:'+colors[fl]+'">'+dist[fl].n+'</div><div class="l">'+icons[fl]+' '+fl+'</div></div>').join('')+
+  '</div>'+
+  flags.filter(fl=>dist[fl].n>0).map(fl=>{
+    const p=top?Math.round(dist[fl].n/top*100):0;
+    return '<div class="row"><span class="lbl">'+icons[fl]+' '+fl+'</span><div class="track"><div class="fill" style="width:'+p+'%;background:'+colors[fl]+'"></div></div><span class="val" style="color:'+colors[fl]+'">%'+p+' <span style="font-weight:400;color:#a1a1aa;font-size:10px">'+fmtTL(dist[fl].v)+' aylık</span></span></div>';
+  }).join('');
+}
+
+// ── 5) DECAY — yenilenen sözleşmelerde tutar değişimi ───────────────────────
+function renderDecay(){
+  const el=document.getElementById('b-decay');
+  const rows=(S._renewalRows||[]).filter(r=>r.yeniledi&&r.oncesi>0&&r.sonrasi>0);
+  if(!rows.length){el.innerHTML='<div class="empty">Yenilenen sözleşme verisi yok</div>';return;}
+  const ayMap={};
+  rows.forEach(r=>{
+    if(!r.ay)return;
+    if(!ayMap[r.ay])ayMap[r.ay]={sum:0,n:0,onc:0,son:0};
+    ayMap[r.ay].sum+=(r.sonrasi-r.oncesi)/r.oncesi;
+    ayMap[r.ay].n++;ayMap[r.ay].onc+=r.oncesi;ayMap[r.ay].son+=r.sonrasi;
+  });
+  const aylar=Object.keys(ayMap).sort();
+  const totOnc=rows.reduce((a,r)=>a+r.oncesi,0),totSon=rows.reduce((a,r)=>a+r.sonrasi,0);
+  const genel=totOnc?Math.round((totSon-totOnc)/totOnc*100):0;
+  const gc=genel>=0?'#16a34a':'#dc2626';
+  el.classList.remove('empty');
+  el.innerHTML='<div class="stat-grid">'+
+    '<div class="stat"><div class="v" style="color:'+gc+'">'+(genel>0?'+':'')+genel+'%</div><div class="l">Genel değişim (value ağırlıklı)</div></div>'+
+    '<div class="stat"><div class="v">'+rows.length+'</div><div class="l">Yenilenen sözleşme</div></div>'+
+    '<div class="stat"><div class="v">'+fmtTL(totOnc/12)+'</div><div class="l">Eski aylık toplam</div></div>'+
+    '<div class="stat"><div class="v">'+fmtTL(totSon/12)+'</div><div class="l">Yeni aylık toplam</div></div>'+
+  '</div>'+
+  aylar.map(ay=>{
+    const d=ayMap[ay];
+    const p=d.onc?Math.round((d.son-d.onc)/d.onc*100):0;   // value-ağırlıklı
+    const c=p>=0?'#16a34a':'#dc2626';
+    const w=Math.min(Math.abs(p),100);
+    return '<div class="row"><span class="lbl">'+ay+'</span><div class="track"><div class="fill" style="width:'+w+'%;background:'+c+'"></div></div><span class="val" style="color:'+c+'">'+(p>0?'+':'')+p+'% <span style="font-weight:400;color:#a1a1aa;font-size:10px">('+d.n+' söz.)</span></span></div>';
+  }).join('');
+}
+
+// ── PIPELINE GİRİŞ NOKTASI ──────────────────────────────────────────────────
+function renderAll(){
+  try{renderVerimlilik();}catch(e){console.warn('verimlilik:',e);}
+  try{renderYenilemeYuzdesi();}catch(e){console.warn('yenileme:',e);}
+  try{renderDokunma();}catch(e){console.warn('dokunma:',e);}
+  try{renderFlagDurumu();}catch(e){console.warn('flag:',e);}
+  try{renderDecay();}catch(e){console.warn('decay:',e);}
+}
+</script>
+</body>
+</html>
