@@ -1,9 +1,6 @@
-// app/api/qlik/probe/route.js
-// KEŞİF UCU (salt-okunur). Bir Qlik objesinin hypercube TANIMINI (boyut alanları +
-// ölçü ifadeleri, master item'ler çözülerek) döker — böylece objeyi doğrudan okumak
-// yerine aynı boyut/ölçüyle temiz bir session hypercube kurabiliriz. withAccess("erce").
-// /api/qlik/probe            (varsayılan: verimlilik objesi)
-// /api/qlik/probe?app=<id>&object=<id>
+// app/api/qlik/probe/route.js — KAPSAMLI TEŞHİS (salt-okunur). withAccess("erce").
+// Objenin hypercube meta'sını (mod/boyut/ölçü başlıkları/sıra), pivot verisini,
+// property tree'deki ölçü ifadelerini ve PY alan değerlerini döker.
 import { withQlikDoc, getFieldValues } from "@/lib/qlik";
 import { withAccess } from "@/lib/api";
 
@@ -14,49 +11,63 @@ export const maxDuration = 60;
 const DEFAULT_APP = "c1b56893-6c64-45fe-8624-2d4891707f5b";
 const DEFAULT_OBJECT = "172835cd-6a60-4ee6-bfd1-de34fd985d37";
 
-async function resolveDim(doc, d) {
-  if (d?.qLibraryId) {
-    try {
-      const md = await doc.getDimension(d.qLibraryId);
-      const ml = await md.getLayout();
-      return { libraryId: d.qLibraryId, fieldDefs: ml?.qDim?.qFieldDefs, labels: ml?.qDim?.qFieldLabels, title: ml?.qMeta?.title };
-    } catch (e) { return { libraryId: d.qLibraryId, error: String(e?.message ?? e) }; }
-  }
-  return { fieldDefs: d?.qDef?.qFieldDefs, labels: d?.qDef?.qFieldLabels };
-}
-async function resolveMeas(doc, m) {
-  if (m?.qLibraryId) {
-    try {
-      const mm = await doc.getMeasure(m.qLibraryId);
-      const ml = await mm.getLayout();
-      return { libraryId: m.qLibraryId, expr: ml?.qMeasure?.qDef, label: ml?.qMeasure?.qLabel || ml?.qMeta?.title };
-    } catch (e) { return { libraryId: m.qLibraryId, error: String(e?.message ?? e) }; }
-  }
-  return { expr: m?.qDef?.qDef, label: m?.qDef?.qLabel };
-}
-
 export const GET = withAccess("erce", async (request) => {
   const { searchParams } = new URL(request.url);
   const app = searchParams.get("app") || DEFAULT_APP;
   const object = searchParams.get("object") || DEFAULT_OBJECT;
   try {
-    const result = await withQlikDoc(app, async ({ doc }) => {
+    const r = await withQlikDoc(app, async ({ doc }) => {
       const obj = await doc.getObject(object);
-      let props = null;
-      try { props = await obj.getProperties(); }
-      catch (e) { try { props = await obj.getEffectiveProperties(); } catch (e2) { props = { error: String(e2?.message ?? e2) }; } }
-      const hcd = props?.qHyperCubeDef || {};
-      const dims = [];
-      for (const d of (hcd.qDimensions || [])) dims.push(await resolveDim(doc, d));
-      const meas = [];
-      for (const m of (hcd.qMeasures || [])) meas.push(await resolveMeas(doc, m));
-      // ay alanları örneği
-      let ym = null, ymNum = null;
-      try { ym = (await getFieldValues(doc, "yearMonth", 24)).values; } catch (e) {}
-      try { ymNum = (await getFieldValues(doc, "%year_month_num", 24)).values; } catch (e) {}
-      return { objectType: props?.qInfo?.qType, dimensions: dims, measures: meas, yearMonth: ym, year_month_num: ymNum };
+      const out = {};
+
+      // 1) LAYOUT hypercube meta
+      try {
+        const lay = await obj.getLayout();
+        const hc = lay.qHyperCube || {};
+        out.layout = {
+          qType: lay?.qInfo?.qType,
+          qMode: hc.qMode,
+          qSize: hc.qSize,
+          qNoOfLeftDims: hc.qNoOfLeftDims,
+          qColumnOrder: hc.qColumnOrder,
+          qEffectiveInterColumnSortOrder: hc.qEffectiveInterColumnSortOrder,
+          dimTitles: (hc.qDimensionInfo || []).map((d) => ({ t: d.qFallbackTitle, err: d.qError || null })),
+          measTitles: (hc.qMeasureInfo || []).map((m) => ({ t: m.qFallbackTitle, err: m.qError || null })),
+        };
+      } catch (e) { out.layout = { error: String(e?.message ?? e) }; }
+
+      // 2) PIVOT verisi (ilk 3 satır) — pivot ise düz okuma bozuluyordu
+      try {
+        const pv = await obj.getHyperCubePivotData("/qHyperCubeDef", [{ qTop: 0, qLeft: 0, qWidth: 20, qHeight: 8 }]);
+        const p = pv?.[0];
+        out.pivot = {
+          left: (p?.qLeft || []).map((n) => n.qText),
+          top: (p?.qTop || []).map((n) => n.qText),
+          data: (p?.qData || []).slice(0, 3).map((row) => row.map((c) => c.qText)),
+        };
+      } catch (e) { out.pivot = { error: String(e?.message ?? e) }; }
+
+      // 3) PROPERTY TREE — gerçek ölçü ifadeleri / boyut alanları
+      try {
+        const tree = await obj.getFullPropertyTree();
+        const q = tree?.qProperty || {};
+        const hcd = q.qHyperCubeDef || {};
+        out.def = {
+          extendsId: q.qExtendsId || null,
+          dims: (hcd.qDimensions || []).map((d) => ({ fieldDefs: d?.qDef?.qFieldDefs, lib: d?.qLibraryId || null })),
+          measures: (hcd.qMeasures || []).map((m) => ({ expr: m?.qDef?.qDef, label: m?.qDef?.qLabel, lib: m?.qLibraryId || null })),
+          childCount: (tree?.qChildren || []).length,
+        };
+      } catch (e) { out.def = { error: String(e?.message ?? e) }; }
+
+      // 4) PY alan adayları
+      out.pyFields = {};
+      for (const f of ["account_manager", "account_manager_selected", "py_account_manager_key"]) {
+        try { out.pyFields[f] = (await getFieldValues(doc, f, 10)).values; } catch (e) {}
+      }
+      return out;
     });
-    return Response.json({ ok: true, app, object, ...result });
+    return Response.json({ ok: true, app, object, ...r });
   } catch (err) {
     return Response.json({ ok: false, app, object, error: String(err?.message ?? err) }, { status: 500 });
   }
