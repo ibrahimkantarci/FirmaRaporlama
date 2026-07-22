@@ -61,14 +61,22 @@ td{padding:7px 8px;border-bottom:1px solid #f4f4f5;font-size:12.5px}
   </div>
 
   <div class="tabs" id="erce-tabs">
-    <div class="tab on" data-tab="verimlilik" onclick="setErceTab('verimlilik')"><span class="ti">⚡</span>Verimlilik</div>
+    <div class="tab on" data-tab="prim" onclick="setErceTab('prim')"><span class="ti">💰</span>Prim Hesaplama</div>
+    <div class="tab" data-tab="verimlilik" onclick="setErceTab('verimlilik')"><span class="ti">⚡</span>Verimlilik</div>
     <div class="tab" data-tab="yenileme" onclick="setErceTab('yenileme')"><span class="ti">🔄</span>Yenileme Başarı Oranları</div>
     <div class="tab" data-tab="dokunma" onclick="setErceTab('dokunma')"><span class="ti">📞</span>Dokunma İstatistikleri</div>
     <div class="tab" data-tab="flag" onclick="setErceTab('flag')"><span class="ti">🚦</span>Yeşil, Sarı Oranları</div>
     <div class="tab" data-tab="decay" onclick="setErceTab('decay')"><span class="ti">📉</span>Decay</div>
   </div>
 
-  <div class="tabpane on" id="pane-verimlilik">
+  <div class="tabpane on" id="pane-prim">
+    <div class="card">
+      <div class="card-head"><span class="ct">💰 Prim Hesaplama</span><span class="note">seçili PY + ay için</span></div>
+      <div id="b-prim" class="empty">Veri bekleniyor</div>
+    </div>
+  </div>
+
+  <div class="tabpane" id="pane-verimlilik">
     <div class="card">
       <div class="card-head"><span class="ct">⚡ Verimlilik</span><span class="note">PY bazlı — çağrı logları</span></div>
       <div id="b-verimlilik" class="empty">Veri bekleniyor</div>
@@ -447,13 +455,34 @@ function renderDecay(){
 function setErceTab(name){
   var tabs=document.querySelectorAll('#erce-tabs .tab');
   for(var i=0;i<tabs.length;i++){ tabs[i].classList.toggle('on', tabs[i].getAttribute('data-tab')===name); }
-  var keys=['verimlilik','yenileme','dokunma','flag','decay'];
+  var keys=['prim','verimlilik','yenileme','dokunma','flag','decay'];
   for(var j=0;j<keys.length;j++){ var p=document.getElementById('pane-'+keys[j]); if(p) p.classList.toggle('on', keys[j]===name); }
+}
+
+// ── 0) PRİM HESAPLAMA — seçili PY + ay bağlamı; formül sonradan bağlanacak ────
+function renderPrim(){
+  var el=document.getElementById('b-prim'); if(!el) return;
+  var py=S._ercePY||'Tümü';
+  var ay=S._erceAy||'';
+  var ayLbl=ay?ay:'Tüm aylar';
+  if(py==='Tümü'){
+    el.className='empty';
+    el.innerHTML='Prim hesabı PY bazlıdır. Yukarıdan bir <b>PY</b> ve <b>ay</b> seçin.';
+    return;
+  }
+  el.className='';
+  el.innerHTML=
+    '<div class="stat-grid">'+
+      '<div class="stat"><div class="v" style="font-size:15px">'+esc(py)+'</div><div class="l">Seçili PY</div></div>'+
+      '<div class="stat"><div class="v" style="font-size:15px">'+esc(ayLbl)+'</div><div class="l">Dönem</div></div>'+
+    '</div>'+
+    '<div class="empty" style="text-align:left;padding:12px 2px">Prim formülü henüz tanımlı değil. Verimlilik / yenileme / dokunma / flag / decay metriklerini bir prim katsayısına bağlayan formülü verdiğinde bu bölüm seçili PY + ay için otomatik hesaplayacak.</div>';
 }
 
 // ── PIPELINE GİRİŞ NOKTASI ──────────────────────────────────────────────────
 function renderAll(){
   try{buildErceFilters();}catch(e){console.warn('filters:',e);}
+  try{renderPrim();}catch(e){console.warn('prim:',e);}
   try{renderVerimlilik();}catch(e){console.warn('verimlilik:',e);}
   try{renderYenilemeYuzdesi();}catch(e){console.warn('yenileme:',e);}
   try{renderDokunma();}catch(e){console.warn('dokunma:',e);}
