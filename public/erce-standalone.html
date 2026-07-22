@@ -421,30 +421,31 @@ function renderYenilemeYuzdesi(){
 function renderDokunma(){
   const el=document.getElementById('b-dokunma');
   const data=fCagri();
-  if(!data.length){el.innerHTML='<div class="empty">Filtreye uyan çağrı verisi yok</div>';return;}
-  const ayMap={};
+  if(!data.length){el.className='empty';el.innerHTML='Filtreye uyan çağrı verisi yok.';return;}
+  el.classList.remove('empty');el.className='';
+  // Müşteri bazlı: PY başına distinct customer + en az bir Touch olan customer
+  const pm={};const allC=new Set(),succC=new Set();
   data.forEach(c=>{
-    if(!c.tarih)return;
-    const ay=String(c.tarih).slice(0,7);
-    if(!ayMap[ay])ayMap[ay]={t:0,touch:0};
-    if(c.durum==='Touch'){ayMap[ay].t++;ayMap[ay].touch++;}
-    else if(c.durum==='Attempt')ayMap[ay].t++;
+    const cust=String(c.musteri_id||c.firma_id||'').trim();if(!cust)return;
+    const k=c.py_adi||'—';
+    if(!pm[k])pm[k]={all:new Set(),touch:new Set()};
+    pm[k].all.add(cust);allC.add(cust);
+    if(c.durum==='Touch'){pm[k].touch.add(cust);succC.add(cust);}
   });
-  const aylar=Object.keys(ayMap).sort();
-  const topT=data.filter(c=>c.durum==='Touch').length;
-  const topA=data.filter(c=>c.durum==='Attempt').length;
-  const genel=(topT+topA)?Math.round(topT/(topT+topA)*100):0;
-  el.classList.remove('empty');
+  const rows=Object.entries(pm).filter(([k])=>k&&k!=='—')
+    .map(([py,d])=>({py,cust:d.all.size,succ:d.touch.size}))
+    .sort((a,b)=>b.cust-a.cust);
+  const genel=allC.size?Math.round(succC.size/allC.size*100):0;
   el.innerHTML='<div class="stat-grid">'+
-    '<div class="stat"><div class="v">%'+genel+'</div><div class="l">Genel dokunma</div></div>'+
-    '<div class="stat"><div class="v">'+topT+'</div><div class="l">Touch</div></div>'+
-    '<div class="stat"><div class="v">'+topA+'</div><div class="l">Attempt</div></div>'+
+    '<div class="stat"><div class="v">'+allC.size+'</div><div class="l">Bakılan customer</div></div>'+
+    '<div class="stat"><div class="v">'+succC.size+'</div><div class="l">Başarılı iletişim</div></div>'+
+    '<div class="stat"><div class="v">%'+genel+'</div><div class="l">Başarı oranı</div></div>'+
   '</div>'+
-  aylar.map(ay=>{
-    const d=ayMap[ay];const p=d.t?Math.round(d.touch/d.t*100):0;
-    const c=p>=60?'#16a34a':p>=40?'#ea580c':'#dc2626';
-    return '<div class="row"><span class="lbl">'+ay+'</span><div class="track"><div class="fill" style="width:'+p+'%;background:'+c+'"></div></div><span class="val" style="color:'+c+'">%'+p+' <span style="font-weight:400;color:#a1a1aa;font-size:10px">('+d.touch+'/'+d.t+')</span></span></div>';
-  }).join('');
+  '<table><thead><tr><th>PY</th><th>Baktığı customer</th><th>Başarılı iletişim</th><th>Oran</th></tr></thead><tbody>'+
+  rows.map(r=>{const p=r.cust?Math.round(r.succ/r.cust*100):0;const c=p>=60?'#16a34a':p>=40?'#ea580c':'#dc2626';
+    return '<tr><td style="font-weight:600">'+esc(r.py.split(' ')[0])+'</td><td>'+r.cust+'</td><td>'+r.succ+'</td><td style="font-weight:700;color:'+c+'">%'+p+'</td></tr>';}).join('')+
+  '</tbody></table>'+
+  (S._erceAy?'':'<div class="empty" style="text-align:left;padding:6px 2px">Tüm aylar birleşik — üstten ay seçerek daraltabilirsin (bir customer o ayki tüm aramaları içinde bir kez sayılır).</div>');
 }
 
 // ── 4) FLAG DURUMU — portföy flag dağılımı + aylık value ────────────────────
