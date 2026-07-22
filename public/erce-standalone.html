@@ -352,28 +352,55 @@ function renderVerimlilik(){
 // ── 2) YENİLEME YÜZDESİ — ay bazlı ──────────────────────────────────────────
 function renderYenilemeYuzdesi(){
   const el=document.getElementById('b-yenileme');
-  const rows=fRen();
-  if(!rows.length){el.innerHTML='<div class="empty">Filtreye uyan yenileme verisi yok</div>';return;}
-  const ayMap={};
-  rows.forEach(r=>{
-    if(!r.ay)return;
-    if(!ayMap[r.ay])ayMap[r.ay]={yen:0,dec:0};
-    if(r.decided){ayMap[r.ay].dec++;if(r.yeniledi)ayMap[r.ay].yen++;}
-  });
-  const aylar=Object.keys(ayMap).sort();
-  const topYen=rows.filter(r=>r.yeniledi).length,topDec=rows.filter(r=>r.decided).length;
-  const genel=topDec?Math.round(topYen/topDec*100):0;
-  el.classList.remove('empty');
-  el.innerHTML='<div class="stat-grid">'+
-    '<div class="stat"><div class="v">%'+genel+'</div><div class="l">Genel yenileme</div></div>'+
-    '<div class="stat"><div class="v">'+topYen+'</div><div class="l">Yenilendi</div></div>'+
-    '<div class="stat"><div class="v">'+(topDec-topYen)+'</div><div class="l">Yenilemedi</div></div>'+
-  '</div>'+
-  aylar.map(ay=>{
-    const d=ayMap[ay];const p=d.dec?Math.round(d.yen/d.dec*100):0;
-    const c=p>=70?'#16a34a':p>=50?'#ea580c':'#dc2626';
-    return '<div class="row"><span class="lbl">'+ay+'</span><div class="track"><div class="fill" style="width:'+p+'%;background:'+c+'"></div></div><span class="val" style="color:'+c+'">%'+p+' <span style="font-weight:400;color:#a1a1aa;font-size:10px">('+d.yen+'/'+d.dec+')</span></span></div>';
-  }).join('');
+  const rows=S.custYenileme||[];
+  if(!rows.length){el.className='empty';el.innerHTML='Customer bazında yenileme verisi yok. Kaynak: renewal_data → "Customer Bazında Yenileme Tablosu". Servis hesabının bu Sheet\'te <b>Görüntüleyen</b> olması gerekir; paylaşım yapılmadıysa veri boş gelir.';return;}
+  el.classList.remove('empty');el.className='';
+  const heads=Object.keys(rows[0]||{});
+  const fold=foldTr;
+  const findH=(res)=>{for(const re of res){const h=heads.find(h=>re.test(fold(h)));if(h)return h;}return null;};
+  // Kolon tespiti (başlıklar Sheet sahibinde değişebilir → esnek eşleme)
+  const hAy   = findH([/yil.?ay|yılay|year.?month|donem/, /(^|[^a-z])ay($|[^a-z])/, /month/, /tarih|date/]);
+  const hCust = findH([/musteri|customer/, /(^|[^a-z])firma/, /rci|rçi/]);
+  const hPy   = findH([/(^|[^a-z])py($|[^a-z])|portfoy|account.?manager/]);
+  const hYen  = findH([/yeniley|yenilenen.?(provider|firma|adet|sayi)|renewed/]);
+  const hTop  = findH([/toplam.?(provider|firma|adet|sayi)|provider.?(sayi|adet|count)|total.?provider/]);
+  const hEski = findH([/eski.*(value|tutar|deger)|onceki.*(value|tutar)|old.?value|yenileme.?oncesi/]);
+  const findYeni=()=>{const cands=heads.filter(h=>h!==hEski&&!/onces/.test(fold(h)));
+    for(const re of [/yenilenen.?(value|tutar)/, /sonras.*(value|tutar)|(value|tutar).*sonras/, /new.?value/, /(^|[^a-z])yeni.?(value|tutar|deger)/]){
+      const h=cands.find(h=>re.test(fold(h)));if(h)return h;}return null;};
+  const hYeni = findYeni();
+  const normAy=(v)=>{var s=String(v==null?'':v).trim();if(!s)return '';
+    if(/^\d{5}$/.test(s)){var d=new Date(Date.UTC(1899,11,30)+parseInt(s,10)*86400000);return d.getUTCFullYear()+'-' +('0'+(d.getUTCMonth()+1)).slice(-2);} // Excel seri
+    var m=s.match(/(\d{4})[-\/.](\d{1,2})/);if(m)return m[1]+'-'+('0'+m[2]).slice(-2);
+    m=s.match(/^(\d{4})(\d{2})$/);if(m)return m[1]+'-'+m[2];
+    m=s.match(/^(\d{1,2})[-\/.](\d{4})$/);if(m)return m[2]+'-'+('0'+m[1]).slice(-2);
+    return s;};
+  const num=(v)=>{if(typeof v==='number')return v;var n=parseFloat(String(v==null?'':v).replace(/\./g,'').replace(',','.'));if(isNaN(n))n=parseFloat(String(v));return isNaN(n)?0:n;};
+  const fmt=(n)=>n.toLocaleString('tr-TR',{maximumFractionDigits:0});
+  const ay=S._erceAy||'';
+  const py=S._ercePY||'Tümü';
+  let list=rows.slice();
+  if(hPy){list=list.filter(r=>pyAllowed(r[hPy]));if(py!=='Tümü')list=list.filter(r=>pyFirstKey(r[hPy])===pyFirstKey(py));}
+  if(ay&&hAy)list=list.filter(r=>normAy(r[hAy])===ay);
+  if(!list.length){el.innerHTML='<div class="empty">'+esc(ay||'seçili filtre')+' için satır yok'+(hAy?'':' (ay kolonu tespit edilemedi)')+'.</div>';return;}
+  // Özet
+  const tYen=hYen?list.reduce((a,r)=>a+num(r[hYen]),0):null;
+  const tTop=hTop?list.reduce((a,r)=>a+num(r[hTop]),0):null;
+  const tEski=hEski?list.reduce((a,r)=>a+num(r[hEski]),0):null;
+  const tYeni=hYeni?list.reduce((a,r)=>a+num(r[hYeni]),0):null;
+  let stats='<div class="stat-grid">';
+  stats+='<div class="stat"><div class="v">'+fmt(list.length)+'</div><div class="l">Customer</div></div>';
+  if(tYen!=null&&tTop!=null&&tTop>0)stats+='<div class="stat"><div class="v">%'+Math.round(tYen/tTop*100)+'</div><div class="l">Yenileme oranı ('+fmt(tYen)+'/'+fmt(tTop)+' provider)</div></div>';
+  else if(tYen!=null)stats+='<div class="stat"><div class="v">'+fmt(tYen)+'</div><div class="l">Yenileyen provider</div></div>';
+  if(tEski!=null)stats+='<div class="stat"><div class="v">'+fmt(tEski)+'</div><div class="l">Eski value</div></div>';
+  if(tYeni!=null){var chg=(tEski&&tEski>0)?Math.round((tYeni-tEski)/tEski*100):null;stats+='<div class="stat"><div class="v">'+fmt(tYeni)+(chg!=null?' <span style="font-size:11px;color:'+(chg>=0?'#16a34a':'#dc2626')+'">('+(chg>=0?'+':'')+chg+'%)</span>':'')+'</div><div class="l">Yeni value</div></div>';}
+  stats+='</div>';
+  // Tablo — kolonlar Sheet'ten olduğu gibi
+  const show=heads.slice(0,10);
+  const table='<div style="overflow:auto;max-height:420px"><table><thead><tr>'+show.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+
+    list.slice(0,300).map(r=>'<tr>'+show.map(h=>{var v=r[h];if((h===hEski||h===hYeni)&&v!==''&&v!=null)v=fmt(num(v));if(h===hAy)v=normAy(r[h]);return '<td'+(h===hCust?' style="font-weight:600"':'')+'>'+esc(String(v==null?'':v))+'</td>';}).join('')+'</tr>').join('')+
+    '</tbody></table></div>'+(list.length>300?'<div class="empty" style="padding:6px 2px">İlk 300 satır gösteriliyor ('+fmt(list.length)+' toplam).</div>':'');
+  el.innerHTML=stats+(ay?'':'<div class="empty" style="text-align:left;padding:6px 2px">Tüm aylar gösteriliyor — üstten ay seçerek daraltabilirsin.</div>')+table;
 }
 
 // ── 3) DOKUNMA ORANI — ay bazlı touch oranı ─────────────────────────────────

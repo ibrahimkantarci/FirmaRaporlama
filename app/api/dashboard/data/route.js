@@ -2,7 +2,7 @@
 // Dashboard pipeline (okuma): yazılmış Sheet sekmelerini JSON satır nesnelerine çevirir.
 // Dashboard açılışta bunu çeker; her kaynak ham başlık adlarıyla döner (mapRow ile eşlenir).
 import { withAccess } from "../../../../lib/api";
-import { readMatrixFromSheet } from "../../../../lib/sheets";
+import { readMatrixFromSheet, readMatrixFromExternalSheet } from "../../../../lib/sheets";
 import { DASHBOARD_SOURCES } from "../../../../lib/dashboard-sources";
 
 export const runtime = "nodejs";
@@ -56,6 +56,15 @@ export const GET = withAccess(["updatedhq","ozelfiyat"], async () => {
     // HIZ: tüm kaynaklar PARALEL okunur (sıralı ~8sn → ~1.5-2sn).
     const results = await Promise.all(
       DASHBOARD_SOURCES.map(async (src) => {
+        // Harici canlı Sheet kaynağı (ör. renewal_data): her açılışta doğrudan okunur.
+        // Servis hesabı erişemiyorsa / sekme adı değiştiyse boş döner (sayfayı bozmaz).
+        if (src.externalSheet) {
+          try {
+            return [src.key, toObjects(await readMatrixFromExternalSheet(src.externalSheet))];
+          } catch {
+            return [src.key, []];
+          }
+        }
         // Canlı URL kaynağı: önce cache sekmesi (run route yazar), boşsa canlı fetch.
         if (src.urlEnv) {
           if (src.cacheTab) {

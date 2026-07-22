@@ -341,6 +341,13 @@ async function runPipeline(request) {
         continue;
       }
 
+      // ── HARİCİ CANLI SHEET (externalSheet): run'da yapılacak iş yok — data route
+      //    her açılışta doğrudan okur. Qlik'e gitme, atla.
+      if (src.externalSheet) {
+        out[src.key] = { mode: "external_live", skipped: true };
+        continue;
+      }
+
       // ── AY BAZLI PIVOT ÇEKİM (perMonthField): obje qMode=P (pivot). Her ay değeri
       //    SEÇİLİR → getHyperCubePivotData ile PY (sol) + ölçüler (veri) okunur → ay
       //    etiketlenir → biriktir → overwrite. Verimlilik zaten hazır ölçü. KRİTİK:

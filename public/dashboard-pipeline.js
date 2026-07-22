@@ -1133,6 +1133,15 @@
         loaded.push("verimlilik: " + S.verimlilik.length);
       }
 
+      // ── Customer bazında yenileme (renewal_data harici canlı Sheet) ──────
+      // Başlıklar Sheet sahibinin elinde değişebilir → ham satır nesneleri olduğu
+      // gibi taşınır; kolon tespiti (ay/müşteri/value) render tarafında yapılır.
+      if (Array.isArray(d.custYenileme)) {
+        S.custYenileme = d.custYenileme;
+        S.loaded.custYenileme = d.custYenileme.length > 0;
+        loaded.push("custYenileme: " + d.custYenileme.length);
+      }
+
       // ── Yenileme analizi (ALL_new → S._renewalRows) ─────────────────────
       // Ayrı Google Sheet'ten (RENEWAL_DATA deploy) canlı gelir. "Yenileme Durumu":
       // Yenilendi=yenileyen, Yenilemedi=yenilemeyen, boş/Bağlantı=bekleyen.
