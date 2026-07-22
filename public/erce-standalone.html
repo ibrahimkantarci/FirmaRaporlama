@@ -282,8 +282,12 @@ S._ercePY='Tümü';S._erceAy='';
 function setErcePY(py){S._ercePY=py;renderAll();}
 function setErceAy(ay){S._erceAy=ay;renderAll();}
 // ── SADECE İZİNLİ PY'LER — çip listesi ve "Tümü" toplamı bunlarla sınırlı ────
-S._ercePYAllow=['nidanur','kübra','yiğit','berkay','mine','sinem'];
-function pyAllowed(name){var t=String(name||'').trim().split(/\s+/)[0].toLocaleLowerCase('tr-TR');return S._ercePYAllow.indexOf(t)>=0;}
+// Aksan katlanır (Kübra/Kubra, Yiğit/Yigit tek eşleşir — shift ve çağrı verisi
+// farklı yazımlarda geldiği için).
+function foldTr(s){return String(s||'').toLocaleLowerCase('tr-TR').replace(/ü/g,'u').replace(/ç/g,'c').replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ı/g,'i').replace(/ö/g,'o').replace(/î/g,'i').replace(/â/g,'a');}
+function pyFirstKey(n){return foldTr(String(n||'').trim().split(/\s+/)[0]);}
+S._ercePYAllow=['nidanur','kubra','yigit','berkay','mine','sinem'];
+function pyAllowed(name){return S._ercePYAllow.indexOf(pyFirstKey(name))>=0;}
 function ayOf(t){return t?String(t).slice(0,7):'';}
 function bitisAyOf(f){const d=new Date(f.bitis_tarihi||'');return isNaN(d)?'':d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 // Filtreli veri kaynakları
@@ -317,28 +321,32 @@ function buildErceFilters(){
 // ── 1) VERİMLİLİK — PY bazlı çağrı verimliliği ──────────────────────────────
 function renderVerimlilik(){
   const el=document.getElementById('b-verimlilik');
-  const data=fCagri();
-  if(!data.length){el.innerHTML='<div class="empty">Filtreye uyan çağrı verisi yok</div>';return;}
-  const pm={};
-  data.forEach(c=>{
-    const k=c.py_adi||'—';
-    if(!pm[k])pm[k]={t:0,touch:0,att:0,sure:0,gunler:new Set(),firmalar:new Set()};
-    pm[k].t++;
-    if(c.durum==='Touch'){pm[k].touch++;pm[k].sure+=parseFloat(c.sure_dakika)||0;}
-    else if(c.durum==='Attempt')pm[k].att++;
-    if(c.tarih)pm[k].gunler.add(String(c.tarih).slice(0,10));
-    const fid=String(c.firma_id||'').trim();if(fid)pm[k].firmalar.add(fid);
-  });
-  const rows=Object.entries(pm).filter(([k])=>k!=='—').sort((a,b)=>b[1].touch-a[1].touch);
+  const all=(S.verimlilik||[]).filter(r=>pyAllowed(r.py_adi));
+  if(!all.length){el.className='empty';el.innerHTML='Verimlilik verisi yok. Üstten "Qlik\'ten yenile" ile çekilir (PY Shiftleri, Yıl Ay bazlı).';return;}
   el.classList.remove('empty');
-  el.innerHTML='<table><thead><tr><th>PY</th><th>Toplam çağrı</th><th>Touch</th><th>Attempt</th><th>Touch oranı</th><th>Günlük ort. touch</th><th>Unique firma</th><th>Konuşma süresi</th></tr></thead><tbody>'+
-    rows.map(([py,d])=>{
-      const oran=d.t?Math.round(d.touch/d.t*100):0;
-      const gAvg=d.gunler.size?(d.touch/d.gunler.size).toFixed(1):'—';
-      const c=oran>=60?'#16a34a':oran>=40?'#ea580c':'#dc2626';
-      return '<tr><td style="font-weight:600">'+esc(py)+'</td><td>'+d.t+'</td><td style="color:#16a34a;font-weight:600">'+d.touch+'</td><td style="color:#71717a">'+d.att+'</td>'+
-        '<td style="font-weight:700;color:'+c+'">%'+oran+'</td><td>'+gAvg+'</td><td>'+d.firmalar.size+'</td><td>'+fmtSure(d.sure)+'</td></tr>';
-    }).join('')+'</tbody></table>';
+  const py=S._ercePY||'Tümü';
+  const ay=S._erceAy||'';
+  const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.,-]/g,'').replace(',','.'));return isNaN(n)?null:n;};
+  let rows=all.slice();
+  if(py!=='Tümü')rows=rows.filter(r=>pyFirstKey(r.py_adi)===pyFirstKey(py)); // seçili PY (aksan bağımsız)
+
+  if(ay){
+    const mrows=rows.filter(r=>r.ay===ay);
+    if(!mrows.length){el.innerHTML='<div class="empty">'+esc(ay)+' için verimlilik verisi yok.</div>';return;}
+    const byPy={};mrows.forEach(r=>{if(!byPy[r.py_adi])byPy[r.py_adi]=r;});
+    const list=Object.values(byPy).sort((a,b)=>(num(b.verimlilik)||0)-(num(a.verimlilik)||0));
+    el.innerHTML='<table><thead><tr><th>PY</th><th>Verimlilik</th><th>Mesai Süresi</th><th>Konuşma Süresi</th></tr></thead><tbody>'+
+      list.map(r=>'<tr><td style="font-weight:600">'+esc(r.py_adi)+'</td><td style="font-weight:700">'+esc(r.verimlilik||'—')+'</td><td>'+esc(r.mesai||'—')+'</td><td>'+esc(r.konusma||'—')+'</td></tr>').join('')+'</tbody></table>';
+    return;
+  }
+
+  // Ay seçilmedi → PY × Yıl Ay verimlilik matrisi
+  const months=[...new Set(rows.map(r=>r.ay).filter(Boolean))].sort();
+  const pys=[...new Set(rows.map(r=>r.py_adi).filter(Boolean))].sort();
+  const cell={};rows.forEach(r=>{cell[r.py_adi+'|'+r.ay]=r.verimlilik;});
+  el.innerHTML='<div style="overflow:auto"><table><thead><tr><th>PY</th>'+months.map(m=>'<th>'+esc(m)+'</th>').join('')+'</tr></thead><tbody>'+
+    pys.map(p=>'<tr><td style="font-weight:600">'+esc(p)+'</td>'+months.map(m=>{const v=cell[p+'|'+m];return '<td>'+(v?esc(v):'—')+'</td>';}).join('')+'</tr>').join('')+'</tbody></table></div>'+
+    '<div class="empty" style="text-align:left;padding:8px 2px">Üstten bir ay seçersen o ayın verimliliği + mesai/konuşma süresi görünür.</div>';
 }
 
 // ── 2) YENİLEME YÜZDESİ — ay bazlı ──────────────────────────────────────────

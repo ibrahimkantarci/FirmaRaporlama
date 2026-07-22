@@ -1095,6 +1095,44 @@
         loaded.push("çağrı: " + S.cagrilar.length);
       }
 
+      // ── PY verimlilik (shift tablosu, Yıl Ay bazlı → S.verimlilik) ───────
+      // Qlik "Yıl Ay" değerini /erce Ay formatına (YYYY-MM) çevirir (ne format
+      // gelirse gelsin eşleşsin). Verimlilik zaten hesaplı (%) gelir; biz hesaplamayız.
+      function normVerimAy(v) {
+        var s = String(v == null ? "" : v).trim();
+        if (!s) return "";
+        var m = s.match(/(\d{4})[-\/.](\d{1,2})(?!\d)/);
+        if (m) return m[1] + "-" + ("0" + m[2]).slice(-2);
+        m = s.match(/^(\d{4})(\d{2})$/);
+        if (m) return m[1] + "-" + m[2];
+        m = s.match(/^(\d{1,2})[-\/.](\d{4})$/);
+        if (m) return m[2] + "-" + ("0" + m[1]).slice(-2);
+        var TR = { ocak:1, şubat:2, subat:2, mart:3, nisan:4, mayıs:5, mayis:5, haziran:6, temmuz:7, ağustos:8, agustos:8, eylül:9, eylul:9, ekim:10, kasım:11, kasim:11, aralık:12, aralik:12,
+                   oca:1, şub:2, sub:2, mar:3, nis:4, may:5, haz:6, tem:7, ağu:8, agu:8, eyl:9, eki:10, kas:11, ara:12 };
+        var low = s.toLocaleLowerCase("tr-TR");
+        var yr = (low.match(/(\d{4})/) || [])[1];
+        var mo = null;
+        for (var k in TR) { if (TR.hasOwnProperty(k) && low.indexOf(k) >= 0) { mo = TR[k]; break; } }
+        if (yr && mo) return yr + "-" + ("0" + mo).slice(-2);
+        return s;
+      }
+      if (Array.isArray(d.verimlilik) && d.verimlilik.length) {
+        S.verimlilik = d.verimlilik.map(function (row) {
+          return {
+            ay: normVerimAy(row["Yıl Ay"]),
+            ay_ham: String(row["Yıl Ay"] == null ? "" : row["Yıl Ay"]).trim(),
+            py_adi: String(row["PY"] == null ? "" : row["PY"]).trim(),
+            verimlilik: String(row["Verimlilik"] == null ? "" : row["Verimlilik"]).trim(),
+            mesai: String(row["Mesai Süresi"] == null ? "" : row["Mesai Süresi"]).trim(),
+            konusma: String(row["Konuşma Süresi"] == null ? "" : row["Konuşma Süresi"]).trim(),
+            mola: String(row["Mola Süresi"] == null ? "" : row["Mola Süresi"]).trim(),
+            toplanti: String(row["Toplantı Süresi"] == null ? "" : row["Toplantı Süresi"]).trim(),
+          };
+        });
+        S.loaded.verimlilik = true;
+        loaded.push("verimlilik: " + S.verimlilik.length);
+      }
+
       // ── Yenileme analizi (ALL_new → S._renewalRows) ─────────────────────
       // Ayrı Google Sheet'ten (RENEWAL_DATA deploy) canlı gelir. "Yenileme Durumu":
       // Yenilendi=yenileyen, Yenilemedi=yenilemeyen, boş/Bağlantı=bekleyen.

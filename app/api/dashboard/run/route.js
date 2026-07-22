@@ -10,6 +10,7 @@ import {
   selectLatestDate,
   selectFieldGreaterThan,
   selectMultiple,
+  getFieldValues,
 } from "../../../../lib/qlik";
 import { overwriteSheetTab, readMatrixFromSheet, writeMatrixToSheet } from "../../../../lib/sheets";
 import { DASHBOARD_SOURCES } from "../../../../lib/dashboard-sources";
@@ -337,6 +338,38 @@ async function runPipeline(request) {
         const cTrim = applyWriteTrim(cdata.columns, cdata.rows, src);
         const csheet = await overwriteSheetTab([cTrim.columns, ...cTrim.rows], { tab: src.tab });
         out[src.key] = { rows: cdata.rows.length, columns: cTrim.columns.length, tab: src.tab, sheetUrl: csheet.sheetUrl, providers: ids.length };
+        continue;
+      }
+
+      // ── AY BAZLI ÇEKİM (perMonthField): her Yıl Ay değeri için o ayı SEÇ → tabloyu
+      //    çek → satırları ay ile etiketle → biriktir → overwrite. (Verimlilik shift
+      //    tablosu.) KRİTİK: "Tarih" DEĞİL "Yıl Ay" seçilir; Tarih tek güne indirirdi.
+      //    PY boyutu (ilk kolon) "PY" olarak sabit adlandırılır; ölçü başlıkları objeden.
+      if (src.perMonthField) {
+        const res = await withPooledDoc(src.appId, async ({ doc }) => {
+          await doc.clearAll(false);
+          const fv = await getFieldValues(doc, src.perMonthField, src.perMonthMax || 500);
+          const months = (fv.values || []).map((v) => String(v ?? "").trim()).filter(Boolean);
+          let columns = null;
+          const allRows = [];
+          for (const mv of months) {
+            try {
+              await doc.clearAll(false);
+              const sel = await selectExact(doc, src.perMonthField, mv);
+              if (!sel.selected) continue;
+              const ft = await fetchObjectData(doc, src.objectId, { withNum: !!src.numeric });
+              if (!ft.columns.length) continue;
+              if (!columns) columns = [src.perMonthField, "PY", ...ft.columns.slice(1)];
+              for (const r of ft.rows) allRows.push([mv, ...r]);
+            } catch (e) {
+              // tek bir ay hata verirse diğerlerini bozma
+            }
+          }
+          await doc.clearAll(false);
+          return { columns: columns || [src.perMonthField, "PY"], rows: allRows, monthsSeen: months.length };
+        });
+        const sheet = await overwriteSheetTab([res.columns, ...res.rows], { tab: src.tab });
+        out[src.key] = { mode: "per_month", monthsSeen: res.monthsSeen, rows: res.rows.length, columns: res.columns.length, tab: src.tab, sheetUrl: sheet.sheetUrl };
         continue;
       }
 
