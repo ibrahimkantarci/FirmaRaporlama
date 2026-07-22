@@ -396,9 +396,12 @@ function renderYenilemeYuzdesi(){
   if(tYeni!=null){var chg=(tEski&&tEski>0)?Math.round((tYeni-tEski)/tEski*100):null;stats+='<div class="stat"><div class="v">'+fmt(tYeni)+(chg!=null?' <span style="font-size:11px;color:'+(chg>=0?'#16a34a':'#dc2626')+'">('+(chg>=0?'+':'')+chg+'%)</span>':'')+'</div><div class="l">Yeni value</div></div>';}
   stats+='</div>';
   // Tablo — kolonlar Sheet'ten olduğu gibi
-  const show=heads.slice(0,10);
-  const table='<div style="overflow:auto;max-height:420px"><table><thead><tr>'+show.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+
-    list.slice(0,300).map(r=>'<tr>'+show.map(h=>{var v=r[h];if((h===hEski||h===hYeni)&&v!==''&&v!=null)v=fmt(num(v));if(h===hAy)v=normAy(r[h]);return '<td'+(h===hCust?' style="font-weight:600"':'')+'>'+esc(String(v==null?'':v))+'</td>';}).join('')+'</tr>').join('')+
+  // Tablo — tespit edilen ana kolonlar ÖNCE (eski/yeni value garanti görünür), sonra kalanlar
+  const keyCols=[hCust,hPy,hAy,hTop,hYen,hEski,hYeni].filter(Boolean);
+  const show=keyCols.concat(heads.filter(h=>keyCols.indexOf(h)<0));
+  const valCols={};[hEski,hYeni,hTop,hYen].forEach(h=>{if(h)valCols[h]=1;});
+  const table='<div style="overflow:auto;max-height:440px"><table><thead><tr>'+show.map(h=>'<th'+(valCols[h]?' style="text-align:right"':'')+'>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+
+    list.slice(0,300).map(r=>'<tr>'+show.map(h=>{var v=r[h];if((h===hEski||h===hYeni)&&v!==''&&v!=null)v=fmt(num(v));if(h===hAy)v=normAy(r[h]);return '<td'+(h===hCust?' style="font-weight:600"':(valCols[h]?' style="text-align:right"':''))+'>'+esc(String(v==null?'':v))+'</td>';}).join('')+'</tr>').join('')+
     '</tbody></table></div>'+(list.length>300?'<div class="empty" style="padding:6px 2px">İlk 300 satır gösteriliyor ('+fmt(list.length)+' toplam).</div>':'');
   el.innerHTML=stats+(ay?'':'<div class="empty" style="text-align:left;padding:6px 2px">Tüm aylar gösteriliyor — üstten ay seçerek daraltabilirsin.</div>')+table;
 }
