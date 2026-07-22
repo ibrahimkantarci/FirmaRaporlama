@@ -341,35 +341,42 @@ async function runPipeline(request) {
         continue;
       }
 
-      // ── AY BAZLI ÇEKİM (perMonthField): her Yıl Ay değeri için o ayı SEÇ → tabloyu
-      //    çek → satırları ay ile etiketle → biriktir → overwrite. (Verimlilik shift
-      //    tablosu.) KRİTİK: "Tarih" DEĞİL "Yıl Ay" seçilir; Tarih tek güne indirirdi.
-      //    PY boyutu (ilk kolon) "PY" olarak sabit adlandırılır; ölçü başlıkları objeden.
+      // ── AY BAZLI PIVOT ÇEKİM (perMonthField): obje qMode=P (pivot). Her ay değeri
+      //    SEÇİLİR → getHyperCubePivotData ile PY (sol) + ölçüler (veri) okunur → ay
+      //    etiketlenir → biriktir → overwrite. Verimlilik zaten hazır ölçü. KRİTİK:
+      //    "%year_month_num" seçilir; "Tarih" DEĞİL (o tek güne indirirdi).
       if (src.perMonthField) {
         const res = await withPooledDoc(src.appId, async ({ doc }) => {
+          const obj = await doc.getObject(src.objectId);
+          const lay0 = await obj.getLayout();
+          const hc0 = lay0.qHyperCube || {};
+          const measTitles = (hc0.qMeasureInfo || []).map((m) => m.qFallbackTitle);
+          const width = (hc0.qSize?.qcx || 0) + (hc0.qNoOfLeftDims || 0);
           await doc.clearAll(false);
           const fv = await getFieldValues(doc, src.perMonthField, src.perMonthMax || 500);
           const months = (fv.values || []).map((v) => String(v ?? "").trim()).filter(Boolean);
-          let columns = null;
+          const columns = [src.perMonthField, "PY", ...measTitles];
           const allRows = [];
           for (const mv of months) {
             try {
               await doc.clearAll(false);
               const sel = await selectExact(doc, src.perMonthField, mv);
               if (!sel.selected) continue;
-              const ft = await fetchObjectData(doc, src.objectId, { withNum: !!src.numeric });
-              if (!ft.columns.length) continue;
-              if (!columns) columns = [src.perMonthField, "PY", ...ft.columns.slice(1)];
-              for (const r of ft.rows) allRows.push([mv, ...r]);
-            } catch (e) {
-              // tek bir ay hata verirse diğerlerini bozma
-            }
+              const lay = await obj.getLayout();
+              const h = Math.min(lay.qHyperCube?.qSize?.qcy || 0, 1000);
+              if (!h) continue;
+              const pages = await obj.getHyperCubePivotData("/qHyperCubeDef", [{ qTop: 0, qLeft: 0, qWidth: Math.max(1, width), qHeight: h }]);
+              const p = pages?.[0] || {};
+              const left = (p.qLeft || []).map((n) => n.qText);   // PY adları (en dış sol boyut)
+              const data = (p.qData || []).map((r) => r.map((c) => c.qText)); // ölçü değerleri
+              for (let i = 0; i < data.length; i++) allRows.push([mv, (left[i] != null ? left[i] : ""), ...data[i]]);
+            } catch (e) { /* tek ay hata verirse diğerlerini bozma */ }
           }
           await doc.clearAll(false);
-          return { columns: columns || [src.perMonthField, "PY"], rows: allRows, monthsSeen: months.length };
+          return { columns, rows: allRows, monthsSeen: months.length };
         });
         const sheet = await overwriteSheetTab([res.columns, ...res.rows], { tab: src.tab });
-        out[src.key] = { mode: "per_month", monthsSeen: res.monthsSeen, rows: res.rows.length, columns: res.columns.length, tab: src.tab, sheetUrl: sheet.sheetUrl };
+        out[src.key] = { mode: "per_month_pivot", monthsSeen: res.monthsSeen, rows: res.rows.length, columns: res.columns.length, tab: src.tab, sheetUrl: sheet.sheetUrl };
         continue;
       }
 

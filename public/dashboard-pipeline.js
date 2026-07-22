@@ -1119,8 +1119,8 @@
       if (Array.isArray(d.verimlilik) && d.verimlilik.length) {
         S.verimlilik = d.verimlilik.map(function (row) {
           return {
-            ay: normVerimAy(row["Yıl Ay"]),
-            ay_ham: String(row["Yıl Ay"] == null ? "" : row["Yıl Ay"]).trim(),
+            ay: normVerimAy(row["%year_month_num"]),
+            ay_ham: String(row["%year_month_num"] == null ? "" : row["%year_month_num"]).trim(),
             py_adi: String(row["PY"] == null ? "" : row["PY"]).trim(),
             verimlilik: String(row["Verimlilik"] == null ? "" : row["Verimlilik"]).trim(),
             mesai: String(row["Mesai Süresi"] == null ? "" : row["Mesai Süresi"]).trim(),
