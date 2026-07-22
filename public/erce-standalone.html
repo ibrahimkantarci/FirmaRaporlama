@@ -288,6 +288,17 @@ function foldTr(s){return String(s||'').toLocaleLowerCase('tr-TR').replace(/ü/g
 function pyFirstKey(n){return foldTr(String(n||'').trim().split(/\s+/)[0]);}
 S._ercePYAllow=['nidanur','kubra','yigit','berkay','mine','sinem'];
 function pyAllowed(name){return S._ercePYAllow.indexOf(pyFirstKey(name))>=0;}
+// renewal_data ay değeri → "YYYY-MM" (Excel seri no / metin / YYYY-MM / YYYYMM)
+function normSheetAy(v){var s=String(v==null?'':v).trim();if(!s)return '';
+  if(/^\d{5}$/.test(s)){var d=new Date(Date.UTC(1899,11,30)+parseInt(s,10)*86400000);return d.getUTCFullYear()+'-'+('0'+(d.getUTCMonth()+1)).slice(-2);}
+  var m=s.match(/(\d{4})[-\/.](\d{1,2})/);if(m)return m[1]+'-'+('0'+m[2]).slice(-2);
+  m=s.match(/^(\d{4})(\d{2})$/);if(m)return m[1]+'-'+m[2];
+  m=s.match(/^(\d{1,2})[-\/.](\d{4})$/);if(m)return m[2]+'-'+('0'+m[1]).slice(-2);
+  return s;}
+// custYenileme (renewal_data) ay kolonunu bul
+function custYenAyHeader(){var rows=S.custYenileme||[];if(!rows.length)return null;var heads=Object.keys(rows[0]||{});
+  var res=[/yil.?ay|yılay|year.?month|donem/,/(^|[^a-z])ay($|[^a-z])/,/month/,/tarih|date/];
+  for(var i=0;i<res.length;i++){var h=heads.find(function(x){return res[i].test(foldTr(x));});if(h)return h;}return null;}
 function ayOf(t){return t?String(t).slice(0,7):'';}
 function bitisAyOf(f){const d=new Date(f.bitis_tarihi||'');return isNaN(d)?'':d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 // Filtreli veri kaynakları
@@ -305,14 +316,17 @@ function buildErceFilters(){
   if(!list.includes(S._ercePY))S._ercePY='Tümü';
   const chipEl=document.getElementById('f-py-chips');
   if(chipEl)chipEl.innerHTML=list.map(py=>'<span class="chip'+(S._ercePY===py?' on':'')+'" onclick="setErcePY(\''+py.replace(/'/g,"\\'")+'\')" style="margin-right:4px">'+(py==='Tümü'?'Tümü':esc(py.split(' ')[0]))+'</span>').join('');
-  // Ay listesi: çağrı tarihleri + yenileme ayları birleşimi
+  // Ay listesi: çağrı tarihleri + yenileme ayları + renewal_data ayları birleşimi
   const aylar=new Set();
   S.cagrilar.forEach(c=>{const a=ayOf(c.tarih);if(a)aylar.add(a);});
   (S._renewalRows||[]).forEach(r=>{if(r.ay)aylar.add(r.ay);});
+  const _cyAy=custYenAyHeader();
+  if(_cyAy)(S.custYenileme||[]).forEach(r=>{const a=normSheetAy(r[_cyAy]);if(a)aylar.add(a);});
+  const AY_FLOOR='2026-05'; // Mayıs 2026 öncesini gösterme (kalabalık yapmasın)
   const sel=document.getElementById('f-ay');
   if(sel){
     const cur=S._erceAy;
-    sel.innerHTML='<option value="">Tüm aylar</option>'+[...aylar].sort().map(a=>'<option value="'+a+'"'+(cur===a?' selected':'')+'>'+a+'</option>').join('');
+    sel.innerHTML='<option value="">Tüm aylar</option>'+[...aylar].filter(a=>a>=AY_FLOOR).sort().map(a=>'<option value="'+a+'"'+(cur===a?' selected':'')+'>'+a+'</option>').join('');
   }
   const info=document.getElementById('f-info');
   if(info)info.textContent=(S._ercePY!=='Tümü'||S._erceAy)?[S._ercePY!=='Tümü'?S._ercePY:'',S._erceAy].filter(Boolean).join(' · '):'';
@@ -364,17 +378,14 @@ function renderYenilemeYuzdesi(){
   const hPy   = findH([/(^|[^a-z])py($|[^a-z])|portfoy|account.?manager/]);
   const hYen  = findH([/yeniley|yenilenen.?(provider|firma|adet|sayi)|renewed/]);
   const hTop  = findH([/toplam.?(provider|firma|adet|sayi)|provider.?(sayi|adet|count)|total.?provider/]);
-  const hEski = findH([/eski.*(value|tutar|deger)|onceki.*(value|tutar)|old.?value|yenileme.?oncesi/]);
-  const findYeni=()=>{const cands=heads.filter(h=>h!==hEski&&!/onces/.test(fold(h)));
-    for(const re of [/yenilenen.?(value|tutar)/, /sonras.*(value|tutar)|(value|tutar).*sonras/, /new.?value/, /(^|[^a-z])yeni.?(value|tutar|deger)/]){
+  // Value kolonları — kullanıcı tam adları verdi; önce birebir (folded) eşle, sonra bulanık yedek.
+  const exactH=(name)=>{const t=fold(name);return heads.find(h=>fold(h)===t)||null;};
+  const hEski = exactH('Yenilemeye Gelen Toplam Fiyat') || findH([/eski.*(value|tutar|deger)|onceki.*(value|tutar)|old.?value|yenileme.?oncesi|yenilemeye.?gelen.*(fiyat|tutar)/]);
+  const findYeni=()=>{const cands=heads.filter(h=>h!==hEski&&!/onces|gelen/.test(fold(h)));
+    for(const re of [/yenilenen.?toplam.?fiyat/, /yenilenen.?(value|tutar)/, /sonras.*(value|tutar)|(value|tutar).*sonras/, /new.?value/, /(^|[^a-z])yeni.?(value|tutar|deger)/]){
       const h=cands.find(h=>re.test(fold(h)));if(h)return h;}return null;};
-  const hYeni = findYeni();
-  const normAy=(v)=>{var s=String(v==null?'':v).trim();if(!s)return '';
-    if(/^\d{5}$/.test(s)){var d=new Date(Date.UTC(1899,11,30)+parseInt(s,10)*86400000);return d.getUTCFullYear()+'-' +('0'+(d.getUTCMonth()+1)).slice(-2);} // Excel seri
-    var m=s.match(/(\d{4})[-\/.](\d{1,2})/);if(m)return m[1]+'-'+('0'+m[2]).slice(-2);
-    m=s.match(/^(\d{4})(\d{2})$/);if(m)return m[1]+'-'+m[2];
-    m=s.match(/^(\d{1,2})[-\/.](\d{4})$/);if(m)return m[2]+'-'+('0'+m[1]).slice(-2);
-    return s;};
+  const hYeni = exactH('Yenilenen Toplam Fiyat') || findYeni();
+  const normAy=normSheetAy;
   const num=(v)=>{if(typeof v==='number')return v;var n=parseFloat(String(v==null?'':v).replace(/\./g,'').replace(',','.'));if(isNaN(n))n=parseFloat(String(v));return isNaN(n)?0:n;};
   const fmt=(n)=>n.toLocaleString('tr-TR',{maximumFractionDigits:0});
   const ay=S._erceAy||'';
