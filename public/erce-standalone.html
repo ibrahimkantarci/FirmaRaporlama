@@ -474,17 +474,21 @@ function renderFlagDurumu(){
   const gv=(o,name)=>o.f[name]||0;
   const arr=Object.entries(byPy).map(([p,o])=>{
     const ye=gv(o,'Yeşil'),sa=gv(o,'Sarı');
+    const pYe=o.tot?ye/o.tot*100:0, pYeSa=o.tot?(ye+sa)/o.tot*100:0;
     return {py:p,tot:o.tot,ye,sa,tu:gv(o,'Turuncu'),ki:gv(o,'Kırmızı'),we:gv(o,'Welcome'),
-      pYe:o.tot?ye/o.tot*100:0,pYeSa:o.tot?(ye+sa)/o.tot*100:0};
-  }).sort((a,b)=>b.pYe-a.pYe);
+      pYe,pYeSa,ort:(pYe+pYeSa)/2};
+  }).sort((a,b)=>b.ort-a.ort);
   const T=arr.reduce((a,r)=>({tot:a.tot+r.tot,ye:a.ye+r.ye,sa:a.sa+r.sa}),{tot:0,ye:0,sa:0});
   const col=(p)=>p>=60?'#16a34a':p>=40?'#ea580c':'#dc2626';
   const pct=(n)=>'%'+n.toFixed(1);
+  // Gösterilen kapsamın (seçili PY veya Tümü) oranları + ikisinin ortalaması
+  const gYe=T.tot?T.ye/T.tot*100:0, gYeSa=T.tot?(T.ye+T.sa)/T.tot*100:0, gOrt=(gYe+gYeSa)/2;
   el.innerHTML='<div class="stat-grid">'+
     '<div class="stat"><div class="v" style="font-size:15px">'+esc(seciliAy)+'</div><div class="l">Ay sonu'+(tarih?' ('+esc(tarih)+')':'')+'</div></div>'+
     '<div class="stat"><div class="v">'+T.tot+'</div><div class="l">Provider</div></div>'+
-    '<div class="stat"><div class="v" style="color:#16a34a">'+(T.tot?pct(T.ye/T.tot*100):'—')+'</div><div class="l">🟢 Yeşil</div></div>'+
-    '<div class="stat"><div class="v" style="color:#ca8a04">'+(T.tot?pct((T.ye+T.sa)/T.tot*100):'—')+'</div><div class="l">🟢+🟡 Yeşil+Sarı</div></div>'+
+    '<div class="stat"><div class="v" style="color:#16a34a">'+(T.tot?pct(gYe):'—')+'</div><div class="l">🟢 Yeşil</div></div>'+
+    '<div class="stat"><div class="v" style="color:#ca8a04">'+(T.tot?pct(gYeSa):'—')+'</div><div class="l">🟢+🟡 Yeşil+Sarı</div></div>'+
+    '<div class="stat"><div class="v" style="color:'+(T.tot?col(gOrt):'#71717a')+'">'+(T.tot?pct(gOrt):'—')+'</div><div class="l">⌀ Ortalama</div></div>'+
   '</div>'+
   '<table><thead><tr><th>PY</th><th style="text-align:right">Provider</th><th style="text-align:right">🟢 Yeşil</th><th style="text-align:right">🟡 Sarı</th><th style="text-align:right">% Yeşil</th><th style="text-align:right">% Yeşil+Sarı</th></tr></thead><tbody>'+
   arr.map(r=>'<tr><td style="font-weight:600">'+esc(r.py.split(' ')[0])+'</td>'+
@@ -493,26 +497,7 @@ function renderFlagDurumu(){
     '<td style="text-align:right">'+r.sa+'</td>'+
     '<td style="text-align:right;font-weight:700;color:'+col(r.pYe)+'">'+pct(r.pYe)+'</td>'+
     '<td style="text-align:right;font-weight:700;color:'+col(r.pYeSa)+'">'+pct(r.pYeSa)+'</td></tr>').join('')+
-  '</tbody>'+
-  (function(){
-    // Ortalama = PY yüzdelerinin düz ortalaması (portföy büyüklüğünden bağımsız).
-    if(!arr.length)return '';
-    const n=arr.length;
-    const avgYe=arr.reduce((a,r)=>a+r.pYe,0)/n;
-    const avgYeSa=arr.reduce((a,r)=>a+r.pYeSa,0)/n;
-    const avgTot=arr.reduce((a,r)=>a+r.tot,0)/n;
-    const avgY=arr.reduce((a,r)=>a+r.ye,0)/n;
-    const avgS=arr.reduce((a,r)=>a+r.sa,0)/n;
-    return '<tfoot><tr style="border-top:2px solid #e4e4e7;background:#fafafa">'+
-      '<td style="font-weight:700">Ortalama</td>'+
-      '<td style="text-align:right;color:#71717a">'+avgTot.toFixed(0)+'</td>'+
-      '<td style="text-align:right;color:#71717a">'+avgY.toFixed(1)+'</td>'+
-      '<td style="text-align:right;color:#71717a">'+avgS.toFixed(1)+'</td>'+
-      '<td style="text-align:right;font-weight:700;color:'+col(avgYe)+'">'+pct(avgYe)+'</td>'+
-      '<td style="text-align:right;font-weight:700;color:'+col(avgYeSa)+'">'+pct(avgYeSa)+'</td>'+
-    '</tr></tfoot>';
-  })()+
-  '</table>'+
+  '</tbody></table>'+
   '<div class="empty" style="text-align:left;padding:8px 2px">Payda: PY\'nin o gün portföyündeki tüm provider\'lar (Welcome/Turuncu/Kırmızı dahil).'+(ay?'':' Ay seçilmediği için en güncel ay gösteriliyor.')+'</div>';
 }
 
