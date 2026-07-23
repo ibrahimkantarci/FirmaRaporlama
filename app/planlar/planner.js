@@ -3,21 +3,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 // ───────────────────────────────────────────────────────────────────────────
-// Black hole plan uygulaması — basit Notion tarzı blok editörü + takvim.
+// Black hole plan uygulaması — Notion tarzı blok editörü + görev takvimi.
+//
+// Akış: görevler TAKVİM'den girilir (güne dokun → yaz → Ekle). Girilen görevler
+// Haftalık ve Aylık sekmelerde YAPILACAK LİSTESİ olarak akar: kutucuğu tikle,
+// ℹ ile yanına bilgi notu ekle. (Sayfalardaki tarihli todolar da aynı akışa girer.)
 //
 // Sekmeler:
-//   Sayfalar  → sayfa listesi + blok editörü (mobilde liste ↔ editör geçişli)
-//   Haftalık  → seçili haftanın 7 günü, tarihli yapılacaklar gün gün
-//   Aylık     → seçili ayın tarihli yapılacakları gün gruplu liste + ilerleme
-//   Takvim    → ay ızgarası; güne dokun → o günün yapılacakları altta
+//   Sayfalar → sayfa listesi + blok editörü (mobilde liste ↔ editör geçişli)
+//   Haftalık → haftanın görevleri gün gün checklist (grid değil, liste)
+//   Aylık    → ayın görevleri gün gruplu checklist + ilerleme
+//   Takvim   → ay ızgarası; güne dokun → görev EKLE + o günün listesi
 //
-// Tarih: todo bloklarının yanındaki küçük tarih kutusu (opsiyonel "d" alanı).
-// Takvim görünümleri TÜM sayfalardaki tarihli todoları toplar; kutucuğu
-// işaretlemek ilgili sayfayı anında kaydeder (son kaydeden kazanır).
+// Takvimden eklenen görevler "Takvim Görevleri" sayfasında saklanır (id: takvim)
+// — istersen o sayfayı editörden de düzenlersin; ayrı bir veri modeli yok.
+// Kutucuk/ℹ değişiklikleri ilgili sayfayı ANINDA kaydeder (son kaydeden kazanır).
 //
 // Editör kısayolları: "# " başlık · "[] " yapılacak · Enter yeni blok ·
 // boş blokta Backspace sil · Ctrl/Cmd+S kaydet.
 // ───────────────────────────────────────────────────────────────────────────
+
+const CAL_PAGE_ID = "takvim";
+const CAL_PAGE_TITLE = "Takvim Görevleri";
 
 function newId() {
   return "p-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
@@ -30,7 +37,6 @@ function fmt(iso) {
   return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-// ── Tarih yardımcıları (hep yerel gün; saat dilimi kaymasın diye string tabanlı) ──
 const AY_KISA = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 const AY_UZUN = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 const GUN_KISA = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
@@ -52,9 +58,6 @@ function startOfWeek(d) {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); // Pazartesi başlangıç
   return x;
-}
-function gunEtiket(d) {
-  return GUN_KISA[(d.getDay() + 6) % 7] + " " + d.getDate();
 }
 
 function useIsMobile() {
@@ -93,7 +96,7 @@ const S = {
   }),
   main: (mobile) => ({
     flex: 1, minWidth: 0, overflowY: "auto",
-    padding: mobile ? "18px 16px 70px" : "34px 40px 80px",
+    padding: mobile ? "16px 14px 70px" : "30px 40px 80px",
   }),
   title: (mobile) => ({
     width: "100%", border: "none", outline: "none", background: "transparent",
@@ -114,14 +117,34 @@ const S = {
     border: "1px solid #2a2a35", background: "#15151d", color: "#a1a1aa",
     borderRadius: 7, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600,
   },
-  navBar: { display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" },
-  navLabel: { fontSize: 16, fontWeight: 800, color: "#fafafa", minWidth: 140 },
-  aggItem: { display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 8px", borderRadius: 7 },
-  pageTag: {
-    fontSize: 10, fontWeight: 700, color: "#a78bfa", background: "#1e1b2e",
-    borderRadius: 5, padding: "1px 6px", whiteSpace: "nowrap", flexShrink: 0, marginTop: 2,
+  navBar: { display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" },
+  navLabel: { fontSize: 16, fontWeight: 800, color: "#fafafa", minWidth: 130 },
+  card: { background: "#0e0e15", border: "1px solid #1f1f28", borderRadius: 11, overflow: "hidden" },
+  dayHead: (today) => ({
+    display: "flex", alignItems: "baseline", gap: 8, margin: "16px 0 6px",
+    fontSize: 12.5, fontWeight: 800, color: today ? "#c4b5fd" : "#8b8b96",
+  }),
+  taskRow: { padding: "8px 10px", borderBottom: "1px solid #16161e" },
+  infoBtn: (on) => ({
+    border: "1px solid " + (on ? "#4c1d95" : "#2a2a35"), background: on ? "#1e1b2e" : "transparent",
+    color: on ? "#a78bfa" : "#52525b", borderRadius: 6, width: 22, height: 22, lineHeight: "18px",
+    fontSize: 12, cursor: "pointer", flexShrink: 0, padding: 0, fontWeight: 800, fontStyle: "italic",
+    fontFamily: "Georgia, serif",
+  }),
+  noteTa: {
+    width: "100%", marginTop: 6, border: "1px solid #2a2a35", background: "#12121a",
+    color: "#c9c9d1", borderRadius: 8, fontSize: 12.5, lineHeight: "18px", padding: "6px 8px",
+    resize: "vertical", outline: "none", fontFamily: "inherit", minHeight: 40,
   },
-  empty: { color: "#52525b", fontSize: 13, padding: "18px 6px" },
+  noteText: {
+    marginTop: 4, marginLeft: 25, fontSize: 12, color: "#8b8b96", lineHeight: "17px",
+    whiteSpace: "pre-wrap", cursor: "pointer", borderLeft: "2px solid #2a2a35", paddingLeft: 8,
+  },
+  pageTag: {
+    fontSize: 10, fontWeight: 700, color: "#a78bfa", background: "#1e1b2e", border: "none",
+    borderRadius: 5, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0, cursor: "pointer",
+  },
+  empty: { color: "#52525b", fontSize: 13, padding: "16px 4px" },
 };
 
 function Block({ b, mobile, onChange, onKeyDown, taRef }) {
@@ -147,7 +170,8 @@ function Block({ b, mobile, onChange, onKeyDown, taRef }) {
           let v = e.target.value, t = b.t, c = b.c;
           if (t === "p" && v.startsWith("# ")) { t = "h"; v = v.slice(2); }
           else if (t === "p" && (v.startsWith("[] ") || v.startsWith("[ ] "))) { t = "todo"; v = v.replace(/^\[\s?\]\s/, ""); c = false; }
-          onChange({ t, x: v, ...(t === "todo" ? { c: !!c, ...(b.d ? { d: b.d } : {}) } : {}) });
+          // Dikkat: tarih (d) ve bilgi notu (n) yazarken kaybolmasın.
+          onChange({ t, x: v, ...(t === "todo" ? { c: !!c, ...(b.d ? { d: b.d } : {}), ...(b.n ? { n: b.n } : {}) } : {}) });
         }}
         onKeyDown={onKeyDown}
         style={{ ...S.ta(b.t), textDecoration: b.t === "todo" && b.c ? "line-through" : "none", opacity: b.t === "todo" && b.c ? 0.55 : 1 }}
@@ -167,35 +191,49 @@ function Block({ b, mobile, onChange, onKeyDown, taRef }) {
   );
 }
 
-// Toplu görünümlerdeki tek satır: kutucuk + metin + sayfa etiketi.
-function AggItem({ it, onToggle, onOpen }) {
+// Ortak görev satırı: [kutucuk] metin [i] [sayfa etiketi] + bilgi notu.
+// Planner DIŞINDA tanımlı — içeride tanımlansaydı her render'da remount olur,
+// açık not kutusundaki yazılmakta olan metin kaybolurdu.
+function TaskRow({ it, last, open, onToggle, onToggleNote, onSaveNote, onOpenPage }) {
   return (
-    <div style={S.aggItem}>
-      <input
-        type="checkbox" checked={it.c} onChange={() => onToggle(it)}
-        style={{ marginTop: 3, accentColor: "#7c3aed", cursor: "pointer", width: 16, height: 16, flexShrink: 0 }}
-      />
-      <span style={{ fontSize: 13.5, lineHeight: "20px", minWidth: 0, textDecoration: it.c ? "line-through" : "none", opacity: it.c ? 0.5 : 1 }}>
-        {it.x || "(boş)"}
-      </span>
-      <button onClick={() => onOpen(it.pageId)} style={{ ...S.pageTag, border: "none", cursor: "pointer", marginLeft: "auto" }}>
-        {it.pageTitle}
-      </button>
+    <div style={{ ...S.taskRow, borderBottom: last ? "none" : S.taskRow.borderBottom }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
+        <input
+          type="checkbox" checked={it.c} onChange={onToggle}
+          style={{ marginTop: 2, accentColor: "#7c3aed", cursor: "pointer", width: 17, height: 17, flexShrink: 0 }}
+        />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, lineHeight: "20px", textDecoration: it.c ? "line-through" : "none", opacity: it.c ? 0.5 : 1 }}>
+          {it.x || "(boş)"}
+        </span>
+        <button onClick={onToggleNote} title="Bilgi notu" aria-label="Bilgi notu" style={S.infoBtn(open || !!it.n)}>i</button>
+        {onOpenPage && (
+          <button onClick={onOpenPage} style={S.pageTag} title="Sayfayı aç">{it.pageTitle}</button>
+        )}
+      </div>
+      {open ? (
+        <textarea
+          defaultValue={it.n} placeholder="Bilgi / not… (odak dışına çıkınca kaydedilir)"
+          onBlur={(e) => onSaveNote(e.target.value)}
+          style={S.noteTa} rows={2} spellCheck={false}
+        />
+      ) : it.n ? (
+        <div style={S.noteText} onClick={onToggleNote}>{it.n}</div>
+      ) : null}
     </div>
   );
 }
 
-export default function Planner() {
+export default function Planner({ initialView = "sayfalar" }) {
   const mobile = useIsMobile();
-  const [view, setView] = useState("sayfalar"); // sayfalar | hafta | ay | takvim
-  const [mobilePane, setMobilePane] = useState("list"); // mobil Sayfalar: list | edit
+  const [view, setView] = useState(initialView); // sayfalar | hafta | ay | takvim
+  const [mobilePane, setMobilePane] = useState("list");
 
   const [pages, setPages] = useState([]);
   const [cur, setCur] = useState(null);
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState([]);
   const [savedSig, setSavedSig] = useState("");
-  const [state, setState] = useState("loading"); // loading|idle|saving|error
+  const [state, setState] = useState("loading");
   const [msg, setMsg] = useState("");
   const taRefs = useRef({});
   const focusIdx = useRef(null);
@@ -203,8 +241,10 @@ export default function Planner() {
   const bugun = ymd(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [calY, setCalY] = useState(() => new Date().getFullYear());
-  const [calM, setCalM] = useState(() => new Date().getMonth()); // 0-11
+  const [calM, setCalM] = useState(() => new Date().getMonth());
   const [selDay, setSelDay] = useState(bugun);
+  const [newTask, setNewTask] = useState("");
+  const [openNotes, setOpenNotes] = useState(() => new Set()); // "pageId:idx"
 
   const sig = JSON.stringify({ title, blocks });
   const dirty = cur !== null && sig !== savedSig;
@@ -225,8 +265,8 @@ export default function Planner() {
         if (!d || d.ok === false) throw new Error(d?.error || "Okunamadı");
         setPages(d.pages || []);
         setState("idle");
-        // mobile state'i bu closure'da bayat kalabilir (ilk render false) — medyayı doğrudan sor:
-        // telefonda ilk sayfayı otomatik AÇMA, kullanıcı listeden seçsin.
+        // mobile state'i bu closure'da bayat kalabilir — medyayı doğrudan sor;
+        // telefonda ilk sayfayı otomatik açma, kullanıcı listeden seçsin.
         const isMob = window.matchMedia("(max-width: 720px)").matches;
         if ((d.pages || []).length && !isMob) openPage(d.pages[0], false);
       })
@@ -242,7 +282,7 @@ export default function Planner() {
     }
   }, [blocks.length]);
 
-  // Açık sayfanın taslağı toplu görünümlere de yansısın (kaydedilmemiş tarihler dahil).
+  // Açık sayfanın taslağı toplu görünümlere de yansısın.
   const effPages = useMemo(
     () => pages.map((p) => (p.id === cur ? { ...p, title, blocks } : p)),
     [pages, cur, title, blocks]
@@ -252,7 +292,7 @@ export default function Planner() {
     for (const p of effPages) {
       (p.blocks || []).forEach((b, idx) => {
         if (b.t === "todo" && b.d) {
-          out.push({ pageId: p.id, pageTitle: p.title || "(adsız)", idx, x: b.x, c: !!b.c, d: b.d });
+          out.push({ pageId: p.id, pageTitle: p.title || "(adsız)", idx, x: b.x, c: !!b.c, d: b.d, n: b.n || "" });
         }
       });
     }
@@ -295,20 +335,59 @@ export default function Planner() {
     } catch (e) { setState("error"); setMsg(e?.message || "Kaydedilemedi"); }
   }
 
-  // Toplu görünümden kutucuk işaretleme → ilgili sayfayı anında kaydet.
-  async function toggleItem(it) {
+  // Bir görev bloğunu yerinde değiştir (kutucuk / bilgi notu) ve sayfayı anında kaydet.
+  async function patchItem(it, patchFn) {
     const isCur = it.pageId === cur;
     const src = isCur ? blocks : (pages.find((p) => p.id === it.pageId)?.blocks || []);
-    const nb = src.map((b, j) => (j === it.idx ? { ...b, c: !b.c } : b));
+    const nb = src.map((b, j) => (j === it.idx ? patchFn(b) : b));
     const pTitle = isCur ? title : (pages.find((p) => p.id === it.pageId)?.title || "");
     if (isCur) setBlocks(nb);
-    setPages((xs) => xs.map((p) => (p.id === it.pageId ? { ...p, blocks: nb } : p))); // iyimser
+    setPages((xs) => xs.map((p) => (p.id === it.pageId ? { ...p, blocks: nb } : p)));
     try {
       const p = await postPage(it.pageId, pTitle, nb);
       setPages((xs) => xs.map((x) => (x.id === it.pageId ? p : x)));
       if (isCur) setSavedSig(JSON.stringify({ title: p.title, blocks: p.blocks }));
     } catch (e) {
       setMsg((e?.message || "Kaydedilemedi") + " — sayfayı yenileyin");
+    }
+  }
+  const toggleItem = (it) => patchItem(it, (b) => ({ ...b, c: !b.c }));
+  function saveNote(it, val) {
+    const v = (val || "").trim();
+    if ((it.n || "") === v) return;
+    patchItem(it, (b) => {
+      const nb = { ...b };
+      if (v) nb.n = v; else delete nb.n;
+      return nb;
+    });
+  }
+  function toggleNote(k) {
+    setOpenNotes((s) => {
+      const n = new Set(s);
+      if (n.has(k)) n.delete(k); else n.add(k);
+      return n;
+    });
+  }
+
+  // Takvimden görev ekleme → "Takvim Görevleri" sayfasına todo bloğu olarak yazılır.
+  async function addTask(dateStr, text) {
+    const t = (text || "").trim();
+    if (!t) return;
+    const page = pages.find((p) => p.id === CAL_PAGE_ID);
+    const isCur = cur === CAL_PAGE_ID;
+    const base = isCur ? blocks : (page?.blocks || []);
+    const nb = [...base.filter((b) => !(b.t === "p" && !b.x)), { t: "todo", x: t, c: false, d: dateStr }];
+    const pTitle = page ? (isCur ? title : page.title) || CAL_PAGE_TITLE : CAL_PAGE_TITLE;
+    if (!page) setPages((xs) => [...xs, { id: CAL_PAGE_ID, title: pTitle, blocks: nb, updatedBy: "", updatedAt: "" }]);
+    else setPages((xs) => xs.map((p) => (p.id === CAL_PAGE_ID ? { ...p, blocks: nb } : p)));
+    if (isCur) setBlocks(nb);
+    setNewTask("");
+    try {
+      const p = await postPage(CAL_PAGE_ID, pTitle, nb);
+      setPages((xs) => xs.map((x) => (x.id === CAL_PAGE_ID ? p : x)));
+      if (isCur) setSavedSig(JSON.stringify({ title: p.title, blocks: p.blocks }));
+    } catch (e) {
+      setMsg((e?.message || "Eklenemedi") + " — tekrar deneyin");
     }
   }
 
@@ -355,6 +434,37 @@ export default function Planner() {
     return () => window.removeEventListener("keydown", h);
   });
 
+  function NavBar({ label, onPrev, onNext, onToday }) {
+    return (
+      <div style={S.navBar}>
+        <button onClick={onPrev} style={S.smallBtn} aria-label="Önceki">‹</button>
+        <span style={S.navLabel}>{label}</span>
+        <button onClick={onNext} style={S.smallBtn} aria-label="Sonraki">›</button>
+        <button onClick={onToday} style={{ ...S.smallBtn, marginLeft: 4 }}>Bugün</button>
+      </div>
+    );
+  }
+
+  function Progress({ list }) {
+    const done = list.filter((x) => x.c).length;
+    if (!list.length) return null;
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+        <div style={{ flex: 1, maxWidth: 280, height: 7, background: "#1f1f28", borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ width: (done / list.length) * 100 + "%", height: "100%", background: "#7c3aed" }} />
+        </div>
+        <span style={{ fontSize: 12, color: "#a1a1aa" }}>{done}/{list.length} tamamlandı</span>
+      </div>
+    );
+  }
+
+  function gotoMonth(delta) {
+    let m = calM + delta, y = calY;
+    if (m < 0) { m = 11; y--; }
+    if (m > 11) { m = 0; y++; }
+    setCalM(m); setCalY(y);
+  }
+
   // ── Görünümler ──────────────────────────────────────────────────────────
 
   function renderSayfalar() {
@@ -370,7 +480,7 @@ export default function Planner() {
         ) : (
           pages.map((p) => (
             <button key={p.id} onClick={() => openPage(p)} style={S.pageBtn(p.id === cur)}>
-              <span aria-hidden="true" style={{ fontSize: 11 }}>◦</span>
+              <span aria-hidden="true" style={{ fontSize: 11 }}>{p.id === CAL_PAGE_ID ? "🗓" : "◦"}</span>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {p.title || "(adsız)"}
               </span>
@@ -423,28 +533,46 @@ export default function Planner() {
     return <div style={S.wrap}>{list}{editor}</div>;
   }
 
-  function NavBar({ label, onPrev, onNext, onToday }) {
-    return (
-      <div style={S.navBar}>
-        <button onClick={onPrev} style={S.smallBtn} aria-label="Önceki">‹</button>
-        <span style={S.navLabel}>{label}</span>
-        <button onClick={onNext} style={S.smallBtn} aria-label="Sonraki">›</button>
-        <button onClick={onToday} style={{ ...S.smallBtn, marginLeft: 4 }}>Bugün</button>
-      </div>
-    );
-  }
-
-  function Progress({ list }) {
-    const done = list.filter((x) => x.c).length;
-    if (!list.length) return null;
-    return (
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-        <div style={{ flex: 1, maxWidth: 280, height: 7, background: "#1f1f28", borderRadius: 4, overflow: "hidden" }}>
-          <div style={{ width: (done / list.length) * 100 + "%", height: "100%", background: "#7c3aed" }} />
+  // Gün gruplu YAPILACAK LİSTESİ (Haftalık ve Aylık bunun üstünde).
+  function renderChecklist(days, opts = {}) {
+    const shown = days
+      .map((d) => ({ d, k: ymd(d), list: itemsByDay.get(ymd(d)) || [] }))
+      .filter((g) => g.list.length > 0 || opts.showEmptyDays);
+    if (!shown.some((g) => g.list.length)) {
+      return (
+        <div style={S.empty}>
+          {opts.emptyText || "Görev yok."} Takvim sekmesinde bir güne dokunup görev ekleyebilirsin.
         </div>
-        <span style={{ fontSize: 12, color: "#a1a1aa" }}>{done}/{list.length} tamamlandı</span>
-      </div>
-    );
+      );
+    }
+    return shown.map((g) => {
+      const isToday = g.k === bugun;
+      const done = g.list.filter((x) => x.c).length;
+      return (
+        <section key={g.k}>
+          <div style={S.dayHead(isToday)}>
+            <span>{g.d.getDate()} {AY_KISA[g.d.getMonth()]} · {GUN_KISA[(g.d.getDay() + 6) % 7]}{isToday ? " · bugün" : ""}</span>
+            {g.list.length > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: "#52525b" }}>{done}/{g.list.length}</span>}
+          </div>
+          {g.list.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#3f3f46", padding: "2px 2px 4px" }}>—</div>
+          ) : (
+            <div style={S.card}>
+              {g.list.map((it, i) => (
+                <TaskRow
+                  key={it.pageId + ":" + it.idx} it={it} last={i === g.list.length - 1}
+                  open={openNotes.has(it.pageId + ":" + it.idx)}
+                  onToggle={() => toggleItem(it)}
+                  onToggleNote={() => toggleNote(it.pageId + ":" + it.idx)}
+                  onSaveNote={(v) => saveNote(it, v)}
+                  onOpenPage={it.pageId !== CAL_PAGE_ID ? () => { const p = pages.find((x) => x.id === it.pageId); if (p) openPage(p); } : null}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      );
+    });
   }
 
   function renderHafta() {
@@ -454,80 +582,39 @@ export default function Planner() {
     const label =
       weekStart.getDate() + (weekStart.getMonth() === end.getMonth() ? "" : " " + AY_KISA[weekStart.getMonth()]) +
       " – " + end.getDate() + " " + AY_KISA[end.getMonth()] + " " + end.getFullYear();
-
     return (
       <main style={S.main(mobile)}>
-        <NavBar
-          label={label}
-          onPrev={() => setWeekStart((d) => addDays(d, -7))}
-          onNext={() => setWeekStart((d) => addDays(d, 7))}
-          onToday={() => setWeekStart(startOfWeek(new Date()))}
-        />
-        <Progress list={weekItems} />
-        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(7, 1fr)", gap: 8 }}>
-          {days.map((d) => {
-            const k = ymd(d);
-            const list = itemsByDay.get(k) || [];
-            const isToday = k === bugun;
-            return (
-              <div key={k} style={{
-                background: "#0e0e15", border: "1px solid " + (isToday ? "#7c3aed" : "#1f1f28"),
-                borderRadius: 10, padding: "8px 6px", minHeight: mobile ? 0 : 120,
-              }}>
-                <div style={{ fontSize: 11.5, fontWeight: 800, color: isToday ? "#c4b5fd" : "#71717a", marginBottom: 4, padding: "0 6px" }}>
-                  {gunEtiket(d)}{isToday ? " · bugün" : ""}
-                </div>
-                {list.length === 0 ? (
-                  mobile ? null : <div style={{ fontSize: 11, color: "#3f3f46", padding: "0 6px" }}>—</div>
-                ) : (
-                  list.map((it, i) => <AggItem key={it.pageId + ":" + it.idx + ":" + i} it={it} onToggle={toggleItem} onOpen={(id) => { const p = pages.find((x) => x.id === id); if (p) openPage(p); }} />)
-                )}
-              </div>
-            );
-          })}
+        <div style={{ maxWidth: 680, margin: "0 auto" }}>
+          <NavBar
+            label={label}
+            onPrev={() => setWeekStart((d) => addDays(d, -7))}
+            onNext={() => setWeekStart((d) => addDays(d, 7))}
+            onToday={() => setWeekStart(startOfWeek(new Date()))}
+          />
+          <Progress list={weekItems} />
+          {renderChecklist(days, { showEmptyDays: false, emptyText: "Bu hafta için görev yok." })}
         </div>
-        {weekItems.length === 0 && (
-          <div style={S.empty}>Bu hafta için tarihli görev yok. Sayfalar'da bir yapılacağın yanındaki tarih kutusunu doldur — burada görünür.</div>
-        )}
       </main>
     );
   }
 
   function renderAy() {
+    const daysInMonth = new Date(calY, calM + 1, 0).getDate();
+    const days = Array.from({ length: daysInMonth }, (_, i) => new Date(calY, calM, i + 1));
     const pre = calY + "-" + String(calM + 1).padStart(2, "0");
-    const monthItems = items.filter((it) => it.d.startsWith(pre)).sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
-    const groups = [];
-    for (const it of monthItems) {
-      if (!groups.length || groups[groups.length - 1].d !== it.d) groups.push({ d: it.d, list: [] });
-      groups[groups.length - 1].list.push(it);
-    }
+    const monthItems = items.filter((it) => it.d.startsWith(pre));
     return (
       <main style={S.main(mobile)}>
-        <NavBar
-          label={AY_UZUN[calM] + " " + calY}
-          onPrev={() => { const m = calM === 0 ? 11 : calM - 1; setCalM(m); if (m === 11) setCalY((y) => y - 1); }}
-          onNext={() => { const m = calM === 11 ? 0 : calM + 1; setCalM(m); if (m === 0) setCalY((y) => y + 1); }}
-          onToday={() => { const n = new Date(); setCalY(n.getFullYear()); setCalM(n.getMonth()); }}
-        />
-        <Progress list={monthItems} />
-        {groups.length === 0 ? (
-          <div style={S.empty}>Bu ay için tarihli görev yok.</div>
-        ) : (
-          groups.map((g) => {
-            const d = fromYmd(g.d);
-            const isToday = g.d === bugun;
-            return (
-              <div key={g.d} style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 800, color: isToday ? "#c4b5fd" : "#71717a", marginBottom: 3 }}>
-                  {d.getDate()} {AY_KISA[d.getMonth()]} · {GUN_KISA[(d.getDay() + 6) % 7]}{isToday ? " · bugün" : ""}
-                </div>
-                <div style={{ background: "#0e0e15", border: "1px solid #1f1f28", borderRadius: 10, padding: "4px 2px" }}>
-                  {g.list.map((it, i) => <AggItem key={it.pageId + ":" + it.idx + ":" + i} it={it} onToggle={toggleItem} onOpen={(id) => { const p = pages.find((x) => x.id === id); if (p) openPage(p); }} />)}
-                </div>
-              </div>
-            );
-          })
-        )}
+        <div style={{ maxWidth: 680, margin: "0 auto" }}>
+          <NavBar
+            label={AY_UZUN[calM] + " " + calY}
+            onPrev={() => gotoMonth(-1)}
+            onNext={() => gotoMonth(1)}
+            onToday={() => { const n = new Date(); setCalY(n.getFullYear()); setCalM(n.getMonth()); }}
+          />
+          <Progress list={monthItems} />
+          {renderChecklist(days, { showEmptyDays: false, emptyText: "Bu ay için görev yok." })}
+        </div>
       </main>
     );
   }
@@ -543,60 +630,89 @@ export default function Planner() {
 
     return (
       <main style={S.main(mobile)}>
-        <NavBar
-          label={AY_UZUN[calM] + " " + calY}
-          onPrev={() => { const m = calM === 0 ? 11 : calM - 1; setCalM(m); if (m === 11) setCalY((y) => y - 1); }}
-          onNext={() => { const m = calM === 11 ? 0 : calM + 1; setCalM(m); if (m === 0) setCalY((y) => y + 1); }}
-          onToday={() => { const n = new Date(); setCalY(n.getFullYear()); setCalM(n.getMonth()); setSelDay(ymd(n)); }}
-        />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: mobile ? 3 : 6, marginBottom: 6 }}>
-          {GUN_KISA.map((g) => (
-            <div key={g} style={{ fontSize: 10.5, fontWeight: 800, color: "#52525b", textAlign: "center", textTransform: "uppercase" }}>{g}</div>
-          ))}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: mobile ? 3 : 6 }}>
-          {cells.map((d) => {
-            const k = ymd(d);
-            const inMonth = d.getMonth() === calM;
-            const list = itemsByDay.get(k) || [];
-            const done = list.filter((x) => x.c).length;
-            const isToday = k === bugun;
-            const isSel = k === selDay;
-            return (
-              <button key={k} onClick={() => setSelDay(k)} style={{
-                border: "1px solid " + (isSel ? "#7c3aed" : isToday ? "#4c1d95" : "#1f1f28"),
-                background: isSel ? "#1e1b2e" : "#0e0e15", borderRadius: 9, cursor: "pointer",
-                padding: mobile ? "6px 2px" : "8px 6px", minHeight: mobile ? 46 : 74,
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-                opacity: inMonth ? 1 : 0.35, color: "#e4e4e7",
-              }}>
-                <span style={{ fontSize: mobile ? 12 : 13, fontWeight: isToday ? 800 : 600, color: isToday ? "#c4b5fd" : "inherit" }}>
-                  {d.getDate()}
-                </span>
-                {list.length > 0 && (
-                  <span style={{
-                    fontSize: 10, fontWeight: 800, borderRadius: 8, padding: "0 6px",
-                    background: done === list.length ? "#14261c" : "#1e1b2e",
-                    color: done === list.length ? "#4ade80" : "#a78bfa",
-                  }}>
-                    {done}/{list.length}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ marginTop: 18 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#fafafa", marginBottom: 6 }}>
-            {selD.getDate()} {AY_UZUN[selD.getMonth()]} {selD.getFullYear()} · {GUN_KISA[(selD.getDay() + 6) % 7]}
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <NavBar
+            label={AY_UZUN[calM] + " " + calY}
+            onPrev={() => gotoMonth(-1)}
+            onNext={() => gotoMonth(1)}
+            onToday={() => { const n = new Date(); setCalY(n.getFullYear()); setCalM(n.getMonth()); setSelDay(ymd(n)); }}
+          />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: mobile ? 3 : 6, marginBottom: 6 }}>
+            {GUN_KISA.map((g) => (
+              <div key={g} style={{ fontSize: 10.5, fontWeight: 800, color: "#52525b", textAlign: "center", textTransform: "uppercase" }}>{g}</div>
+            ))}
           </div>
-          {selList.length === 0 ? (
-            <div style={S.empty}>Bu gün için görev yok.</div>
-          ) : (
-            <div style={{ background: "#0e0e15", border: "1px solid #1f1f28", borderRadius: 10, padding: "4px 2px" }}>
-              {selList.map((it, i) => <AggItem key={it.pageId + ":" + it.idx + ":" + i} it={it} onToggle={toggleItem} onOpen={(id) => { const p = pages.find((x) => x.id === id); if (p) openPage(p); }} />)}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: mobile ? 3 : 6 }}>
+            {cells.map((d) => {
+              const k = ymd(d);
+              const inMonth = d.getMonth() === calM;
+              const list = itemsByDay.get(k) || [];
+              const done = list.filter((x) => x.c).length;
+              const isToday = k === bugun;
+              const isSel = k === selDay;
+              return (
+                <button key={k} onClick={() => setSelDay(k)} style={{
+                  border: "1px solid " + (isSel ? "#7c3aed" : isToday ? "#4c1d95" : "#1f1f28"),
+                  background: isSel ? "#1e1b2e" : "#0e0e15", borderRadius: 9, cursor: "pointer",
+                  padding: mobile ? "6px 2px" : "8px 6px", minHeight: mobile ? 46 : 70,
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                  opacity: inMonth ? 1 : 0.35, color: "#e4e4e7",
+                }}>
+                  <span style={{ fontSize: mobile ? 12 : 13, fontWeight: isToday ? 800 : 600, color: isToday ? "#c4b5fd" : "inherit" }}>
+                    {d.getDate()}
+                  </span>
+                  {list.length > 0 && (
+                    <span style={{
+                      fontSize: 10, fontWeight: 800, borderRadius: 8, padding: "0 6px",
+                      background: done === list.length ? "#14261c" : "#1e1b2e",
+                      color: done === list.length ? "#4ade80" : "#a78bfa",
+                    }}>
+                      {done}/{list.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#fafafa", marginBottom: 8 }}>
+              {selD.getDate()} {AY_UZUN[selD.getMonth()]} {selD.getFullYear()} · {GUN_KISA[(selD.getDay() + 6) % 7]}
             </div>
-          )}
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <input
+                value={newTask} onChange={(e) => setNewTask(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") addTask(selDay, newTask); }}
+                placeholder="Bu güne görev ekle…" spellCheck={false}
+                style={{
+                  flex: 1, minWidth: 0, border: "1px solid #2a2a35", background: "#12121a",
+                  color: "#e4e4e7", borderRadius: 8, padding: "9px 11px", fontSize: 13.5, outline: "none",
+                }}
+              />
+              <button
+                onClick={() => addTask(selDay, newTask)} disabled={!newTask.trim()}
+                style={{ ...S.smallBtn, background: newTask.trim() ? "#7c3aed" : "#15151d", color: newTask.trim() ? "#fff" : "#52525b", border: "1px solid " + (newTask.trim() ? "#7c3aed" : "#2a2a35"), padding: "9px 16px" }}
+              >
+                Ekle
+              </button>
+            </div>
+            {selList.length === 0 ? (
+              <div style={S.empty}>Bu gün için görev yok — yukarıdan ekle.</div>
+            ) : (
+              <div style={S.card}>
+                {selList.map((it, i) => (
+                  <TaskRow
+                    key={it.pageId + ":" + it.idx} it={it} last={i === selList.length - 1}
+                    open={openNotes.has(it.pageId + ":" + it.idx)}
+                    onToggle={() => toggleItem(it)}
+                    onToggleNote={() => toggleNote(it.pageId + ":" + it.idx)}
+                    onSaveNote={(v) => saveNote(it, v)}
+                    onOpenPage={it.pageId !== CAL_PAGE_ID ? () => { const p = pages.find((x) => x.id === it.pageId); if (p) openPage(p); } : null}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </main>
     );

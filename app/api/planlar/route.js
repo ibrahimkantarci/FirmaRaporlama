@@ -69,6 +69,7 @@ function sanitizeBlocks(blocks) {
     if (t === "todo") {
       o.c = !!b?.c;
       if (typeof b?.d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.d)) o.d = b.d;
+      if (typeof b?.n === "string" && b.n.trim()) o.n = b.n.slice(0, 1000); // bilgi/info notu
     }
     return o;
   });
