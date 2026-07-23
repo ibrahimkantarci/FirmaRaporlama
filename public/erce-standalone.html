@@ -322,6 +322,8 @@ function buildErceFilters(){
   (S._renewalRows||[]).forEach(r=>{if(r.ay)aylar.add(r.ay);});
   const _cyAy=custYenAyHeader();
   if(_cyAy)(S.custYenileme||[]).forEach(r=>{const a=normSheetAy(r[_cyAy]);if(a)aylar.add(a);});
+  const _dH=decayHeaders();
+  if(_dH&&_dH.bas)(S.decayTakip||[]).forEach(r=>{const a=decayEvalAy(r[_dH.bas]);if(a)aylar.add(a);});
   const AY_FLOOR='2026-05'; // Mayıs 2026 öncesini gösterme (kalabalık yapmasın)
   const sel=document.getElementById('f-ay');
   if(sel){
@@ -502,35 +504,91 @@ function renderFlagDurumu(){
 }
 
 // ── 5) DECAY — yenilenen sözleşmelerde tutar değişimi ───────────────────────
+// Sheet tarih değeri → {y, m} (Excel seri no / dd.mm.yyyy / yyyy-mm-dd)
+function sheetDateYM(v){
+  var s=String(v==null?'':v).trim();if(!s)return null;
+  if(/^\d+(\.\d+)?$/.test(s)&&+s>20000&&+s<80000){var d=new Date(Date.UTC(1899,11,30)+Math.floor(+s)*86400000);return {y:d.getUTCFullYear(),m:d.getUTCMonth()+1};}
+  var m=s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})/);if(m)return {y:+m[3],m:+m[2]};
+  m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);if(m)return {y:+m[1],m:+m[2]};
+  var ms=Date.parse(s);if(!isNaN(ms)){var d2=new Date(ms);return {y:d2.getUTCFullYear(),m:d2.getUTCMonth()+1};}
+  return null;
+}
+// Decay takip satırı → değerlendirme ayı: Başlama Tarihi + 1 YIL (aynı ay)
+function decayEvalAy(v){var p=sheetDateYM(v);if(!p)return '';return (p.y+1)+'-'+('0'+p.m).slice(-2);}
+function decayHeaders(){
+  var rows=S.decayTakip||[];if(!rows.length)return null;
+  var heads=Object.keys(rows[0]||{});
+  var exact=function(n){var t=foldTr(n);return heads.find(function(h){return foldTr(h)===t;})||null;};
+  var fuzzy=function(re){return heads.find(function(h){return re.test(foldTr(h));})||null;};
+  return {
+    heads:heads,
+    bas: exact('Başlama Tarihi')||fuzzy(/baslama.?tarih|start.?date/),
+    durum: exact('Durum')||fuzzy(/durum|status/),
+    py: fuzzy(/(^|[^a-z])py($|[^a-z])|portfoy|account.?manager|rci/),
+    firma: fuzzy(/firma|provider|musteri|customer|unvan/),
+  };
+}
 function renderDecay(){
   const el=document.getElementById('b-decay');
-  const rows=fRen().filter(r=>r.yeniledi&&r.oncesi>0&&r.sonrasi>0);
-  if(!rows.length){el.innerHTML='<div class="empty">Filtreye uyan yenilenen sözleşme yok</div>';return;}
-  const ayMap={};
-  rows.forEach(r=>{
-    if(!r.ay)return;
-    if(!ayMap[r.ay])ayMap[r.ay]={sum:0,n:0,onc:0,son:0};
-    ayMap[r.ay].sum+=(r.sonrasi-r.oncesi)/r.oncesi;
-    ayMap[r.ay].n++;ayMap[r.ay].onc+=r.oncesi;ayMap[r.ay].son+=r.sonrasi;
-  });
-  const aylar=Object.keys(ayMap).sort();
-  const totOnc=rows.reduce((a,r)=>a+r.oncesi,0),totSon=rows.reduce((a,r)=>a+r.sonrasi,0);
-  const genel=totOnc?Math.round((totSon-totOnc)/totOnc*100):0;
-  const gc=genel>=0?'#16a34a':'#dc2626';
-  el.classList.remove('empty');
-  el.innerHTML='<div class="stat-grid">'+
-    '<div class="stat"><div class="v" style="color:'+gc+'">'+(genel>0?'+':'')+genel+'%</div><div class="l">Genel değişim (value ağırlıklı)</div></div>'+
-    '<div class="stat"><div class="v">'+rows.length+'</div><div class="l">Yenilenen sözleşme</div></div>'+
-    '<div class="stat"><div class="v">'+fmtTL(totOnc/12)+'</div><div class="l">Eski aylık toplam</div></div>'+
-    '<div class="stat"><div class="v">'+fmtTL(totSon/12)+'</div><div class="l">Yeni aylık toplam</div></div>'+
-  '</div>'+
-  aylar.map(ay=>{
-    const d=ayMap[ay];
-    const p=d.onc?Math.round((d.son-d.onc)/d.onc*100):0;   // value-ağırlıklı
-    const c=p>=0?'#16a34a':'#dc2626';
-    const w=Math.min(Math.abs(p),100);
-    return '<div class="row"><span class="lbl">'+ay+'</span><div class="track"><div class="fill" style="width:'+w+'%;background:'+c+'"></div></div><span class="val" style="color:'+c+'">'+(p>0?'+':'')+p+'% <span style="font-weight:400;color:#a1a1aa;font-size:10px">('+d.n+' söz.)</span></span></div>';
-  }).join('');
+  const rows=S.decayTakip||[];
+  if(!rows.length){el.className='empty';el.innerHTML='Decay takip verisi yok. Kaynak: renewal_data → "Decay Takip" sekmesi. Servis hesabının bu Sheet\'te Görüntüleyen olması gerekir.';return;}
+  const H=decayHeaders();
+  if(!H||!H.bas||!H.durum){el.className='empty';el.innerHTML='Decay takip sekmesinde "Başlama Tarihi" ve/veya "Durum" kolonu bulunamadı. Bulunan kolonlar: '+esc((H&&H.heads||[]).join(', '))+'';return;}
+  el.classList.remove('empty');el.className='';
+  const isDecay=(v)=>/decay/.test(foldTr(v));
+  let list=rows.filter(r=>decayEvalAy(r[H.bas]));
+  if(H.py){list=list.filter(r=>pyAllowed(r[H.py]));
+    if(S._ercePY!=='Tümü')list=list.filter(r=>pyFirstKey(r[H.py])===pyFirstKey(S._ercePY));}
+  const ay=S._erceAy||'';
+  const pct=(n)=>'%'+n.toFixed(1);
+  const col=(p)=>p<=10?'#16a34a':p<=25?'#ea580c':'#dc2626'; // decay oranı: düşük iyi
+
+  if(!ay){
+    // Ay seçilmedi → ay ay kohort / decay tablosu
+    const byAy={};
+    list.forEach(r=>{const a=decayEvalAy(r[H.bas]);if(!byAy[a])byAy[a]={n:0,d:0};byAy[a].n++;if(isDecay(r[H.durum]))byAy[a].d++;});
+    const aylar=Object.keys(byAy).sort();
+    const tn=aylar.reduce((a,k)=>a+byAy[k].n,0),td=aylar.reduce((a,k)=>a+byAy[k].d,0);
+    el.innerHTML='<div class="stat-grid">'+
+      '<div class="stat"><div class="v">'+tn+'</div><div class="l">Kohort (firma)</div></div>'+
+      '<div class="stat"><div class="v" style="color:#dc2626">'+td+'</div><div class="l">Decay olan</div></div>'+
+      '<div class="stat"><div class="v" style="color:'+(tn?col(td/tn*100):'#71717a')+'">'+(tn?pct(td/tn*100):'—')+'</div><div class="l">Decay oranı</div></div>'+
+    '</div>'+
+    '<table><thead><tr><th>Ay</th><th style="text-align:right">Kohort</th><th style="text-align:right">Decay</th><th style="text-align:right">Oran</th></tr></thead><tbody>'+
+    aylar.map(a=>{const d=byAy[a],p=d.n?d.d/d.n*100:0;
+      return '<tr><td style="font-weight:600">'+esc(a)+'</td><td style="text-align:right">'+d.n+'</td><td style="text-align:right">'+d.d+'</td><td style="text-align:right;font-weight:700;color:'+col(p)+'">'+pct(p)+'</td></tr>';}).join('')+
+    '</tbody></table>'+
+    '<div class="empty" style="text-align:left;padding:8px 2px">Bir ayın kohortu = Başlama Tarihi <b>bir yıl önceki aynı ay</b> olan firmalar. Üstten ay seçerek firma listesini görebilirsin.</div>';
+    return;
+  }
+
+  // Ay seçildi → o ayın kohortu + firma listesi
+  const cur=list.filter(r=>decayEvalAy(r[H.bas])===ay);
+  if(!cur.length){el.innerHTML='<div class="empty">'+esc(ay)+' için kohort yok (Başlama Tarihi '+esc(String(+ay.slice(0,4)-1)+'-'+ay.slice(5))+' olan firma bulunamadı).</div>';return;}
+  const dec=cur.filter(r=>isDecay(r[H.durum]));
+  const p=cur.length?dec.length/cur.length*100:0;
+  let out='<div class="stat-grid">'+
+    '<div class="stat"><div class="v" style="font-size:15px">'+esc(ay)+'</div><div class="l">Değerlendirme ayı</div></div>'+
+    '<div class="stat"><div class="v">'+cur.length+'</div><div class="l">Kohort (firma)</div></div>'+
+    '<div class="stat"><div class="v" style="color:#dc2626">'+dec.length+'</div><div class="l">Decay olan</div></div>'+
+    '<div class="stat"><div class="v" style="color:'+col(p)+'">'+pct(p)+'</div><div class="l">Decay oranı</div></div>'+
+  '</div>';
+  if(H.py&&S._ercePY==='Tümü'){
+    const byPy={};
+    cur.forEach(r=>{const k=String(r[H.py]||'—').trim();if(!byPy[k])byPy[k]={n:0,d:0};byPy[k].n++;if(isDecay(r[H.durum]))byPy[k].d++;});
+    out+='<table><thead><tr><th>PY</th><th style="text-align:right">Kohort</th><th style="text-align:right">Decay</th><th style="text-align:right">Oran</th></tr></thead><tbody>'+
+      Object.entries(byPy).map(([k,v])=>{const pp=v.n?v.d/v.n*100:0;
+        return '<tr><td style="font-weight:600">'+esc(k.split(' ')[0])+'</td><td style="text-align:right">'+v.n+'</td><td style="text-align:right">'+v.d+'</td><td style="text-align:right;font-weight:700;color:'+col(pp)+'">'+pct(pp)+'</td></tr>';})
+        .join('')+'</tbody></table>';
+  }
+  const keyCols=[H.firma,H.py,H.bas,H.durum].filter(Boolean);
+  const show=keyCols.concat(H.heads.filter(h=>keyCols.indexOf(h)<0)).slice(0,12);
+  out+='<div style="overflow:auto;max-height:420px;margin-top:10px"><table><thead><tr>'+show.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+
+    cur.slice(0,300).map(r=>'<tr'+(isDecay(r[H.durum])?' style="background:#fef2f2"':'')+'>'+
+      show.map(h=>{var v=r[h];if(h===H.bas){var pd=sheetDateYM(v);if(pd)v=('0'+pd.m).slice(-2)+'.'+pd.y;}
+        return '<td'+(h===H.firma?' style="font-weight:600"':'')+'>'+esc(String(v==null?'':v))+'</td>';}).join('')+'</tr>').join('')+
+    '</tbody></table></div>';
+  el.innerHTML=out;
 }
 
 // ── SEKME GEÇİŞİ (büyük toggle) — sadece görünürlük; veri/hesap etkilenmez ───

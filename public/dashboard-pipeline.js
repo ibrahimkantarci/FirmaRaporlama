@@ -1148,6 +1148,13 @@
         loaded.push("phFlagAy: " + S.phFlagAy.length);
       }
 
+      // ── Decay takip (renewal_data harici canlı Sheet) ────────────────────
+      if (Array.isArray(d.decayTakip)) {
+        S.decayTakip = d.decayTakip;
+        S.loaded.decayTakip = d.decayTakip.length > 0;
+        loaded.push("decayTakip: " + d.decayTakip.length);
+      }
+
       // ── Customer bazında yenileme (renewal_data harici canlı Sheet) ──────
       // Başlıklar Sheet sahibinin elinde değişebilir → ham satır nesneleri olduğu
       // gibi taşınır; kolon tespiti (ay/müşteri/value) render tarafında yapılır.
