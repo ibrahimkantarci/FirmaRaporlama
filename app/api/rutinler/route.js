@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 const TAB = "Rutinler";
 const HEADER = [
-  "id", "baslik", "not", "tekrar", "aralik", "gunler", "ayGunu",
+  "id", "baslik", "not", "notYazan", "tekrar", "aralik", "gunler", "ayGunu",
   "baslangic", "bitis", "saat", "aktif", "tamamlanan", "guncelleyen", "guncelleme",
 ];
 const MAX_ROUTINES = 200;
@@ -33,12 +33,12 @@ function parseRow(r) {
   if (!id) return null;
   let done = [];
   try {
-    const p = JSON.parse(String(r[11] || "[]"));
+    const p = JSON.parse(String(r[12] || "[]"));
     if (Array.isArray(p)) done = p.filter((x) => typeof x === "string" && ISO_D.test(x));
   } catch {
     done = [];
   }
-  const days = String(r[5] ?? "")
+  const days = String(r[6] ?? "")
     .split(",")
     .map((x) => parseInt(x, 10))
     .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
@@ -46,17 +46,18 @@ function parseRow(r) {
     id,
     x: String(r[1] ?? ""),
     n: String(r[2] ?? ""),
-    freq: ["gun", "hafta", "ay"].includes(String(r[3] ?? "")) ? String(r[3]) : "hafta",
-    every: Math.min(Math.max(parseInt(r[4], 10) || 1, 1), 60),
+    na: String(r[3] ?? ""),
+    freq: ["gun", "hafta", "ay"].includes(String(r[4] ?? "")) ? String(r[4]) : "hafta",
+    every: Math.min(Math.max(parseInt(r[5], 10) || 1, 1), 60),
     days,
-    dom: Math.min(Math.max(parseInt(r[6], 10) || 1, 1), 31),
-    start: ISO_D.test(String(r[7] ?? "")) ? String(r[7]) : "",
-    end: ISO_D.test(String(r[8] ?? "")) ? String(r[8]) : "",
-    time: HHMM.test(String(r[9] ?? "")) ? String(r[9]) : "",
-    active: String(r[10] ?? "").toLowerCase() !== "false",
+    dom: Math.min(Math.max(parseInt(r[7], 10) || 1, 1), 31),
+    start: ISO_D.test(String(r[8] ?? "")) ? String(r[8]) : "",
+    end: ISO_D.test(String(r[9] ?? "")) ? String(r[9]) : "",
+    time: HHMM.test(String(r[10] ?? "")) ? String(r[10]) : "",
+    active: String(r[11] ?? "").toLowerCase() !== "false",
     done,
-    updatedBy: String(r[12] ?? ""),
-    updatedAt: String(r[13] ?? ""),
+    updatedBy: String(r[13] ?? ""),
+    updatedAt: String(r[14] ?? ""),
   };
 }
 
@@ -79,7 +80,7 @@ async function writeRoutines(list) {
   const matrix = [HEADER];
   for (const r of list) {
     matrix.push([
-      r.id, r.x, r.n, r.freq, String(r.every), (r.days || []).join(","), String(r.dom),
+      r.id, r.x, r.n, r.na || "", r.freq, String(r.every), (r.days || []).join(","), String(r.dom),
       r.start, r.end, r.time, r.active ? "true" : "false", JSON.stringify(r.done || []),
       r.updatedBy || "", r.updatedAt || "",
     ]);
@@ -112,6 +113,7 @@ function sanitize(body, email) {
       id,
       x,
       n: String(body?.n ?? "").slice(0, 1000),
+      na: String(body?.na ?? "").slice(0, 120),
       freq,
       every: Math.min(Math.max(parseInt(body?.every, 10) || 1, 1), 60),
       days,

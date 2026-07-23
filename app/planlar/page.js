@@ -12,7 +12,7 @@ export default async function PlanlarPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <AppHeader back={{ href: "/", label: "Hub" }} subtitle="Planlar" email={session.user.email} />
-      <Planner />
+      <Planner email={session.user.email} />
     </div>
   );
 }

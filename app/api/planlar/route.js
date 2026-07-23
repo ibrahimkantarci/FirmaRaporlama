@@ -70,6 +70,8 @@ function sanitizeBlocks(blocks) {
       o.c = !!b?.c;
       if (typeof b?.d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.d)) o.d = b.d;
       if (typeof b?.n === "string" && b.n.trim()) o.n = b.n.slice(0, 1000); // bilgi/info notu
+      // na: notu yazan kişinin e-postası (satır altında kısa adı gösterilir)
+      if (typeof b?.na === "string" && b.na.trim()) o.na = b.na.slice(0, 120);
     }
     return o;
   });

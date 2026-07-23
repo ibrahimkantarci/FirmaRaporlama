@@ -183,6 +183,7 @@ const S = {
     marginTop: 4, marginLeft: 25, fontSize: 12, color: "#8b8b96", lineHeight: "17px",
     whiteSpace: "pre-wrap", cursor: "pointer", borderLeft: "2px solid #2a2a35", paddingLeft: 8,
   },
+  noteBy: { marginTop: 3, fontSize: 11, fontWeight: 700, color: "#a78bfa", letterSpacing: ".2px" },
   pageTag: {
     fontSize: 10, fontWeight: 700, color: "#a78bfa", background: "#1e1b2e", border: "none",
     borderRadius: 5, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0, cursor: "pointer",
@@ -214,7 +215,7 @@ function Block({ b, mobile, onChange, onKeyDown, taRef }) {
           if (t === "p" && v.startsWith("# ")) { t = "h"; v = v.slice(2); }
           else if (t === "p" && (v.startsWith("[] ") || v.startsWith("[ ] "))) { t = "todo"; v = v.replace(/^\[\s?\]\s/, ""); c = false; }
           // Dikkat: tarih (d) ve bilgi notu (n) yazarken kaybolmasın.
-          onChange({ t, x: v, ...(t === "todo" ? { c: !!c, ...(b.d ? { d: b.d } : {}), ...(b.n ? { n: b.n } : {}) } : {}) });
+          onChange({ t, x: v, ...(t === "todo" ? { c: !!c, ...(b.d ? { d: b.d } : {}), ...(b.n ? { n: b.n } : {}), ...(b.na ? { na: b.na } : {}) } : {}) });
         }}
         onKeyDown={onKeyDown}
         style={{ ...S.ta(b.t), textDecoration: b.t === "todo" && b.c ? "line-through" : "none", opacity: b.t === "todo" && b.c ? 0.55 : 1 }}
@@ -262,13 +263,24 @@ function TaskRow({ it, last, open, onToggle, onToggleNote, onSaveNote, onOpenPag
           style={S.noteTa} rows={2} spellCheck={false}
         />
       ) : it.n ? (
-        <div style={S.noteText} onClick={onToggleNote}>{it.n}</div>
+        <div style={S.noteText} onClick={onToggleNote}>
+          {it.n}
+          {it.na ? <div style={S.noteBy}>— {kisaAd(it.na)}</div> : null}
+        </div>
       ) : null}
     </div>
   );
 }
 
-export default function Planner({ initialView = "sayfalar" }) {
+// E-postanın "x.y@dugun.com" biçimindeki x kısmı — not satırının altında gösterilir.
+function kisaAd(mail) {
+  const s = String(mail || "").trim();
+  if (!s) return "";
+  const local = s.split("@")[0];
+  return local.split(".")[0] || local;
+}
+
+export default function Planner({ initialView = "sayfalar", email = "" }) {
   const mobile = useIsMobile();
   const [view, setView] = useState(initialView); // sayfalar | hafta | ay | takvim
   const [mobilePane, setMobilePane] = useState("list");
@@ -291,9 +303,6 @@ export default function Planner({ initialView = "sayfalar" }) {
   const [newTask, setNewTask] = useState("");
   const [routines, setRoutines] = useState([]);
   const [rForm, setRForm] = useState(null); // açık rutin formu (null = kapalı)
-  // Bildirim izni yalnız istemcide bilinir; sunucu render'ında undefined kalsın ki
-  // "izin ver" butonu hydration uyuşmazlığı yaratmasın.
-  const [notifPerm, setNotifPerm] = useState(null);
   const [openNotes, setOpenNotes] = useState(() => new Set()); // "pageId:idx"
 
   const sig = JSON.stringify({ title, blocks });
@@ -347,7 +356,7 @@ export default function Planner({ initialView = "sayfalar" }) {
     for (const p of effPages) {
       (p.blocks || []).forEach((b, idx) => {
         if (b.t === "todo" && b.d) {
-          out.push({ pageId: p.id, pageTitle: p.title || "(adsız)", idx, x: b.x, c: !!b.c, d: b.d, n: b.n || "" });
+          out.push({ pageId: p.id, pageTitle: p.title || "(adsız)", idx, x: b.x, c: !!b.c, d: b.d, n: b.n || "", na: b.na || "" });
         }
       });
     }
@@ -370,7 +379,7 @@ export default function Planner({ initialView = "sayfalar" }) {
       for (const r of routines) {
         if (occursOn(r, k)) {
           out.push({
-            kind: "rutin", rid: r.id, d: k, x: r.x, n: r.n || "",
+            kind: "rutin", rid: r.id, d: k, x: r.x, n: r.n || "", na: r.na || "",
             c: (r.done || []).includes(k), pageTitle: "rutin", time: r.time || "",
           });
         }
@@ -459,12 +468,12 @@ export default function Planner({ initialView = "sayfalar" }) {
     if ((it.n || "") === v) return;
     if (it.kind === "rutin") {
       const r = routines.find((y) => y.id === it.rid);
-      if (r) postRoutine({ ...r, n: v });
+      if (r) postRoutine({ ...r, n: v, na: v ? email : "" });
       return;
     }
     patchItem(it, (b) => {
       const nb = { ...b };
-      if (v) nb.n = v; else delete nb.n;
+      if (v) { nb.n = v; nb.na = email; } else { delete nb.n; delete nb.na; }
       return nb;
     });
   }
@@ -549,52 +558,6 @@ export default function Planner({ initialView = "sayfalar" }) {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   });
-
-  // HATIRLATICI (uygulama açıkken): saati gelen ve o gün henüz işaretlenmemiş
-  // rutinler için tarayıcı bildirimi. Dakikada bir bakar; aynı rutin+gün için
-  // bir kez bildirir (localStorage'da işaretlenir, sekme yenilense de tekrarlamaz).
-  //
-  // SINIR: bu yalnız sayfa AÇIKKEN çalışır. Uygulama kapalıyken telefona/e-postaya
-  // bildirim için sunucu tarafında zamanlanmış iş (Vercel Cron) + bir gönderim
-  // kanalı gerekir; rutin tanımındaki "time" alanı o iş için hazır duruyor.
-  useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) setNotifPerm(Notification.permission);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    const KEY = "planlar:hatirlatildi";
-    function seen() {
-      try { return new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch { return new Set(); }
-    }
-    function mark(k) {
-      try {
-        const s2 = seen(); s2.add(k);
-        localStorage.setItem(KEY, JSON.stringify([...s2].slice(-400)));
-      } catch { /* localStorage kapalıysa sorun değil */ }
-    }
-    function tick() {
-      if (Notification.permission !== "granted") return;
-      const now = new Date();
-      const k = ymd(now);
-      const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
-      const s2 = seen();
-      for (const r of routines) {
-        if (!r.time || r.time > hhmm) continue;          // saati gelmemiş
-        if (!occursOn(r, k)) continue;                    // bugün düşmüyor
-        if ((r.done || []).includes(k)) continue;         // zaten yapılmış
-        const id = r.id + ":" + k;
-        if (s2.has(id)) continue;                         // bildirildi
-        try {
-          new Notification("Rutin görev", { body: r.x + (r.n ? "\n" + r.n : ""), tag: id });
-          mark(id);
-        } catch { /* bildirim reddedildiyse geç */ }
-      }
-    }
-    tick();
-    const t = setInterval(tick, 60000);
-    return () => clearInterval(t);
-  }, [routines]);
 
   function NavBar({ label, onPrev, onNext, onToday }) {
     return (
@@ -901,15 +864,6 @@ export default function Planner({ initialView = "sayfalar" }) {
           <button onClick={() => setRForm(f ? null : blank)} style={{ ...S.smallBtn, marginLeft: "auto" }}>
             {f ? "Kapat" : "+ Rutin ekle"}
           </button>
-          {notifPerm && notifPerm !== "granted" && (
-            <button
-              onClick={() => Notification.requestPermission().then((p) => setNotifPerm(p))}
-              style={{ ...S.smallBtn, color: "#c4b5fd", borderColor: "#312a52" }}
-              title="Uygulama açıkken saatinde bildirim gönderilir"
-            >
-              Bildirimlere izin ver
-            </button>
-          )}
         </div>
 
         {f && (
