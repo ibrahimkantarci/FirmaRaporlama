@@ -10,87 +10,316 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .topbar{background:#fff;border-bottom:1px solid #e4e4e7;padding:14px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
 .topbar h1{font-size:17px;font-weight:700;color:#0F766E}
 .topbar .sub{font-size:12px;color:#a1a1aa}
-.wrap{max-width:1100px;margin:0 auto;padding:20px 24px 60px}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 24px 60px}
 .card{background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:18px;margin-bottom:16px}
 .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
 .ct{font-size:14px;font-weight:700;color:#18181b}
 .note{font-size:11px;color:#a1a1aa}
-.row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
-.lbl{font-size:12px;width:110px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.track{flex:1;background:#f4f4f5;border-radius:5px;height:17px;overflow:hidden;position:relative}
-.fill{height:100%;border-radius:5px;background:#0F766E;transition:width .3s}
-.val{font-size:12px;font-weight:700;width:110px;text-align:right;color:#0F766E}
-.stat-grid{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.stat{background:#f8fafc;border:1px solid #e4e4e7;border-radius:8px;padding:10px 16px;text-align:center;min-width:105px}
+.stat-grid{display:flex;gap:12px;flex-wrap:wrap}
+.stat{background:#f8fafc;border:1px solid #e4e4e7;border-radius:8px;padding:10px 16px;text-align:center;min-width:120px;flex:1}
 .stat .v{font-size:20px;font-weight:800;color:#0F766E}
 .stat .l{font-size:10.5px;color:#71717a;margin-top:2px}
-.chip{display:inline-flex;padding:4px 11px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;background:#f4f4f5;color:#52525b;border:1px solid #e4e4e7;user-select:none}
-.chip.on{background:#374151;color:#fff;border-color:#374151}
+.chip{display:inline-flex;padding:4px 11px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;background:#f4f4f5;color:#52525b;border:1px solid #e4e4e7;user-select:none;margin-right:4px}
+.chip.on{background:#0F766E;color:#fff;border-color:#0F766E}
 table{width:100%;border-collapse:collapse}
-th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#71717a;text-align:left;padding:6px 8px;border-bottom:1px solid #e4e4e7}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#71717a;text-align:left;padding:6px 8px;border-bottom:1px solid #e4e4e7;white-space:nowrap}
 td{padding:7px 8px;border-bottom:1px solid #f4f4f5;font-size:12.5px}
+.num{text-align:right;font-variant-numeric:tabular-nums}
 .empty{color:#a1a1aa;font-size:12px;padding:14px;text-align:center}
-#toast{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#18181b;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:99}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-.tab{flex:1;min-width:150px;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:14px 12px;font-size:13.5px;font-weight:700;color:#52525b;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;gap:5px;transition:all .15s;user-select:none;line-height:1.2}
-.tab .ti{font-size:22px}
-.tab:hover{border-color:#0F766E;color:#0F766E}
-.tab.on{background:#0F766E;color:#fff;border-color:#0F766E;box-shadow:0 2px 10px rgba(15,118,110,.28)}
-.tabpane{display:none}
-.tabpane.on{display:block}
+.crow{cursor:pointer}
+.crow:hover{background:#f0fdfa}
+.crow.open{background:#ecfdf5}
+.caret{display:inline-block;width:12px;color:#0F766E;font-weight:700}
+.tierbadge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;border:1px solid}
+.t-A{background:#ecfdf5;color:#065f46;border-color:#a7f3d0}
+.t-B{background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
+.t-C{background:#fefce8;color:#854d0e;border-color:#fde68a}
+.t-D{background:#f4f4f5;color:#52525b;border-color:#e4e4e7}
+.sub-td{background:#fafafa;padding:0 8px 10px 30px}
+.sub-td table{background:#fff;border:1px solid #e4e4e7;border-radius:8px;overflow:hidden}
+.sub-td th{font-size:9.5px;background:#f8fafc}
+.sub-td td{font-size:11.5px;padding:5px 8px}
+.bar{height:6px;border-radius:3px;background:#0F766E;display:inline-block;vertical-align:middle}
+select{padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer}
+.flabel{font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px}
 </style>
 </head>
 <body>
 <div class="topbar">
   <h1>Mvp WP Call Query</h1>
-  <span class="sub" id="freshness">Veri bekleniyor…</span>
+  <span class="sub" id="freshness">Yükleniyor…</span>
 </div>
 <div class="wrap">
 
   <div class="card" style="padding:12px 18px">
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">PY</span>
-      <span id="f-py-chips"><span class="chip on">Tümü</span></span>
-      <span style="font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;margin-left:12px">Ay</span>
-      <select id="f-ay" onchange="setMvpAy(this.value)" style="padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#374151;background:#fff;cursor:pointer">
-        <option value="">Tüm aylar</option>
-      </select>
-      <span id="f-info" style="font-size:11px;color:#a1a1aa;margin-left:4px"></span>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="flabel">Sözleşme Bitiş Ayı</span>
+      <select id="f-ay" onchange="MVP.setAy(this.value)"><option value="">Tüm aylar</option></select>
+      <span class="flabel" style="margin-left:10px">Tutar Sınıfı</span>
+      <span id="f-tier"></span>
+      <span id="f-info" class="note" style="margin-left:6px"></span>
+    </div>
+    <div class="note" style="margin-top:8px">
+      Aktif providerlar = Dashboard_Firma en güncel <code>load_date</code> snapshot'ı. Sınıflar sözleşme (Satış Fiyatı) tutarına göre.
     </div>
   </div>
 
-  <div class="tabs" id="mvp-tabs">
-    <div class="tab on" data-tab="sorgu" onclick="setMvpTab('sorgu')"><span class="ti">🔎</span>Sorgu</div>
+  <div class="card">
+    <div class="card-head"><span class="ct">📌 Özet</span><span class="note" id="ozet-note"></span></div>
+    <div class="stat-grid" id="b-ozet"><div class="empty">Yükleniyor…</div></div>
   </div>
 
-  <div class="tabpane on" id="pane-sorgu">
-    <div class="card">
-      <div class="card-head"><span class="ct">🔎 Mvp WP Call Query</span><span class="note">veri kaynağı henüz bağlanmadı</span></div>
-      <div id="b-sorgu" class="empty">Veri bekleniyor</div>
+  <div class="card">
+    <div class="card-head"><span class="ct">🏷️ Tutar Sınıfı Dağılımı</span><span class="note">provider sayısı ve toplam sözleşme tutarı</span></div>
+    <div id="b-tier"><div class="empty">Yükleniyor…</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="ct">👑 En Çok Ödeyen 20 Müşteri</span>
+      <span class="note">satıra tıkla → firmalar (provider) açılır</span>
     </div>
+    <div id="b-top"><div class="empty">Yükleniyor…</div></div>
   </div>
 
 </div>
-<div id="toast"></div>
+
 <script>
-var MVP_STATE = { py: '', ay: '' };
+// ─────────────────────────────────────────────────────────────────────────
+// Mvp WP Call Query
+// Kaynak: /api/mvp-call-query/data → Dashboard_Firma (Providers-PY "Firmalar"
+// objesi 4a681953…, en yeni load_date = aktif providerlar).
+//
+// MÜŞTERİ ≠ FİRMA: bir müşterinin (Müşteri İD) birden çok firması (RÇİ) olabilir.
+// Üst tablo MÜŞTERİ kırılımı; açılır alt tablo o müşterinin PROVIDER'ları.
+// ─────────────────────────────────────────────────────────────────────────
 
-function setMvpTab(name){
-  var tabs=document.querySelectorAll('#mvp-tabs .tab');
-  for(var i=0;i<tabs.length;i++){ tabs[i].classList.toggle('on', tabs[i].getAttribute('data-tab')===name); }
-  var keys=['sorgu'];
-  for(var j=0;j<keys.length;j++){ var p=document.getElementById('pane-'+keys[j]); if(p) p.classList.toggle('on', keys[j]===name); }
+// Tutar sınıfı eşikleri — TL. Değiştirmek için yalnız burayı düzenle.
+var TIERS = [
+  { k: 'A', label: 'A · 100.000₺+',       min: 100000, max: Infinity },
+  { k: 'B', label: 'B · 50–100.000₺',     min: 50000,  max: 100000 },
+  { k: 'C', label: 'C · 20–50.000₺',      min: 20000,  max: 50000 },
+  { k: 'D', label: 'D · 20.000₺ altı',    min: -Infinity, max: 20000 }
+];
+function tierOf(v) {
+  for (var i = 0; i < TIERS.length; i++) if (v >= TIERS[i].min && v < TIERS[i].max) return TIERS[i].k;
+  return 'D';
 }
 
-function setMvpAy(v){
-  MVP_STATE.ay = v || '';
-  if (typeof window.renderMvp === 'function') window.renderMvp();
+var MVP = { rows: [], ay: '', tier: '', open: {} };
+
+// "11.332,50" / "11332.5" / 11332 → 11332.5 (TR binlik-nokta + ondalık-virgül güvenli)
+function num(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  var s = String(v == null ? '' : v).trim();
+  if (!s || s === '-') return 0;
+  s = s.replace(/[^\d,.\-]/g, '');
+  if (s.indexOf(',') >= 0) {
+    // Virgül varsa ondalıktır → noktalar binlik ayracı ("11.332,50" → 11332.50)
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (s.indexOf('.') >= 0) {
+    // Virgül yok: noktadan sonraki HER grup tam 3 hane ise TR binlik ayracı
+    // ("12.000" → 12000, "1.234.567" → 1234567); değilse ondalık ("11332.5").
+    var g = s.split('.');
+    var thousands = g.length > 1 && g.slice(1).every(function (x) { return /^\d{3}$/.test(x); });
+    if (thousands) s = g.join('');
+  }
+  var n = parseFloat(s);
+  return isFinite(n) ? n : 0;
 }
 
-function setMvpPy(v){
-  MVP_STATE.py = v || '';
-  if (typeof window.renderMvp === 'function') window.renderMvp();
+// Bitiş Tarihi → "YYYY-MM". Desteklenen: YYYY-MM-DD, DD.MM.YYYY, DD/MM/YYYY, Excel seri no.
+function ayOf(v) {
+  if (v == null || v === '') return '';
+  if (typeof v === 'number' && v > 20000 && v < 80000) { // Excel seri (1899-12-30 epoch)
+    var d = new Date(Date.UTC(1899, 11, 30) + v * 86400000);
+    return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+  }
+  var s = String(v).trim();
+  var m = s.match(/^(\d{4})[-\/.](\d{1,2})/);                 // YYYY-MM-DD
+  if (m) return m[1] + '-' + String(m[2]).padStart(2, '0');
+  m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/);      // DD.MM.YYYY
+  if (m) return m[3] + '-' + String(m[2]).padStart(2, '0');
+  return '';
 }
+
+function fmtTL(n) {
+  return Math.round(n).toLocaleString('tr-TR') + '₺';
+}
+function fmtInt(n) { return Math.round(n).toLocaleString('tr-TR'); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  });
+}
+
+// Ham satır → normalize kayıt
+function normalize(r) {
+  var tutar = num(r['Satış Fiyatı']);
+  return {
+    mid: String(r['Müşteri İD'] == null ? '' : r['Müşteri İD']).trim().replace(/\.0+$/, ''),
+    mad: String(r['Müşteri Adı'] || '').trim(),
+    rci: String(r['RÇİ'] == null ? '' : r['RÇİ']).trim().replace(/\.0+$/, ''),
+    rad: String(r['RÇİ Adı'] || '').trim(),
+    ay: ayOf(r['Bitiş Tarihi']),
+    bitis: String(r['Bitiş Tarihi'] || '').trim(),
+    tutar: tutar,
+    tier: tierOf(tutar),
+    anlasma: num(r['Anlaşma Sayısı']),
+    kategori: String(r['Kategori Adı'] || '').trim(),
+    sehir: String(r['Şehir'] || '').trim(),
+    py: String(r['Sorumlu PY'] || '').trim()
+  };
+}
+
+function filtered() {
+  return MVP.rows.filter(function (r) {
+    if (MVP.ay && r.ay !== MVP.ay) return false;
+    if (MVP.tier && r.tier !== MVP.tier) return false;
+    return true;
+  });
+}
+
+function renderFilters() {
+  var aylar = {};
+  MVP.rows.forEach(function (r) { if (r.ay) aylar[r.ay] = (aylar[r.ay] || 0) + 1; });
+  var keys = Object.keys(aylar).sort();
+  var sel = document.getElementById('f-ay');
+  var cur = MVP.ay;
+  sel.innerHTML = '<option value="">Tüm aylar</option>' + keys.map(function (k) {
+    return '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + k + ' (' + aylar[k] + ')</option>';
+  }).join('');
+
+  var t = document.getElementById('f-tier');
+  t.innerHTML = '<span class="chip' + (MVP.tier === '' ? ' on' : '') + '" onclick="MVP.setTier(\'\')">Tümü</span>' +
+    TIERS.map(function (x) {
+      return '<span class="chip' + (MVP.tier === x.k ? ' on' : '') + '" onclick="MVP.setTier(\'' + x.k + '\')">' + esc(x.label) + '</span>';
+    }).join('');
+
+  var noAy = MVP.rows.filter(function (r) { return !r.ay; }).length;
+  document.getElementById('f-info').textContent = noAy ? (noAy + ' satırda bitiş tarihi okunamadı') : '';
+}
+
+function renderOzet() {
+  var rows = filtered();
+  var mus = {}, tutar = 0, anl = 0;
+  rows.forEach(function (r) { if (r.mid) mus[r.mid] = 1; tutar += r.tutar; anl += r.anlasma; });
+  var el = document.getElementById('b-ozet');
+  if (!rows.length) { el.innerHTML = '<div class="empty">Seçime uyan kayıt yok</div>'; return; }
+  el.innerHTML =
+    '<div class="stat"><div class="v">' + fmtInt(rows.length) + '</div><div class="l">Aktif provider</div></div>' +
+    '<div class="stat"><div class="v">' + fmtInt(Object.keys(mus).length) + '</div><div class="l">Müşteri</div></div>' +
+    '<div class="stat"><div class="v">' + fmtTL(tutar) + '</div><div class="l">Toplam sözleşme tutarı</div></div>' +
+    '<div class="stat"><div class="v">' + fmtInt(anl) + '</div><div class="l">Toplam anlaşma sayısı</div></div>' +
+    '<div class="stat"><div class="v">' + fmtTL(rows.length ? tutar / rows.length : 0) + '</div><div class="l">Provider başı ort. tutar</div></div>';
+  document.getElementById('ozet-note').textContent = MVP.ay ? ('bitiş ayı ' + MVP.ay) : 'tüm aylar';
+}
+
+function renderTier() {
+  var rows = MVP.rows.filter(function (r) { return !MVP.ay || r.ay === MVP.ay; });
+  var el = document.getElementById('b-tier');
+  if (!rows.length) { el.innerHTML = '<div class="empty">Kayıt yok</div>'; return; }
+  var agg = {};
+  TIERS.forEach(function (t) { agg[t.k] = { n: 0, tutar: 0, anl: 0 }; });
+  rows.forEach(function (r) { var a = agg[r.tier]; if (a) { a.n++; a.tutar += r.tutar; a.anl += r.anlasma; } });
+  var maxN = 1;
+  TIERS.forEach(function (t) { if (agg[t.k].n > maxN) maxN = agg[t.k].n; });
+  var h = '<table><thead><tr><th>Sınıf</th><th class="num">Provider</th><th></th><th class="num">Toplam Tutar</th><th class="num">Anlaşma</th><th class="num">Pay</th></tr></thead><tbody>';
+  var tot = rows.reduce(function (s, r) { return s + r.tutar; }, 0) || 1;
+  TIERS.forEach(function (t) {
+    var a = agg[t.k];
+    h += '<tr><td><span class="tierbadge t-' + t.k + '">' + esc(t.label) + '</span></td>' +
+      '<td class="num">' + fmtInt(a.n) + '</td>' +
+      '<td style="width:130px"><span class="bar" style="width:' + Math.round((a.n / maxN) * 120) + 'px"></span></td>' +
+      '<td class="num">' + fmtTL(a.tutar) + '</td>' +
+      '<td class="num">' + fmtInt(a.anl) + '</td>' +
+      '<td class="num">%' + (a.tutar / tot * 100).toFixed(1) + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+function renderTop() {
+  var rows = filtered();
+  var el = document.getElementById('b-top');
+  if (!rows.length) { el.innerHTML = '<div class="empty">Seçime uyan kayıt yok</div>'; return; }
+
+  // MÜŞTERİ kırılımı: aynı Müşteri İD altındaki tüm providerlar toplanır.
+  var by = {};
+  rows.forEach(function (r) {
+    var k = r.mid || ('ad:' + r.mad);
+    if (!by[k]) by[k] = { mid: r.mid, ad: r.mad || r.rad || '(isimsiz)', tutar: 0, anl: 0, provs: [] };
+    var c = by[k];
+    c.tutar += r.tutar; c.anl += r.anlasma; c.provs.push(r);
+    if (!c.ad && r.mad) c.ad = r.mad;
+  });
+  var list = Object.keys(by).map(function (k) { by[k].key = k; return by[k]; })
+    .sort(function (a, b) { return b.tutar - a.tutar; }).slice(0, 20);
+
+  var maxT = list.length ? list[0].tutar : 1;
+  var h = '<table><thead><tr><th style="width:26px"></th><th>#</th><th>Müşteri</th><th class="num">Firma</th>' +
+    '<th class="num">Toplam Tutar</th><th style="width:110px"></th><th class="num">Anlaşma</th><th>Sınıf dağılımı</th></tr></thead><tbody>';
+
+  list.forEach(function (c, i) {
+    var open = !!MVP.open[c.key];
+    var tc = {};
+    c.provs.forEach(function (p) { tc[p.tier] = (tc[p.tier] || 0) + 1; });
+    var badges = TIERS.filter(function (t) { return tc[t.k]; })
+      .map(function (t) { return '<span class="tierbadge t-' + t.k + '">' + t.k + '×' + tc[t.k] + '</span>'; }).join(' ');
+
+    h += '<tr class="crow' + (open ? ' open' : '') + '" onclick="MVP.toggle(\'' + esc(c.key).replace(/'/g, "\\'") + '\')">' +
+      '<td><span class="caret">' + (open ? '▾' : '▸') + '</span></td>' +
+      '<td class="num">' + (i + 1) + '</td>' +
+      '<td><b>' + esc(c.ad) + '</b>' + (c.mid ? ' <span class="note">#' + esc(c.mid) + '</span>' : '') + '</td>' +
+      '<td class="num">' + c.provs.length + '</td>' +
+      '<td class="num"><b>' + fmtTL(c.tutar) + '</b></td>' +
+      '<td><span class="bar" style="width:' + Math.round((c.tutar / maxT) * 100) + 'px"></span></td>' +
+      '<td class="num">' + fmtInt(c.anl) + '</td>' +
+      '<td>' + badges + '</td></tr>';
+
+    if (open) {
+      var ps = c.provs.slice().sort(function (a, b) { return b.tutar - a.tutar; });
+      h += '<tr><td colspan="8" class="sub-td"><table><thead><tr>' +
+        '<th>RÇİ</th><th>Firma Adı</th><th>Kategori</th><th>Şehir</th><th>Sorumlu PY</th>' +
+        '<th>Bitiş</th><th class="num">Tutar</th><th>Sınıf</th><th class="num">Anlaşma</th></tr></thead><tbody>';
+      ps.forEach(function (p) {
+        h += '<tr><td>' + esc(p.rci) + '</td><td>' + esc(p.rad) + '</td><td>' + esc(p.kategori) + '</td>' +
+          '<td>' + esc(p.sehir) + '</td><td>' + esc(p.py) + '</td><td>' + esc(p.ay || p.bitis) + '</td>' +
+          '<td class="num">' + fmtTL(p.tutar) + '</td>' +
+          '<td><span class="tierbadge t-' + p.tier + '">' + p.tier + '</span></td>' +
+          '<td class="num">' + fmtInt(p.anlasma) + '</td></tr>';
+      });
+      h += '</tbody></table></td></tr>';
+    }
+  });
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+function renderAll() { renderFilters(); renderOzet(); renderTier(); renderTop(); }
+
+MVP.setAy = function (v) { MVP.ay = v || ''; MVP.open = {}; renderAll(); };
+MVP.setTier = function (v) { MVP.tier = v || ''; MVP.open = {}; renderAll(); };
+MVP.toggle = function (k) { MVP.open[k] = !MVP.open[k]; renderTop(); };
+
+(function load() {
+  fetch('/api/mvp-call-query/data', { credentials: 'same-origin' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || d.ok === false) throw new Error(d && d.error ? d.error : 'Veri alınamadı');
+      MVP.rows = (d.firma || []).map(normalize);
+      document.getElementById('freshness').textContent =
+        MVP.rows.length ? (fmtInt(MVP.rows.length) + ' aktif provider') :
+        (d.missing ? 'Dashboard_Firma sekmesi henüz yazılmamış — Dashboard\u2019dan “Qlik\u2019ten yenile” çalıştırın' : 'Kayıt yok');
+      renderAll();
+    })
+    .catch(function (e) {
+      document.getElementById('freshness').textContent = 'Hata: ' + (e && e.message ? e.message : e);
+      ['b-ozet', 'b-tier', 'b-top'].forEach(function (id) {
+        document.getElementById(id).innerHTML = '<div class="empty">Veri yüklenemedi</div>';
+      });
+    });
+})();
 </script>
 </body>
 </html>
