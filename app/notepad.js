@@ -91,6 +91,12 @@ export default function NotePad() {
     <aside
       aria-label="Info / Plans notu"
       style={{
+        "--note-ink": "#7a4708",
+        "--note-body": "#3a2a05",
+        "--note-muted": "#956009",
+        "--note-line": "rgba(122,71,8,.22)",
+        "--note-rule": "rgba(122,71,8,.14)",
+        "--note-soft": "rgba(122,71,8,.10)",
         flex: "0 0 296px",
         maxWidth: 296,
         position: "relative",
@@ -116,10 +122,10 @@ export default function NotePad() {
       />
       <div
         style={{
-          background: "linear-gradient(175deg,#fef9c3 0%,#fdf3a8 100%)",
+          background: "linear-gradient(176deg,#fdf6bd 0%,#fbeda2 100%)",
           borderRadius: "2px 2px 14px 2px",
           padding: "22px 18px 16px",
-          boxShadow: "0 10px 22px rgba(120,100,20,.16), 0 2px 5px rgba(0,0,0,.07)",
+          boxShadow: "0 10px 24px rgba(120,100,20,.14), 0 1px 3px rgba(23,23,26,.08)",
         }}
       >
         <div
@@ -127,7 +133,7 @@ export default function NotePad() {
             fontSize: 13,
             fontWeight: 800,
             letterSpacing: ".3px",
-            color: "#854d0e",
+            color: "var(--note-ink)",
             textTransform: "uppercase",
             marginBottom: 10,
             display: "flex",
@@ -145,17 +151,17 @@ export default function NotePad() {
           >
             <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
               {/* yığılma diski */}
-              <ellipse cx="12" cy="12" rx="10" ry="4.2" fill="none" stroke="#854d0e" strokeWidth="1.4" opacity=".55" transform="rotate(-18 12 12)" />
-              <ellipse cx="12" cy="12" rx="7" ry="2.9" fill="none" stroke="#854d0e" strokeWidth="1.2" opacity=".75" transform="rotate(-18 12 12)" />
+              <ellipse cx="12" cy="12" rx="10" ry="4.2" fill="none" stroke="var(--note-ink)" strokeWidth="1.4" opacity=".55" transform="rotate(-18 12 12)" />
+              <ellipse cx="12" cy="12" rx="7" ry="2.9" fill="none" stroke="var(--note-ink)" strokeWidth="1.2" opacity=".75" transform="rotate(-18 12 12)" />
               {/* olay ufku */}
               <circle cx="12" cy="12" r="3.4" fill="#1c1917" />
-              <circle cx="12" cy="12" r="3.4" fill="none" stroke="#854d0e" strokeWidth=".8" opacity=".5" />
+              <circle cx="12" cy="12" r="3.4" fill="none" stroke="var(--note-ink)" strokeWidth=".8" opacity=".5" />
             </svg>
           </a>
         </div>
 
         {state === "loading" ? (
-          <div style={{ fontSize: 12.5, color: "#a16207", padding: "18px 0" }}>Yükleniyor…</div>
+          <div style={{ fontSize: 12.5, color: "var(--note-muted)", padding: "18px 0" }}>Yükleniyor…</div>
         ) : (
           <textarea
             ref={taRef}
@@ -171,12 +177,12 @@ export default function NotePad() {
               border: "none",
               outline: "none",
               background: "transparent",
-              color: "#3f2d06",
+              color: "var(--note-body)",
               fontFamily: "'Segoe Print','Bradley Hand','Comic Sans MS',ui-rounded,-apple-system,sans-serif",
               fontSize: 13.5,
               lineHeight: "23px",
               // defter çizgisi
-              backgroundImage: "repeating-linear-gradient(transparent,transparent 22px,rgba(133,77,14,.16) 23px)",
+              backgroundImage: "repeating-linear-gradient(transparent,transparent 22px,var(--note-rule) 23px)",
               overflow: "hidden",
             }}
           />
@@ -189,15 +195,15 @@ export default function NotePad() {
             justifyContent: "space-between",
             gap: 8,
             marginTop: 10,
-            borderTop: "1px solid rgba(133,77,14,.18)",
+            borderTop: "1px solid var(--note-line)",
             paddingTop: 9,
           }}
         >
-          <span style={{ fontSize: 10.5, color: "#a16207", lineHeight: 1.35, minWidth: 0 }}>
+          <span style={{ fontSize: 10.5, color: "var(--note-muted)", lineHeight: 1.35, minWidth: 0 }}>
             {state === "error" ? (
-              <span style={{ color: "#b91c1c", fontWeight: 600 }}>{msg}</span>
+              <span style={{ color: "var(--danger)", fontWeight: 600 }}>{msg}</span>
             ) : msg ? (
-              <span style={{ color: "#15803d", fontWeight: 600 }}>{msg}</span>
+              <span style={{ color: "var(--ok)", fontWeight: 600 }}>{msg}</span>
             ) : meta.at ? (
               <>
                 {fmt(meta.at)}
@@ -213,11 +219,12 @@ export default function NotePad() {
             disabled={!dirty || state === "saving"}
             style={{
               flexShrink: 0,
-              border: "1px solid rgba(133,77,14,.3)",
-              background: dirty ? "#854d0e" : "rgba(133,77,14,.12)",
-              color: dirty ? "#fff" : "#a16207",
-              borderRadius: 7,
-              padding: "5px 13px",
+              border: "1px solid var(--note-line)",
+              background: dirty ? "var(--note-ink)" : "var(--note-soft)",
+              color: dirty ? "#fff" : "var(--note-muted)",
+              borderRadius: "var(--r-sm)",
+              padding: "0 14px",
+              height: 30,
               fontSize: 11.5,
               fontWeight: 700,
               cursor: dirty && state !== "saving" ? "pointer" : "default",

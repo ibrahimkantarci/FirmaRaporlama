@@ -116,26 +116,26 @@ function useIsMobile() {
 }
 
 const S = {
-  root: { display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "#0b0b10", color: "#e4e4e7" },
+  root: { display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: "var(--bg)", color: "var(--ink)" },
   tabs: {
-    display: "flex", gap: 4, padding: "8px 12px", borderBottom: "1px solid #1f1f28",
-    background: "#0e0e15", overflowX: "auto", flexShrink: 0, WebkitOverflowScrolling: "touch",
+    display: "flex", gap: 4, padding: "8px 12px", borderBottom: "1px solid var(--line)",
+    background: "var(--surface)", overflowX: "auto", flexShrink: 0, WebkitOverflowScrolling: "touch",
   },
   tab: (on) => ({
-    border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 700,
+    border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700,
     cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
-    background: on ? "#1e1b2e" : "transparent", color: on ? "#c4b5fd" : "#71717a",
+    background: on ? "var(--brand-050)" : "transparent", color: on ? "var(--brand-200)" : "var(--muted)",
   }),
   wrap: { display: "flex", flex: 1, minHeight: 0 },
   side: (mobile) => ({
     width: mobile ? "100%" : 230, flexShrink: 0, padding: "14px 10px", overflowY: "auto",
-    background: "#0e0e15", borderRight: mobile ? "none" : "1px solid #1f1f28",
+    background: "var(--surface)", borderRight: mobile ? "none" : "1px solid var(--line)",
   }),
   pageBtn: (on) => ({
     display: "flex", alignItems: "center", gap: 7, width: "100%", textAlign: "left",
-    border: "none", borderRadius: 7, padding: "9px 9px", marginBottom: 2, fontSize: 13.5,
-    cursor: "pointer", color: on ? "#fff" : "#a1a1aa",
-    background: on ? "#1e1b2e" : "transparent", fontWeight: on ? 700 : 500,
+    border: "none", borderRadius: 7, padding: "8px 10px", marginBottom: 2, fontSize: 13.5,
+    cursor: "pointer", color: on ? "#fff" : "var(--muted)",
+    background: on ? "var(--brand-050)" : "transparent", fontWeight: on ? 700 : 500,
   }),
   main: (mobile) => ({
     flex: 1, minWidth: 0, overflowY: "auto",
@@ -143,52 +143,52 @@ const S = {
   }),
   title: (mobile) => ({
     width: "100%", border: "none", outline: "none", background: "transparent",
-    color: "#fafafa", fontSize: mobile ? 22 : 28, fontWeight: 800, marginBottom: 16, padding: 0,
+    color: "var(--ink)", fontSize: mobile ? 22 : 28, fontWeight: 800, marginBottom: 16, padding: 0,
   }),
   blockRow: { display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 2 },
   ta: (t) => ({
     flex: 1, border: "none", outline: "none", background: "transparent", resize: "none",
-    color: t === "h" ? "#fafafa" : "#d4d4d8", overflow: "hidden", minWidth: 0,
+    color: t === "h" ? "var(--ink)" : "var(--ink-2)", overflow: "hidden", minWidth: 0,
     fontSize: t === "h" ? 19 : 14.5, fontWeight: t === "h" ? 800 : 400,
     lineHeight: t === "h" ? "28px" : "24px", padding: "2px 0", fontFamily: "inherit",
   }),
   dateIn: {
-    border: "1px solid #2a2a35", background: "#12121a", color: "#a1a1aa", colorScheme: "dark",
+    border: "1px solid var(--line-strong)", background: "var(--surface-2)", color: "var(--muted)", colorScheme: "dark",
     borderRadius: 6, fontSize: 11, padding: "2px 4px", marginTop: 3, flexShrink: 0, width: 118,
   },
   smallBtn: {
-    border: "1px solid #2a2a35", background: "#15151d", color: "#a1a1aa",
-    borderRadius: 7, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600,
+    border: "1px solid var(--line-strong)", background: "var(--surface-2)", color: "var(--muted)",
+    borderRadius: 7, padding: "8px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600,
   },
   navBar: { display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" },
-  navLabel: { fontSize: 16, fontWeight: 800, color: "#fafafa", minWidth: 130 },
-  card: { background: "#0e0e15", border: "1px solid #1f1f28", borderRadius: 11, overflow: "hidden" },
+  navLabel: { fontSize: 16, fontWeight: 800, color: "var(--ink)", minWidth: 130 },
+  card: { background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 11, overflow: "hidden" },
   dayHead: (today) => ({
     display: "flex", alignItems: "baseline", gap: 8, margin: "16px 0 6px",
-    fontSize: 12.5, fontWeight: 800, color: today ? "#c4b5fd" : "#8b8b96",
+    fontSize: 12.5, fontWeight: 800, color: today ? "var(--brand-200)" : "var(--muted)",
   }),
-  taskRow: { padding: "8px 10px", borderBottom: "1px solid #16161e" },
+  taskRow: { padding: "8px 12px", borderBottom: "1px solid var(--line)" },
   infoBtn: (on) => ({
-    border: "1px solid " + (on ? "#4c1d95" : "#2a2a35"), background: on ? "#1e1b2e" : "transparent",
-    color: on ? "#a78bfa" : "#52525b", borderRadius: 6, width: 22, height: 22, lineHeight: "18px",
+    border: "1px solid " + (on ? "var(--brand-100)" : "var(--line-strong)"), background: on ? "var(--brand-050)" : "transparent",
+    color: on ? "var(--brand-200)" : "var(--faint)", borderRadius: 6, width: 22, height: 22, lineHeight: "18px",
     fontSize: 12, cursor: "pointer", flexShrink: 0, padding: 0, fontWeight: 800, fontStyle: "italic",
     fontFamily: "Georgia, serif",
   }),
   noteTa: {
-    width: "100%", marginTop: 6, border: "1px solid #2a2a35", background: "#12121a",
-    color: "#c9c9d1", borderRadius: 8, fontSize: 12.5, lineHeight: "18px", padding: "6px 8px",
+    width: "100%", marginTop: 6, border: "1px solid var(--line-strong)", background: "var(--surface-2)",
+    color: "var(--ink-2)", borderRadius: 8, fontSize: 12.5, lineHeight: "18px", padding: "6px 8px",
     resize: "vertical", outline: "none", fontFamily: "inherit", minHeight: 40,
   },
   noteText: {
-    marginTop: 4, marginLeft: 25, fontSize: 12, color: "#8b8b96", lineHeight: "17px",
-    whiteSpace: "pre-wrap", cursor: "pointer", borderLeft: "2px solid #2a2a35", paddingLeft: 8,
+    marginTop: 4, marginLeft: 25, fontSize: 12, color: "var(--muted)", lineHeight: "17px",
+    whiteSpace: "pre-wrap", cursor: "pointer", borderLeft: "2px solid var(--line-strong)", paddingLeft: 8,
   },
-  noteBy: { marginTop: 3, fontSize: 11, fontWeight: 700, color: "#a78bfa", letterSpacing: ".2px" },
+  noteBy: { marginTop: 3, fontSize: 11, fontWeight: 700, color: "var(--brand-200)", letterSpacing: ".2px" },
   pageTag: {
-    fontSize: 10, fontWeight: 700, color: "#a78bfa", background: "#1e1b2e", border: "none",
+    fontSize: 10, fontWeight: 700, color: "var(--brand-200)", background: "var(--brand-050)", border: "none",
     borderRadius: 5, padding: "2px 7px", whiteSpace: "nowrap", flexShrink: 0, cursor: "pointer",
   },
-  empty: { color: "#52525b", fontSize: 13, padding: "16px 4px" },
+  empty: { color: "var(--faint)", fontSize: 13, padding: "16px 4px" },
 };
 
 function Block({ b, mobile, onChange, onKeyDown, taRef }) {
@@ -202,7 +202,7 @@ function Block({ b, mobile, onChange, onKeyDown, taRef }) {
         <input
           type="checkbox" checked={!!b.c}
           onChange={(e) => onChange({ ...b, c: e.target.checked })}
-          style={{ marginTop: 7, accentColor: "#7c3aed", cursor: "pointer", width: 16, height: 16 }}
+          style={{ marginTop: 7, accentColor: "var(--brand)", cursor: "pointer", width: 16, height: 16 }}
         />
       ) : (
         <span style={{ width: 13, flexShrink: 0 }} />
@@ -244,11 +244,11 @@ function TaskRow({ it, last, open, onToggle, onToggleNote, onSaveNote, onOpenPag
       <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
         <input
           type="checkbox" checked={it.c} onChange={onToggle}
-          style={{ marginTop: 2, accentColor: "#7c3aed", cursor: "pointer", width: 17, height: 17, flexShrink: 0 }}
+          style={{ marginTop: 2, accentColor: "var(--brand)", cursor: "pointer", width: 17, height: 17, flexShrink: 0 }}
         />
         <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, lineHeight: "20px", textDecoration: it.c ? "line-through" : "none", opacity: it.c ? 0.5 : 1 }}>
           {it.kind === "rutin" && <span title="Rutin görev" style={{ marginRight: 5, fontSize: 11 }}>🔁</span>}
-          {it.time && <span style={{ marginRight: 6, fontSize: 11.5, fontWeight: 700, color: "#a78bfa" }}>{it.time}</span>}
+          {it.time && <span style={{ marginRight: 6, fontSize: 11.5, fontWeight: 700, color: "var(--brand-200)" }}>{it.time}</span>}
           {it.x || "(boş)"}
         </span>
         <button onClick={onToggleNote} title="Bilgi notu" aria-label="Bilgi notu" style={S.infoBtn(open || !!it.n)}>i</button>
@@ -575,10 +575,10 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
     if (!list.length) return null;
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-        <div style={{ flex: 1, maxWidth: 280, height: 7, background: "#1f1f28", borderRadius: 4, overflow: "hidden" }}>
-          <div style={{ width: (done / list.length) * 100 + "%", height: "100%", background: "#7c3aed" }} />
+        <div style={{ flex: 1, maxWidth: 280, height: 7, background: "var(--line)", borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ width: (done / list.length) * 100 + "%", height: "100%", background: "var(--brand)" }} />
         </div>
-        <span style={{ fontSize: 12, color: "#a1a1aa" }}>{done}/{list.length} tamamlandı</span>
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>{done}/{list.length} tamamlandı</span>
       </div>
     );
   }
@@ -595,13 +595,19 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
   function renderSayfalar() {
     const list = (
       <aside style={S.side(mobile)}>
-        <button onClick={addPage} style={{ ...S.smallBtn, width: "100%", marginBottom: 10, background: "#1e1b2e", color: "#c4b5fd", border: "1px solid #312a52", padding: "9px 12px" }}>
+        <button onClick={addPage} style={{ ...S.smallBtn, width: "100%", marginBottom: 10, background: "var(--brand-050)", color: "var(--brand-200)", border: "1px solid var(--brand-200)", padding: "9px 12px" }}>
           + Yeni sayfa
         </button>
         {state === "loading" ? (
-          <div style={{ fontSize: 12, color: "#52525b", padding: 8 }}>Yükleniyor…</div>
+          <div aria-busy="true" aria-label="Sayfalar yükleniyor">
+            {[68, 82, 55, 74].map((w, i) => (
+              <div key={i} className="skel skel--row" style={{ width: w + "%" }} />
+            ))}
+          </div>
         ) : pages.length === 0 ? (
-          <div style={{ fontSize: 12, color: "#52525b", padding: 8 }}>Henüz sayfa yok</div>
+          <div style={{ fontSize: "var(--fs-xs)", color: "var(--faint)", padding: "var(--s-3)", lineHeight: 1.5 }}>
+            Henüz sayfa yok. Yukarıdan yeni sayfa aç.
+          </div>
         ) : (
           pages.map((p) => (
             <button key={p.id} onClick={() => openPage(p)} style={S.pageBtn(p.id === cur)}>
@@ -617,9 +623,31 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
 
     const editor = (
       <main style={S.main(mobile)}>
-        {cur === null ? (
-          <div style={{ color: "#52525b", fontSize: 14, marginTop: 60, textAlign: "center" }}>
-            {mobile ? "Listeden bir sayfa seç." : "Soldan bir sayfa seç ya da yeni sayfa aç."}
+        {state === "loading" ? (
+          <div style={{ maxWidth: 720, margin: "0 auto" }} aria-busy="true" aria-label="Sayfa yükleniyor">
+            <div className="skel skel--title" />
+            {[100, 92, 78, 96, 64, 88, 71].map((w, i) => (
+              <div key={i} className="skel skel--text" style={{ width: w + "%" }} />
+            ))}
+          </div>
+        ) : cur === null ? (
+          <div style={{ maxWidth: 460, margin: "var(--s-10) auto 0" }}>
+            <div className="empty">
+              <span className="empty__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                  <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z" />
+                  <path d="M9 12h6M9 16h4" />
+                </svg>
+              </span>
+              <p className="empty__title">Sayfa seçili değil</p>
+              <p className="empty__text">
+                {mobile
+                  ? "Listeden bir sayfa aç ya da yeni bir tane oluştur. Notlar, planlar ve yapılacaklar burada tutulur."
+                  : "Soldaki listeden bir sayfa aç ya da yeni bir tane oluştur. Notlar, planlar ve yapılacaklar burada tutulur."}
+              </p>
+              <button onClick={addPage} className="btn">Yeni sayfa oluştur</button>
+            </div>
           </div>
         ) : (
           <div style={{ maxWidth: 720, margin: "0 auto" }}>
@@ -639,13 +667,13 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
                 />
               );
             })}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 26, borderTop: "1px solid #1f1f28", paddingTop: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 26, borderTop: "1px solid var(--line)", paddingTop: 12, flexWrap: "wrap" }}>
               <button onClick={save} disabled={!dirty || state === "saving"}
-                style={{ ...S.smallBtn, background: dirty ? "#7c3aed" : "#15151d", color: dirty ? "#fff" : "#52525b", border: "1px solid " + (dirty ? "#7c3aed" : "#2a2a35") }}>
+                style={{ ...S.smallBtn, background: dirty ? "var(--brand)" : "var(--surface-2)", color: dirty ? "#fff" : "var(--faint)", border: "1px solid " + (dirty ? "var(--brand)" : "var(--line-strong)") }}>
                 {state === "saving" ? "Kaydediliyor…" : dirty ? (mobile ? "Kaydet" : "Kaydet (Ctrl+S)") : "Kayıtlı"}
               </button>
-              <button onClick={removePage} style={{ ...S.smallBtn, color: "#f87171", borderColor: "#3b1d1d" }}>Sayfayı sil</button>
-              <span style={{ fontSize: 11.5, color: state === "error" ? "#f87171" : "#52525b" }}>
+              <button onClick={removePage} style={{ ...S.smallBtn, color: "#f2837a", borderColor: "#4a2320" }}>Sayfayı sil</button>
+              <span style={{ fontSize: 11.5, color: state === "error" ? "#f2837a" : "var(--faint)" }}>
                 {msg || (() => { const p = pages.find((x) => x.id === cur); return p?.updatedAt ? `${fmt(p.updatedAt)} · ${p.updatedBy}` : ""; })()}
               </span>
             </div>
@@ -677,10 +705,10 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
         <section key={g.k}>
           <div style={S.dayHead(isToday)}>
             <span>{g.d.getDate()} {AY_KISA[g.d.getMonth()]} · {GUN_KISA[(g.d.getDay() + 6) % 7]}{isToday ? " · bugün" : ""}</span>
-            {g.list.length > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: "#52525b" }}>{done}/{g.list.length}</span>}
+            {g.list.length > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: "var(--faint)" }}>{done}/{g.list.length}</span>}
           </div>
           {g.list.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#3f3f46", padding: "2px 2px 4px" }}>—</div>
+            <div style={{ fontSize: 12, color: "var(--faint)", padding: "2px 2px 4px" }}>—</div>
           ) : (
             <div style={S.card}>
               {g.list.map((it, i) => (
@@ -763,7 +791,7 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
           />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: mobile ? 3 : 6, marginBottom: 6 }}>
             {GUN_KISA.map((g) => (
-              <div key={g} style={{ fontSize: 10.5, fontWeight: 800, color: "#52525b", textAlign: "center", textTransform: "uppercase" }}>{g}</div>
+              <div key={g} style={{ fontSize: 10.5, fontWeight: 800, color: "var(--faint)", textAlign: "center", textTransform: "uppercase" }}>{g}</div>
             ))}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: mobile ? 3 : 6 }}>
@@ -776,20 +804,20 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
               const isSel = k === selDay;
               return (
                 <button key={k} onClick={() => setSelDay(k)} style={{
-                  border: "1px solid " + (isSel ? "#7c3aed" : isToday ? "#4c1d95" : "#1f1f28"),
-                  background: isSel ? "#1e1b2e" : "#0e0e15", borderRadius: 9, cursor: "pointer",
+                  border: "1px solid " + (isSel ? "var(--brand)" : isToday ? "var(--brand-100)" : "var(--line)"),
+                  background: isSel ? "var(--brand-050)" : "var(--surface)", borderRadius: 9, cursor: "pointer",
                   padding: mobile ? "6px 2px" : "8px 6px", minHeight: mobile ? 46 : 70,
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-                  opacity: inMonth ? 1 : 0.35, color: "#e4e4e7",
+                  opacity: inMonth ? 1 : 0.35, color: "var(--ink)",
                 }}>
-                  <span style={{ fontSize: mobile ? 12 : 13, fontWeight: isToday ? 800 : 600, color: isToday ? "#c4b5fd" : "inherit" }}>
+                  <span style={{ fontSize: mobile ? 12 : 13, fontWeight: isToday ? 800 : 600, color: isToday ? "var(--brand-200)" : "inherit" }}>
                     {d.getDate()}
                   </span>
                   {list.length > 0 && (
                     <span style={{
                       fontSize: 10, fontWeight: 800, borderRadius: 8, padding: "0 6px",
-                      background: done === list.length ? "#14261c" : "#1e1b2e",
-                      color: done === list.length ? "#4ade80" : "#a78bfa",
+                      background: done === list.length ? "var(--ok-soft)" : "var(--brand-050)",
+                      color: done === list.length ? "var(--ok)" : "var(--brand-200)",
                     }}>
                       {done}/{list.length}
                     </span>
@@ -800,7 +828,7 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
           </div>
 
           <div style={{ marginTop: 18 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#fafafa", marginBottom: 8 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--ink)", marginBottom: 8 }}>
               {selD.getDate()} {AY_UZUN[selD.getMonth()]} {selD.getFullYear()} · {GUN_KISA[(selD.getDay() + 6) % 7]}
             </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
@@ -809,13 +837,13 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
                 onKeyDown={(e) => { if (e.key === "Enter") addTask(selDay, newTask); }}
                 placeholder="Bu güne görev ekle…" spellCheck={false}
                 style={{
-                  flex: 1, minWidth: 0, border: "1px solid #2a2a35", background: "#12121a",
-                  color: "#e4e4e7", borderRadius: 8, padding: "9px 11px", fontSize: 13.5, outline: "none",
+                  flex: 1, minWidth: 0, border: "1px solid var(--line-strong)", background: "var(--surface-2)",
+                  color: "var(--ink)", borderRadius: 8, padding: "9px 11px", fontSize: 13.5, outline: "none",
                 }}
               />
               <button
                 onClick={() => addTask(selDay, newTask)} disabled={!newTask.trim()}
-                style={{ ...S.smallBtn, background: newTask.trim() ? "#7c3aed" : "#15151d", color: newTask.trim() ? "#fff" : "#52525b", border: "1px solid " + (newTask.trim() ? "#7c3aed" : "#2a2a35"), padding: "9px 16px" }}
+                style={{ ...S.smallBtn, background: newTask.trim() ? "var(--brand)" : "var(--surface-2)", color: newTask.trim() ? "#fff" : "var(--faint)", border: "1px solid " + (newTask.trim() ? "var(--brand)" : "var(--line-strong)"), padding: "9px 16px" }}
               >
                 Ekle
               </button>
@@ -852,15 +880,15 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
     };
     const f = rForm;
     const inp = {
-      border: "1px solid #2a2a35", background: "#12121a", color: "#e4e4e7", colorScheme: "dark",
+      border: "1px solid var(--line-strong)", background: "var(--surface-2)", color: "var(--ink)", colorScheme: "dark",
       borderRadius: 7, padding: "7px 9px", fontSize: 13, outline: "none", minWidth: 0,
     };
-    const lbl = { fontSize: 10.5, fontWeight: 800, color: "#52525b", textTransform: "uppercase", letterSpacing: ".4px", display: "block", marginBottom: 3 };
+    const lbl = { fontSize: 10.5, fontWeight: 800, color: "var(--faint)", textTransform: "uppercase", letterSpacing: ".4px", display: "block", marginBottom: 3 };
 
     return (
-      <section style={{ marginTop: 26, borderTop: "1px solid #1f1f28", paddingTop: 16 }}>
+      <section style={{ marginTop: 26, borderTop: "1px solid var(--line)", paddingTop: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 13.5, fontWeight: 800, color: "#fafafa" }}>🔁 Rutin görevler</span>
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: "var(--ink)" }}>🔁 Rutin görevler</span>
           <button onClick={() => setRForm(f ? null : blank)} style={{ ...S.smallBtn, marginLeft: "auto" }}>
             {f ? "Kapat" : "+ Rutin ekle"}
           </button>
@@ -898,8 +926,8 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
                       return (
                         <button key={g} onClick={() => setRForm({ ...f, days: on ? f.days.filter((x) => x !== i) : [...(f.days || []), i] })}
                           style={{
-                            border: "1px solid " + (on ? "#7c3aed" : "#2a2a35"), background: on ? "#1e1b2e" : "transparent",
-                            color: on ? "#c4b5fd" : "#71717a", borderRadius: 7, padding: "6px 11px",
+                            border: "1px solid " + (on ? "var(--brand)" : "var(--line-strong)"), background: on ? "var(--brand-050)" : "transparent",
+                            color: on ? "var(--brand-200)" : "var(--muted)", borderRadius: 7, padding: "6px 11px",
                             fontSize: 12, fontWeight: 700, cursor: "pointer",
                           }}>{g}</button>
                       );
@@ -933,24 +961,34 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
                 <input value={f.n} onChange={(e) => setRForm({ ...f, n: e.target.value })} style={{ ...inp, width: "100%" }} />
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
               <button
                 onClick={() => { if (!f.x.trim()) return; postRoutine({ ...f, x: f.x.trim() }); setRForm(null); }}
                 disabled={!f.x.trim()}
-                style={{ ...S.smallBtn, background: f.x.trim() ? "#7c3aed" : "#15151d", color: f.x.trim() ? "#fff" : "#52525b", border: "1px solid " + (f.x.trim() ? "#7c3aed" : "#2a2a35"), padding: "8px 16px" }}
+                style={{ ...S.smallBtn, background: f.x.trim() ? "var(--brand)" : "var(--surface-2)", color: f.x.trim() ? "#fff" : "var(--faint)", border: "1px solid " + (f.x.trim() ? "var(--brand)" : "var(--line-strong)"), padding: "8px 16px" }}
               >
                 Kaydet
               </button>
               {routines.some((r) => r.id === f.id) && (
-                <button onClick={() => deleteRoutine(f.id)} style={{ ...S.smallBtn, color: "#f87171", borderColor: "#3b1d1d" }}>Sil</button>
+                <button onClick={() => deleteRoutine(f.id)} style={{ ...S.smallBtn, color: "#f2837a", borderColor: "#4a2320" }}>Sil</button>
               )}
-              <span style={{ fontSize: 11.5, color: "#52525b" }}>{rutinOzet(f)}</span>
+              <span style={{ fontSize: 11.5, color: "var(--faint)" }}>{rutinOzet(f)}</span>
             </div>
           </div>
         )}
 
         {routines.length === 0 ? (
-          <div style={S.empty}>Henüz rutin yok. "+ Rutin ekle" ile kur — takvime, haftalığa ve aylığa otomatik düşer.</div>
+          <div className="empty" style={{ padding: "var(--s-8) var(--s-5)" }}>
+            <span className="empty__ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" /><path d="M3 21v-5h5" />
+              </svg>
+            </span>
+            <p className="empty__title">Henüz rutin yok</p>
+            <p className="empty__text">Tekrarlayan işlerini bir kez tanımla — takvime, haftalığa ve aylığa otomatik düşsün.</p>
+            <button onClick={() => setRForm(blank)} className="btn">Rutin oluştur</button>
+          </div>
         ) : (
           <div style={S.card}>
             {routines.map((r, i) => (
@@ -958,7 +996,7 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
                 <span style={{ fontSize: 12 }}>🔁</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, lineHeight: "19px" }}>{r.x}</div>
-                  <div style={{ fontSize: 11, color: "#71717a", marginTop: 1 }}>{rutinOzet(r)}{r.active ? "" : " · pasif"}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 1 }}>{rutinOzet(r)}{r.active ? "" : " · pasif"}</div>
                 </div>
                 <button onClick={() => postRoutine({ ...r, active: !r.active })} style={{ ...S.smallBtn, padding: "4px 9px", fontSize: 11 }}>
                   {r.active ? "Duraklat" : "Sürdür"}
@@ -973,13 +1011,13 @@ export default function Planner({ initialView = "sayfalar", email = "" }) {
   }
 
   return (
-    <div style={S.root}>
+    <div className="theme-dark" style={S.root}>
       <div style={S.tabs}>
         {[["sayfalar", "Sayfalar"], ["hafta", "Haftalık"], ["ay", "Aylık"], ["takvim", "Takvim"]].map(([k, l]) => (
           <button key={k} onClick={() => setView(k)} style={S.tab(view === k)}>{l}</button>
         ))}
         {dirty && view !== "sayfalar" && (
-          <span style={{ fontSize: 11, color: "#facc15", alignSelf: "center", marginLeft: "auto", paddingRight: 6, whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 11, color: "#e0a92a", alignSelf: "center", marginLeft: "auto", paddingRight: 6, whiteSpace: "nowrap" }}>
             kaydedilmemiş değişiklik
           </span>
         )}
