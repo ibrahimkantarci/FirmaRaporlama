@@ -1,4 +1,5 @@
 import { AppHeader } from "../app-header";
+import ThemeShell from "../theme-shell";
 import OzelFiyatPanel from "./panel";
 import { requireToolAccess } from "../../lib/access";
 
@@ -13,9 +14,9 @@ export default async function OzelFiyatPage() {
   const session = await requireToolAccess("ozelfiyat");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    <ThemeShell>
       <AppHeader back={{ href: "/", label: "Hub" }} subtitle="Özel Fiyat" email={session.user.email} />
       <OzelFiyatPanel />
-    </div>
+    </ThemeShell>
   );
 }

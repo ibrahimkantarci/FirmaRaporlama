@@ -178,9 +178,13 @@ body {
   white-space: nowrap;
 }
 
-/* Logo bloğu */
+/* Logo bloğu — iki şeffaf varlık, temaya göre biri görünür (bkz. app/brand.js) */
 .brand { display: inline-flex; align-items: center; text-decoration: none; }
+.brand-logo-wrap { display: block; line-height: 0; }
 .brand-logo { height: 20px; width: auto; display: block; }
+.brand-logo--on-dark { display: none; }
+.theme-dark .brand-logo--on-light { display: none; }
+.theme-dark .brand-logo--on-dark { display: block; }
 .brand-sub {
   font-size: var(--fs-2xs);
   line-height: 1;

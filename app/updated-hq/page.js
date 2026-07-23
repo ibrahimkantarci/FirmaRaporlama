@@ -1,4 +1,5 @@
 import { AppHeader } from "../app-header";
+import ThemeShell from "../theme-shell";
 import DashboardPanel from "./dashboard-panel";
 import { requireToolAccess } from "../../lib/access";
 
@@ -11,9 +12,9 @@ export default async function UpdatedHQPage() {
   const session = await requireToolAccess("updatedhq");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    <ThemeShell>
       <AppHeader back={{ href: "/", label: "Hub" }} subtitle="Dashboard" email={session.user.email} />
       <DashboardPanel />
-    </div>
+    </ThemeShell>
   );
 }
