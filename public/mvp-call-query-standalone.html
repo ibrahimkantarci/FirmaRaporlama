@@ -142,6 +142,11 @@ function fmtTL(n) {
   return Math.round(n).toLocaleString('tr-TR') + '₺';
 }
 function fmtInt(n) { return Math.round(n).toLocaleString('tr-TR'); }
+// Anlaşma başı ödeme = toplam sözleşme tutarı / anlaşma sayısı.
+// Anlaşma 0 ise oran tanımsız → "—" (0'a bölme ve yanıltıcı ∞ gösterimi olmaz).
+function perDeal(tutar, anlasma) {
+  return anlasma > 0 ? fmtTL(tutar / anlasma) : '—';
+}
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
@@ -229,7 +234,8 @@ function renderTop() {
 
   var maxT = list.length ? list[0].tutar : 1;
   var h = '<table><thead><tr><th style="width:26px"></th><th>#</th><th>Müşteri</th><th class="num">Firma</th>' +
-    '<th class="num">Toplam Tutar</th><th style="width:110px"></th><th class="num">Anlaşma</th><th>Sınıf dağılımı</th></tr></thead><tbody>';
+    '<th class="num">Toplam Tutar</th><th style="width:110px"></th><th class="num">Anlaşma</th><th>Sınıf dağılımı</th>' +
+    '<th class="num">Anlaşma Başı</th></tr></thead><tbody>';
 
   list.forEach(function (c, i) {
     var open = !!MVP.open[c.key];
@@ -246,19 +252,22 @@ function renderTop() {
       '<td class="num"><b>' + fmtTL(c.tutar) + '</b></td>' +
       '<td><span class="bar" style="width:' + Math.round((c.tutar / maxT) * 100) + 'px"></span></td>' +
       '<td class="num">' + fmtInt(c.anl) + '</td>' +
-      '<td>' + badges + '</td></tr>';
+      '<td>' + badges + '</td>' +
+      '<td class="num"><b>' + perDeal(c.tutar, c.anl) + '</b></td></tr>';
 
     if (open) {
       var ps = c.provs.slice().sort(function (a, b) { return b.tutar - a.tutar; });
-      h += '<tr><td colspan="8" class="sub-td"><table><thead><tr>' +
+      h += '<tr><td colspan="9" class="sub-td"><table><thead><tr>' +
         '<th>RÇİ</th><th>Firma Adı</th><th>Kategori</th><th>Şehir</th><th>Sorumlu PY</th>' +
-        '<th>Bitiş</th><th class="num">Tutar</th><th>Sınıf</th><th class="num">Anlaşma</th></tr></thead><tbody>';
+        '<th>Bitiş</th><th class="num">Tutar</th><th>Sınıf</th><th class="num">Anlaşma</th>' +
+        '<th class="num">Anlaşma Başı</th></tr></thead><tbody>';
       ps.forEach(function (p) {
         h += '<tr><td>' + esc(p.rci) + '</td><td>' + esc(p.rad) + '</td><td>' + esc(p.kategori) + '</td>' +
           '<td>' + esc(p.sehir) + '</td><td>' + esc(p.py) + '</td><td>' + esc(p.ay || p.bitis) + '</td>' +
           '<td class="num">' + fmtTL(p.tutar) + '</td>' +
           '<td><span class="tierbadge t-' + p.tier + '">' + p.tier + '</span></td>' +
-          '<td class="num">' + fmtInt(p.anlasma) + '</td></tr>';
+          '<td class="num">' + fmtInt(p.anlasma) + '</td>' +
+          '<td class="num">' + perDeal(p.tutar, p.anlasma) + '</td></tr>';
       });
       h += '</tbody></table></td></tr>';
     }
