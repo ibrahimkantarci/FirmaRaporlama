@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 
-// Mvp Call Query panelini (public/mvp-call-query-standalone.html) iframe ile gömer.
+// Mvp WP Call Query panelini (public/mvp-call-query-standalone.html) iframe ile gömer.
 // Şu an bağlı bir veri kaynağı yok; kaynak bağlanınca burada /api/mvp-call-query
 // uçları çağrılıp iframe içine pipeline script'i enjekte edilecek (erce panelindeki
 // injectPipeline kalıbının aynısı).
@@ -47,7 +47,7 @@ export default function MvpCallQueryPanel() {
       <iframe
         ref={ref}
         src="/mvp-call-query-standalone.html"
-        title="Mvp Call Query"
+        title="Mvp WP Call Query"
         style={{ flex: 1, width: "100%", border: "none", minHeight: 0 }}
       />
     </div>
