@@ -31,7 +31,7 @@ export default function MvpCallQueryPanel() {
           style={{ flex: 1, width: "100%", border: "none", minHeight: 0 }}
         />
       ) : (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#a1a1aa", fontSize: 13 }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--faint)", fontSize: 13 }}>
           Yükleniyor…
         </div>
       )}

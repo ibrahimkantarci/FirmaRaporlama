@@ -92,9 +92,9 @@ export default function DashboardPanel() {
           display: "flex",
           alignItems: "center",
           gap: 12,
-          padding: "8px 16px",
-          borderBottom: "1px solid #e4e4e7",
-          background: "#fafafa",
+          padding: "var(--s-2) var(--s-4)",
+          borderBottom: "1px solid var(--line)",
+          background: "var(--surface-2)",
           flexShrink: 0,
         }}
       >
@@ -102,11 +102,11 @@ export default function DashboardPanel() {
           onClick={refresh}
           disabled={busy}
           className="gbtn"
-          style={{ borderColor: "var(--brand)", color: busy ? "#a1a1aa" : "var(--brand)", fontWeight: 600 }}
+          style={{ borderColor: "var(--brand)", color: busy ? "var(--faint)" : "var(--brand)", fontWeight: 600 }}
         >
           {busy ? "Yenileniyor…" : "⟳ Qlik'ten yenile"}
         </button>
-        <span style={{ fontSize: 12.5, color: err ? "#dc2626" : "#71717a" }}>
+        <span style={{ fontSize: "var(--fs-xs)", color: err ? "var(--danger)" : "var(--muted)" }}>
           {busy
             ? "Qlik'ten çekiliyor…"
             : err
