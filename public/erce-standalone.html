@@ -524,7 +524,7 @@ function decayHeaders(){
     heads:heads,
     bas: exact('Başlama Tarihi')||fuzzy(/baslama.?tarih|start.?date/),
     durum: exact('Durum')||fuzzy(/durum|status/),
-    py: fuzzy(/(^|[^a-z])py($|[^a-z])|portfoy|account.?manager|rci/),
+    py: fuzzy(/(^|[^a-z])py($|[^a-z])|portfoy|account.?manager|portf[oö]y.?y[oö]neticisi/),
     firma: fuzzy(/firma|provider|musteri|customer|unvan/),
   };
 }
@@ -537,8 +537,16 @@ function renderDecay(){
   el.classList.remove('empty');el.className='';
   const isDecay=(v)=>/decay/.test(foldTr(v));
   let list=rows.filter(r=>decayEvalAy(r[H.bas]));
-  if(H.py){list=list.filter(r=>pyAllowed(r[H.py]));
-    if(S._ercePY!=='Tümü')list=list.filter(r=>pyFirstKey(r[H.py])===pyFirstKey(S._ercePY));}
+  const beforePy=list.length;
+  if(H.py){
+    // Güvenlik: kolon yanlış tespit edildiyse (ör. isim yerine ID) filtre HER ŞEYİ
+    // eleyebilir → o durumda PY kısıtını yok say, veriyi gösterme önceliğimiz.
+    const byAllow=list.filter(r=>pyAllowed(r[H.py]));
+    if(byAllow.length){
+      list=byAllow;
+      if(S._ercePY!=='Tümü')list=list.filter(r=>pyFirstKey(r[H.py])===pyFirstKey(S._ercePY));
+    }else{H.py=null;}
+  }
   const ay=S._erceAy||'';
   const pct=(n)=>'%'+n.toFixed(1);
   const col=(p)=>p<=10?'#16a34a':p<=25?'#ea580c':'#dc2626'; // decay oranı: düşük iyi
@@ -564,7 +572,15 @@ function renderDecay(){
 
   // Ay seçildi → o ayın kohortu + firma listesi
   const cur=list.filter(r=>decayEvalAy(r[H.bas])===ay);
-  if(!cur.length){el.innerHTML='<div class="empty">'+esc(ay)+' için kohort yok (Başlama Tarihi '+esc(String(+ay.slice(0,4)-1)+'-'+ay.slice(5))+' olan firma bulunamadı).</div>';return;}
+  if(!cur.length){
+    const varOlan=[...new Set(list.map(r=>decayEvalAy(r[H.bas])).filter(Boolean))].sort();
+    const ornek=rows.slice(0,5).map(r=>String(r[H.bas]==null?'':r[H.bas])).filter(Boolean);
+    el.innerHTML='<div class="empty" style="text-align:left">'+esc(ay)+' için kohort yok — yani Başlama Tarihi '+esc(String(+ay.slice(0,4)-1)+'.'+ay.slice(5))+' olan firma bulunamadı.'+
+      '<br><br>Kullanılan kolon: <b>'+esc(H.bas)+'</b> · toplam satır: '+rows.length+(beforePy!==rows.length?' (tarihi okunabilen: '+beforePy+')':'')+
+      '<br>Örnek değerler: '+esc(ornek.join(' | ')||'(boş)')+
+      '<br>Mevcut kohort ayları: '+(varOlan.length?esc(varOlan.join(', ')):'(hiçbiri — tarih kolonu okunamıyor olabilir)')+'</div>';
+    return;
+  }
   const dec=cur.filter(r=>isDecay(r[H.durum]));
   const p=cur.length?dec.length/cur.length*100:0;
   let out='<div class="stat-grid">'+
