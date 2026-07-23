@@ -136,6 +136,22 @@ export default function NotePad() {
           }}
         >
           <span aria-hidden="true">📌</span> Info / Plans
+          {/* black hole → plan uygulaması (/planlar). Not kağıdı olduğu gibi kalır. */}
+          <a
+            href="/planlar"
+            title="Planlar"
+            aria-label="Plan uygulamasını aç"
+            style={{ marginLeft: "auto", display: "inline-flex", lineHeight: 0, opacity: 0.85 }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              {/* yığılma diski */}
+              <ellipse cx="12" cy="12" rx="10" ry="4.2" fill="none" stroke="#854d0e" strokeWidth="1.4" opacity=".55" transform="rotate(-18 12 12)" />
+              <ellipse cx="12" cy="12" rx="7" ry="2.9" fill="none" stroke="#854d0e" strokeWidth="1.2" opacity=".75" transform="rotate(-18 12 12)" />
+              {/* olay ufku */}
+              <circle cx="12" cy="12" r="3.4" fill="#1c1917" />
+              <circle cx="12" cy="12" r="3.4" fill="none" stroke="#854d0e" strokeWidth=".8" opacity=".5" />
+            </svg>
+          </a>
         </div>
 
         {state === "loading" ? (
