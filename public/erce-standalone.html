@@ -493,7 +493,26 @@ function renderFlagDurumu(){
     '<td style="text-align:right">'+r.sa+'</td>'+
     '<td style="text-align:right;font-weight:700;color:'+col(r.pYe)+'">'+pct(r.pYe)+'</td>'+
     '<td style="text-align:right;font-weight:700;color:'+col(r.pYeSa)+'">'+pct(r.pYeSa)+'</td></tr>').join('')+
-  '</tbody></table>'+
+  '</tbody>'+
+  (function(){
+    // Ortalama = PY yüzdelerinin düz ortalaması (portföy büyüklüğünden bağımsız).
+    if(!arr.length)return '';
+    const n=arr.length;
+    const avgYe=arr.reduce((a,r)=>a+r.pYe,0)/n;
+    const avgYeSa=arr.reduce((a,r)=>a+r.pYeSa,0)/n;
+    const avgTot=arr.reduce((a,r)=>a+r.tot,0)/n;
+    const avgY=arr.reduce((a,r)=>a+r.ye,0)/n;
+    const avgS=arr.reduce((a,r)=>a+r.sa,0)/n;
+    return '<tfoot><tr style="border-top:2px solid #e4e4e7;background:#fafafa">'+
+      '<td style="font-weight:700">Ortalama</td>'+
+      '<td style="text-align:right;color:#71717a">'+avgTot.toFixed(0)+'</td>'+
+      '<td style="text-align:right;color:#71717a">'+avgY.toFixed(1)+'</td>'+
+      '<td style="text-align:right;color:#71717a">'+avgS.toFixed(1)+'</td>'+
+      '<td style="text-align:right;font-weight:700;color:'+col(avgYe)+'">'+pct(avgYe)+'</td>'+
+      '<td style="text-align:right;font-weight:700;color:'+col(avgYeSa)+'">'+pct(avgYeSa)+'</td>'+
+    '</tr></tfoot>';
+  })()+
+  '</table>'+
   '<div class="empty" style="text-align:left;padding:8px 2px">Payda: PY\'nin o gün portföyündeki tüm provider\'lar (Welcome/Turuncu/Kırmızı dahil).'+(ay?'':' Ay seçilmediği için en güncel ay gösteriliyor.')+'</div>';
 }
 
