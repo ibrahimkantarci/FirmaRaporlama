@@ -39,8 +39,16 @@ const ErceIcon = (
   </svg>
 );
 
+const QueryIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.6-3.6" />
+    <path d="M8.5 11.5h5M11 9v5" />
+  </svg>
+);
+
 // İkonlar araç anahtarına göre eşlenir (veri tarafı registry'de, görsel burada).
-const ICONS = { provider: ReportIcon, fiyat: PriceIcon, updatedhq: DashIcon, erce: ErceIcon };
+const ICONS = { provider: ReportIcon, fiyat: PriceIcon, updatedhq: DashIcon, erce: ErceIcon, mvpcall: QueryIcon };
 
 export default async function Home({ searchParams }) {
   const session = await auth();
