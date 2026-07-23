@@ -12,6 +12,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .topbar .sub{font-size:12px;color:#a1a1aa}
 .wrap{max-width:1180px;margin:0 auto;padding:20px 24px 60px}
 .card{background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:18px;margin-bottom:16px}
+#b-top{overflow-x:auto}
+.sub-td{overflow-x:auto}
 .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
 .ct{font-size:14px;font-weight:700;color:#18181b}
 .note{font-size:11px;color:#a1a1aa}
@@ -30,11 +32,6 @@ td{padding:7px 8px;border-bottom:1px solid #f4f4f5;font-size:12.5px}
 .crow:hover{background:#f0fdfa}
 .crow.open{background:#ecfdf5}
 .caret{display:inline-block;width:12px;color:#0F766E;font-weight:700}
-.tierbadge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;border:1px solid}
-.t-A{background:#ecfdf5;color:#065f46;border-color:#a7f3d0}
-.t-B{background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
-.t-C{background:#fefce8;color:#854d0e;border-color:#fde68a}
-.t-D{background:#f4f4f5;color:#52525b;border-color:#e4e4e7}
 .sub-td{background:#fafafa;padding:0 8px 10px 30px}
 .sub-td table{background:#fff;border:1px solid #e4e4e7;border-radius:8px;overflow:hidden}
 .sub-td th{font-size:9.5px;background:#f8fafc}
@@ -55,12 +52,10 @@ select{padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12p
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span class="flabel">Sözleşme Bitiş Ayı</span>
       <select id="f-ay" onchange="MVP.setAy(this.value)"><option value="">Tüm aylar</option></select>
-      <span class="flabel" style="margin-left:10px">Tutar Sınıfı</span>
-      <span id="f-tier"></span>
       <span id="f-info" class="note" style="margin-left:6px"></span>
     </div>
     <div class="note" style="margin-top:8px">
-      Aktif providerlar = Dashboard_Firma en güncel <code>load_date</code> snapshot'ı. Sınıflar sözleşme (Satış Fiyatı) tutarına göre.
+      Aktif providerlar = Dashboard_Firma en güncel <code>load_date</code> snapshot'ı.
     </div>
   </div>
 
@@ -89,19 +84,7 @@ select{padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12p
 // Üst tablo MÜŞTERİ kırılımı; açılır alt tablo o müşterinin PROVIDER'ları.
 // ─────────────────────────────────────────────────────────────────────────
 
-// Tutar sınıfı eşikleri — TL. Değiştirmek için yalnız burayı düzenle.
-var TIERS = [
-  { k: 'A', label: 'A · 100.000₺+',       min: 100000, max: Infinity },
-  { k: 'B', label: 'B · 50–100.000₺',     min: 50000,  max: 100000 },
-  { k: 'C', label: 'C · 20–50.000₺',      min: 20000,  max: 50000 },
-  { k: 'D', label: 'D · 20.000₺ altı',    min: -Infinity, max: 20000 }
-];
-function tierOf(v) {
-  for (var i = 0; i < TIERS.length; i++) if (v >= TIERS[i].min && v < TIERS[i].max) return TIERS[i].k;
-  return 'D';
-}
-
-var MVP = { rows: [], ay: '', tier: '', open: {} };
+var MVP = { rows: [], ay: '', open: {} };
 
 // "11.332,50" / "11332.5" / 11332 → 11332.5 (TR binlik-nokta + ondalık-virgül güvenli)
 function num(v) {
@@ -155,7 +138,6 @@ function esc(s) {
 
 // Ham satır → normalize kayıt
 function normalize(r) {
-  var tutar = num(r['Satış Fiyatı']);
   return {
     mid: String(r['Müşteri İD'] == null ? '' : r['Müşteri İD']).trim().replace(/\.0+$/, ''),
     mad: String(r['Müşteri Adı'] || '').trim(),
@@ -163,8 +145,7 @@ function normalize(r) {
     rad: String(r['RÇİ Adı'] || '').trim(),
     ay: ayOf(r['Bitiş Tarihi']),
     bitis: String(r['Bitiş Tarihi'] || '').trim(),
-    tutar: tutar,
-    tier: tierOf(tutar),
+    tutar: num(r['Satış Fiyatı']),
     anlasma: num(r['Anlaşma Sayısı']),
     kategori: String(r['Kategori Adı'] || '').trim(),
     sehir: String(r['Şehir'] || '').trim(),
@@ -174,9 +155,7 @@ function normalize(r) {
 
 function filtered() {
   return MVP.rows.filter(function (r) {
-    if (MVP.ay && r.ay !== MVP.ay) return false;
-    if (MVP.tier && r.tier !== MVP.tier) return false;
-    return true;
+    return !MVP.ay || r.ay === MVP.ay;
   });
 }
 
@@ -189,12 +168,6 @@ function renderFilters() {
   sel.innerHTML = '<option value="">Tüm aylar</option>' + keys.map(function (k) {
     return '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + k + ' (' + aylar[k] + ')</option>';
   }).join('');
-
-  var t = document.getElementById('f-tier');
-  t.innerHTML = '<span class="chip' + (MVP.tier === '' ? ' on' : '') + '" onclick="MVP.setTier(\'\')">Tümü</span>' +
-    TIERS.map(function (x) {
-      return '<span class="chip' + (MVP.tier === x.k ? ' on' : '') + '" onclick="MVP.setTier(\'' + x.k + '\')">' + esc(x.label) + '</span>';
-    }).join('');
 
   var noAy = MVP.rows.filter(function (r) { return !r.ay; }).length;
   document.getElementById('f-info').textContent = noAy ? (noAy + ' satırda bitiş tarihi okunamadı') : '';
@@ -234,16 +207,11 @@ function renderTop() {
 
   var maxT = list.length ? list[0].tutar : 1;
   var h = '<table><thead><tr><th style="width:26px"></th><th>#</th><th>Müşteri</th><th class="num">Firma</th>' +
-    '<th class="num">Toplam Tutar</th><th style="width:110px"></th><th class="num">Anlaşma</th><th>Sınıf dağılımı</th>' +
+    '<th class="num">Toplam Tutar</th><th style="width:110px"></th><th class="num">Anlaşma</th>' +
     '<th class="num">Anlaşma Başı</th></tr></thead><tbody>';
 
   list.forEach(function (c, i) {
     var open = !!MVP.open[c.key];
-    var tc = {};
-    c.provs.forEach(function (p) { tc[p.tier] = (tc[p.tier] || 0) + 1; });
-    var badges = TIERS.filter(function (t) { return tc[t.k]; })
-      .map(function (t) { return '<span class="tierbadge t-' + t.k + '">' + t.k + '×' + tc[t.k] + '</span>'; }).join(' ');
-
     h += '<tr class="crow' + (open ? ' open' : '') + '" onclick="MVP.toggle(\'' + esc(c.key).replace(/'/g, "\\'") + '\')">' +
       '<td><span class="caret">' + (open ? '▾' : '▸') + '</span></td>' +
       '<td class="num">' + (i + 1) + '</td>' +
@@ -252,20 +220,18 @@ function renderTop() {
       '<td class="num"><b>' + fmtTL(c.tutar) + '</b></td>' +
       '<td><span class="bar" style="width:' + Math.round((c.tutar / maxT) * 100) + 'px"></span></td>' +
       '<td class="num">' + fmtInt(c.anl) + '</td>' +
-      '<td>' + badges + '</td>' +
       '<td class="num"><b>' + perDeal(c.tutar, c.anl) + '</b></td></tr>';
 
     if (open) {
       var ps = c.provs.slice().sort(function (a, b) { return b.tutar - a.tutar; });
-      h += '<tr><td colspan="9" class="sub-td"><table><thead><tr>' +
+      h += '<tr><td colspan="8" class="sub-td"><table><thead><tr>' +
         '<th>RÇİ</th><th>Firma Adı</th><th>Kategori</th><th>Şehir</th><th>Sorumlu PY</th>' +
-        '<th>Bitiş</th><th class="num">Tutar</th><th>Sınıf</th><th class="num">Anlaşma</th>' +
+        '<th>Bitiş</th><th class="num">Tutar</th><th class="num">Anlaşma</th>' +
         '<th class="num">Anlaşma Başı</th></tr></thead><tbody>';
       ps.forEach(function (p) {
         h += '<tr><td>' + esc(p.rci) + '</td><td>' + esc(p.rad) + '</td><td>' + esc(p.kategori) + '</td>' +
           '<td>' + esc(p.sehir) + '</td><td>' + esc(p.py) + '</td><td>' + esc(p.ay || p.bitis) + '</td>' +
           '<td class="num">' + fmtTL(p.tutar) + '</td>' +
-          '<td><span class="tierbadge t-' + p.tier + '">' + p.tier + '</span></td>' +
           '<td class="num">' + fmtInt(p.anlasma) + '</td>' +
           '<td class="num">' + perDeal(p.tutar, p.anlasma) + '</td></tr>';
       });
@@ -279,7 +245,6 @@ function renderTop() {
 function renderAll() { renderFilters(); renderOzet(); renderTop(); }
 
 MVP.setAy = function (v) { MVP.ay = v || ''; MVP.open = {}; renderAll(); };
-MVP.setTier = function (v) { MVP.tier = v || ''; MVP.open = {}; renderAll(); };
 MVP.toggle = function (k) { MVP.open[k] = !MVP.open[k]; renderTop(); };
 
 (function load() {
