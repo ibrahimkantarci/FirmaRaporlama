@@ -451,25 +451,50 @@ function renderDokunma(){
 // ── 4) FLAG DURUMU — portföy flag dağılımı + aylık value ────────────────────
 function renderFlagDurumu(){
   const el=document.getElementById('b-flag');
-  const data=fFirma();
-  if(!data.length){el.innerHTML='<div class="empty">Filtreye uyan firma verisi yok</div>';return;}
-  const flags=['Yeşil','Sarı','Turuncu','Kırmızı'];
-  const colors={Yeşil:'#16a34a',Sarı:'#ca8a04',Turuncu:'#ea580c',Kırmızı:'#dc2626'};
-  const icons={Yeşil:'🟢',Sarı:'🟡',Turuncu:'🟠',Kırmızı:'🔴'};
-  const dist={};flags.forEach(f=>dist[f]={n:0,v:0});
-  data.forEach(f=>{
-    const fl=f.flag_rengi;if(!dist[fl])return;
-    dist[fl].n++;dist[fl].v+=(num(f.satis_fiyati)||0)/12;
+  const rows=(S.phFlagAy||[]).filter(r=>pyAllowed(r.py_adi));
+  if(!rows.length){el.className='empty';el.innerHTML='Ay sonu flag verisi yok. Ana dashboard\'da "Qlik\'ten yenile" ile çekilir (Provider Health Raw — her ayın son günü).';return;}
+  el.classList.remove('empty');el.className='';
+  const ay=S._erceAy||'';
+  const py=S._ercePY||'Tümü';
+  let list=rows.slice();
+  if(py!=='Tümü')list=list.filter(r=>pyFirstKey(r.py_adi)===pyFirstKey(py));
+  // Ay seçilmemişse en güncel ayı göster (flag bir anlık görüntüdür, aylar toplanmaz)
+  const aylar=[...new Set(list.map(r=>r.ay).filter(Boolean))].sort();
+  const seciliAy=(ay&&aylar.indexOf(ay)>=0)?ay:aylar[aylar.length-1];
+  if(!seciliAy){el.innerHTML='<div class="empty">Filtreye uyan flag verisi yok.</div>';return;}
+  const cur=list.filter(r=>r.ay===seciliAy);
+  const tarih=(cur[0]||{}).tarih||'';
+  // PY başına flag dağılımı
+  const byPy={};
+  cur.forEach(r=>{
+    if(!byPy[r.py_adi])byPy[r.py_adi]={tot:0,f:{}};
+    byPy[r.py_adi].f[r.flag]=(byPy[r.py_adi].f[r.flag]||0)+r.adet;
+    byPy[r.py_adi].tot+=r.adet;
   });
-  const top=data.length;
-  el.classList.remove('empty');
-  el.innerHTML='<div class="stat-grid"><div class="stat"><div class="v">'+top+'</div><div class="l">Toplam firma</div></div>'+
-    flags.map(fl=>'<div class="stat"><div class="v" style="color:'+colors[fl]+'">'+dist[fl].n+'</div><div class="l">'+icons[fl]+' '+fl+'</div></div>').join('')+
+  const gv=(o,name)=>o.f[name]||0;
+  const arr=Object.entries(byPy).map(([p,o])=>{
+    const ye=gv(o,'Yeşil'),sa=gv(o,'Sarı');
+    return {py:p,tot:o.tot,ye,sa,tu:gv(o,'Turuncu'),ki:gv(o,'Kırmızı'),we:gv(o,'Welcome'),
+      pYe:o.tot?ye/o.tot*100:0,pYeSa:o.tot?(ye+sa)/o.tot*100:0};
+  }).sort((a,b)=>b.pYe-a.pYe);
+  const T=arr.reduce((a,r)=>({tot:a.tot+r.tot,ye:a.ye+r.ye,sa:a.sa+r.sa}),{tot:0,ye:0,sa:0});
+  const col=(p)=>p>=60?'#16a34a':p>=40?'#ea580c':'#dc2626';
+  const pct=(n)=>'%'+n.toFixed(1);
+  el.innerHTML='<div class="stat-grid">'+
+    '<div class="stat"><div class="v" style="font-size:15px">'+esc(seciliAy)+'</div><div class="l">Ay sonu'+(tarih?' ('+esc(tarih)+')':'')+'</div></div>'+
+    '<div class="stat"><div class="v">'+T.tot+'</div><div class="l">Provider</div></div>'+
+    '<div class="stat"><div class="v" style="color:#16a34a">'+(T.tot?pct(T.ye/T.tot*100):'—')+'</div><div class="l">🟢 Yeşil</div></div>'+
+    '<div class="stat"><div class="v" style="color:#ca8a04">'+(T.tot?pct((T.ye+T.sa)/T.tot*100):'—')+'</div><div class="l">🟢+🟡 Yeşil+Sarı</div></div>'+
   '</div>'+
-  flags.filter(fl=>dist[fl].n>0).map(fl=>{
-    const p=top?Math.round(dist[fl].n/top*100):0;
-    return '<div class="row"><span class="lbl">'+icons[fl]+' '+fl+'</span><div class="track"><div class="fill" style="width:'+p+'%;background:'+colors[fl]+'"></div></div><span class="val" style="color:'+colors[fl]+'">%'+p+' <span style="font-weight:400;color:#a1a1aa;font-size:10px">'+fmtTL(dist[fl].v)+' aylık</span></span></div>';
-  }).join('');
+  '<table><thead><tr><th>PY</th><th style="text-align:right">Provider</th><th style="text-align:right">🟢 Yeşil</th><th style="text-align:right">🟡 Sarı</th><th style="text-align:right">% Yeşil</th><th style="text-align:right">% Yeşil+Sarı</th></tr></thead><tbody>'+
+  arr.map(r=>'<tr><td style="font-weight:600">'+esc(r.py.split(' ')[0])+'</td>'+
+    '<td style="text-align:right">'+r.tot+'</td>'+
+    '<td style="text-align:right">'+r.ye+'</td>'+
+    '<td style="text-align:right">'+r.sa+'</td>'+
+    '<td style="text-align:right;font-weight:700;color:'+col(r.pYe)+'">'+pct(r.pYe)+'</td>'+
+    '<td style="text-align:right;font-weight:700;color:'+col(r.pYeSa)+'">'+pct(r.pYeSa)+'</td></tr>').join('')+
+  '</tbody></table>'+
+  '<div class="empty" style="text-align:left;padding:8px 2px">Payda: PY\'nin o gün portföyündeki tüm provider\'lar (Welcome/Turuncu/Kırmızı dahil).'+(ay?'':' Ay seçilmediği için en güncel ay gösteriliyor.')+'</div>';
 }
 
 // ── 5) DECAY — yenilenen sözleşmelerde tutar değişimi ───────────────────────

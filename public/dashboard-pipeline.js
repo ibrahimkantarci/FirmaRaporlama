@@ -1133,6 +1133,21 @@
         loaded.push("verimlilik: " + S.verimlilik.length);
       }
 
+      // ── Provider Health flag — ay sonu, PY × flag sayımı ────────────────
+      if (Array.isArray(d.phFlagAy) && d.phFlagAy.length) {
+        S.phFlagAy = d.phFlagAy.map(function (r) {
+          return {
+            ay: String(r["Ay"] == null ? "" : r["Ay"]).trim(),
+            tarih: String(r["Tarih"] == null ? "" : r["Tarih"]).trim(),
+            py_adi: String(r["PY"] == null ? "" : r["PY"]).trim(),
+            flag: String(r["Flag"] == null ? "" : r["Flag"]).trim(),
+            adet: parseInt(r["Adet"], 10) || 0,
+          };
+        });
+        S.loaded.phFlagAy = true;
+        loaded.push("phFlagAy: " + S.phFlagAy.length);
+      }
+
       // ── Customer bazında yenileme (renewal_data harici canlı Sheet) ──────
       // Başlıklar Sheet sahibinin elinde değişebilir → ham satır nesneleri olduğu
       // gibi taşınır; kolon tespiti (ay/müşteri/value) render tarafında yapılır.

@@ -348,6 +348,68 @@ async function runPipeline(request) {
         continue;
       }
 
+      // ── AY SONU SNAPSHOT (monthEndSnapshot): tarih alanının TÜM değerleri alınır,
+      //    aya göre gruplanıp HER AYIN SON GÜNÜ seçilir, obje o gün için çekilir ve
+      //    PY (Account Manager) × flag sayımı ÖZETLENİR. Ham satır yazılmaz.
+      if (src.monthEndSnapshot) {
+        const cfg = src.monthEndSnapshot;
+        const parseDt = (v) => {
+          const s = String(v == null ? "" : v).trim();
+          if (!s) return null;
+          let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+          if (m) return { y: +m[1], mo: +m[2], d: +m[3] };
+          m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/); // DD.MM.YYYY
+          if (m) return { y: +m[3], mo: +m[2], d: +m[1] };
+          const ms = Date.parse(s);
+          if (!Number.isNaN(ms)) { const d = new Date(ms); return { y: d.getUTCFullYear(), mo: d.getUTCMonth() + 1, d: d.getUTCDate() }; }
+          return null;
+        };
+        const res = await withPooledDoc(src.appId, async ({ doc }) => {
+          await doc.clearAll(false);
+          const fv = await getFieldValues(doc, cfg.dateField, 5000);
+          const lastByMonth = {};
+          for (const raw of (fv.values || [])) {
+            const p = parseDt(raw);
+            if (!p) continue;
+            const key = p.y + "-" + ("0" + p.mo).slice(-2);
+            const ord = p.y * 10000 + p.mo * 100 + p.d;
+            if (!lastByMonth[key] || ord > lastByMonth[key].ord) lastByMonth[key] = { ord, raw: String(raw) };
+          }
+          const months = Object.keys(lastByMonth).sort();
+          const norm = (s) => String(s == null ? "" : s).trim().toLowerCase();
+          const outRows = [];
+          for (const ay of months) {
+            try {
+              await doc.clearAll(false);
+              const sel = await selectExact(doc, cfg.dateField, lastByMonth[ay].raw);
+              if (!sel.selected) continue;
+              const ft = await fetchObjectData(doc, src.objectId, {});
+              const iPy = ft.columns.findIndex((c) => norm(c) === norm(cfg.pyCol));
+              const iFl = ft.columns.findIndex((c) => norm(c) === norm(cfg.flagCol));
+              if (iPy < 0 || iFl < 0) continue;
+              const counts = {};
+              for (const r of ft.rows) {
+                const py = String(r[iPy] ?? "").trim();
+                const fl = String(r[iFl] ?? "").trim();
+                if (!py || !fl) continue;
+                const k = py + "|" + fl;
+                counts[k] = (counts[k] || 0) + 1;
+              }
+              for (const k in counts) {
+                const [py, fl] = k.split("|");
+                outRows.push([ay, lastByMonth[ay].raw, py, fl, counts[k]]);
+              }
+            } catch (e) { /* tek ay hata verirse diğerlerini bozma */ }
+          }
+          await doc.clearAll(false);
+          return { rows: outRows, monthsSeen: months.length };
+        });
+        const cols = ["Ay", "Tarih", "PY", "Flag", "Adet"];
+        const sheet = await overwriteSheetTab([cols, ...res.rows], { tab: src.tab });
+        out[src.key] = { mode: "month_end_snapshot", monthsSeen: res.monthsSeen, rows: res.rows.length, tab: src.tab, sheetUrl: sheet.sheetUrl };
+        continue;
+      }
+
       // ── AY BAZLI PIVOT ÇEKİM (perMonthField): obje qMode=P (pivot). Her ay değeri
       //    SEÇİLİR → getHyperCubePivotData ile PY (sol) + ölçüler (veri) okunur → ay
       //    etiketlenir → biriktir → overwrite. Verimlilik zaten hazır ölçü. KRİTİK:
