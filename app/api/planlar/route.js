@@ -59,13 +59,19 @@ async function writePages(pages) {
 }
 
 // Blok dizisini güvenli şekle indir: bilinmeyen tipler "p" olur, fazlalık alanlar atılır.
+// todo blokları opsiyonel "d" (YYYY-AA-GG) tarihi taşıyabilir — Haftalık/Aylık/Takvim
+// görünümleri bu alandan beslenir; geçersiz biçimler sessizce düşürülür.
 function sanitizeBlocks(blocks) {
   if (!Array.isArray(blocks)) return [];
-  return blocks.slice(0, 500).map((b) => ({
-    t: b?.t === "h" || b?.t === "todo" ? b.t : "p",
-    x: typeof b?.x === "string" ? b.x.slice(0, 2000) : "",
-    ...(b?.t === "todo" ? { c: !!b?.c } : {}),
-  }));
+  return blocks.slice(0, 500).map((b) => {
+    const t = b?.t === "h" || b?.t === "todo" ? b.t : "p";
+    const o = { t, x: typeof b?.x === "string" ? b.x.slice(0, 2000) : "" };
+    if (t === "todo") {
+      o.c = !!b?.c;
+      if (typeof b?.d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.d)) o.d = b.d;
+    }
+    return o;
+  });
 }
 
 export const GET = withAccess("notlar", async () => {
