@@ -65,12 +65,12 @@ export default async function Home({ searchParams }) {
         style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
       >
         <div style={{ width: "100%", maxWidth: 400 }}>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "var(--s-6)" }}>
             <Brand subtitle={null} logoHeight={38} />
           </div>
           <div className="card" style={{ textAlign: "center" }}>
-            <h1 className="title" style={{ fontSize: 21 }}>Giriş yap</h1>
-            <p className="lede" style={{ marginBottom: 22 }}>
+            <h1 className="title" style={{ fontSize: "var(--fs-h1)" }}>Giriş yap</h1>
+            <p className="lede" style={{ marginBottom: "var(--s-6)" }}>
               Devam etmek için izinli bir Google hesabıyla giriş yap.
             </p>
             <form action={googleSignIn}>
@@ -85,7 +85,7 @@ export default async function Home({ searchParams }) {
               </button>
             </form>
           </div>
-          <p style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "#a1a1aa" }}>
+          <p style={{ textAlign: "center", marginTop: "var(--s-4)", fontSize: "var(--fs-xs)", color: "var(--faint)" }}>
             düğün.com · iç araç
           </p>
         </div>
@@ -115,31 +115,39 @@ export default async function Home({ searchParams }) {
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "center",
-          gap: 30,
+          gap: "var(--s-8)",
           flexWrap: "wrap",
           maxWidth: 1240,
           margin: "0 auto",
-          padding: "40px 22px 64px",
+          padding: "var(--s-10) var(--s-5) var(--s-16)",
         }}
       >
       <main style={{ flex: "1 1 560px", maxWidth: 880, minWidth: 0 }}>
-        <p className="eyebrow">Performans Yönetimi</p>
-        <h1 className="title" style={{ fontSize: 30 }}>Bir araç seç</h1>
-        <p className="lede" style={{ marginBottom: 0 }}>
-          Raporlama, fiyat denetimi ve performans panoları — hepsi tek yerde.
-        </p>
+        <div className="page-head">
+          <p className="eyebrow">Performans Yönetimi</p>
+          <h1 className="title">Bir araç seç</h1>
+          <p className="lede" style={{ marginBottom: 0 }}>
+            Raporlama, fiyat denetimi ve performans panoları — hepsi tek yerde.
+          </p>
+        </div>
 
         {denied && (
-          <div className="note warn" style={{ marginTop: 18 }}>
+          <div className="note warn" style={{ marginTop: "var(--s-5)" }}>
             Bu araca erişim yetkiniz yok. Erişim için yöneticinizle iletişime geçin.
           </div>
         )}
 
         {visibleTools.length === 0 ? (
-          <div className="card" style={{ marginTop: 22, textAlign: "center", color: "#71717a" }}>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Henüz erişiminiz yok</p>
-            <p style={{ margin: "6px 0 0", fontSize: 13.5 }}>
-              Hesabınıza bir araç erişimi tanımlandığında burada görünecek. Yöneticinizle iletişime geçin.
+          <div className="empty" style={{ marginTop: "var(--s-6)" }}>
+            <span className="empty__ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="10" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </span>
+            <p className="empty__title">Henüz erişiminiz yok</p>
+            <p className="empty__text">
+              Hesabınıza bir araç erişimi tanımlandığında bu sayfada görünecek. Erişim için yöneticinizle iletişime geçin.
             </p>
           </div>
         ) : (
