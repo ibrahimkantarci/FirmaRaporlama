@@ -60,6 +60,49 @@ function startOfWeek(d) {
   return x;
 }
 
+function dayDiff(a, b) {
+  return Math.round((b - a) / 86400000);
+}
+
+// Rutin verilen günde düşüyor mu? k: "YYYY-AA-GG"
+// Tekrarlar satır olarak saklanmaz; görünen her tarih burada hesaplanır.
+function occursOn(r, k) {
+  if (!r.active || !r.start) return false;
+  if (k < r.start) return false;
+  if (r.end && k > r.end) return false;
+  const d = fromYmd(k), st = fromYmd(r.start);
+  const every = Math.max(1, r.every || 1);
+  if (r.freq === "gun") return dayDiff(st, d) % every === 0;
+  if (r.freq === "hafta") {
+    const wd = (d.getDay() + 6) % 7;
+    if (!(r.days || []).includes(wd)) return false;
+    return Math.round(dayDiff(startOfWeek(st), startOfWeek(d)) / 7) % every === 0;
+  }
+  // ay: ayın N'i; kısa aylarda son güne sıkışır (31 → Şubat'ta 28/29)
+  const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  if (d.getDate() !== Math.min(r.dom || 1, dim)) return false;
+  const mDiff = (d.getFullYear() - st.getFullYear()) * 12 + (d.getMonth() - st.getMonth());
+  return mDiff >= 0 && mDiff % every === 0;
+}
+
+// Görev satırı anahtarı: sayfa todosu için sayfa+sıra, rutin için rutin+tarih.
+function itemKey(it) {
+  return it.kind === "rutin" ? "r:" + it.rid + ":" + it.d : it.pageId + ":" + it.idx;
+}
+
+function rutinOzet(r) {
+  const e = Math.max(1, r.every || 1);
+  let s;
+  if (r.freq === "gun") s = e === 1 ? "Her gün" : "Her " + e + " günde bir";
+  else if (r.freq === "hafta") {
+    const g = (r.days || []).slice().sort().map((i) => GUN_KISA[i]).join(", ") || "—";
+    s = (e === 1 ? "Her hafta" : "Her " + e + " haftada bir") + " · " + g;
+  } else s = (e === 1 ? "Her ay" : "Her " + e + " ayda bir") + " · ayın " + (r.dom || 1) + "'i";
+  if (r.time) s += " · " + r.time;
+  if (r.end) s += " · " + r.end + "'e kadar";
+  return s;
+}
+
 function useIsMobile() {
   const [m, setM] = useState(false);
   useEffect(() => {
@@ -203,6 +246,8 @@ function TaskRow({ it, last, open, onToggle, onToggleNote, onSaveNote, onOpenPag
           style={{ marginTop: 2, accentColor: "#7c3aed", cursor: "pointer", width: 17, height: 17, flexShrink: 0 }}
         />
         <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, lineHeight: "20px", textDecoration: it.c ? "line-through" : "none", opacity: it.c ? 0.5 : 1 }}>
+          {it.kind === "rutin" && <span title="Rutin görev" style={{ marginRight: 5, fontSize: 11 }}>🔁</span>}
+          {it.time && <span style={{ marginRight: 6, fontSize: 11.5, fontWeight: 700, color: "#a78bfa" }}>{it.time}</span>}
           {it.x || "(boş)"}
         </span>
         <button onClick={onToggleNote} title="Bilgi notu" aria-label="Bilgi notu" style={S.infoBtn(open || !!it.n)}>i</button>
@@ -244,6 +289,11 @@ export default function Planner({ initialView = "sayfalar" }) {
   const [calM, setCalM] = useState(() => new Date().getMonth());
   const [selDay, setSelDay] = useState(bugun);
   const [newTask, setNewTask] = useState("");
+  const [routines, setRoutines] = useState([]);
+  const [rForm, setRForm] = useState(null); // açık rutin formu (null = kapalı)
+  // Bildirim izni yalnız istemcide bilinir; sunucu render'ında undefined kalsın ki
+  // "izin ver" butonu hydration uyuşmazlığı yaratmasın.
+  const [notifPerm, setNotifPerm] = useState(null);
   const [openNotes, setOpenNotes] = useState(() => new Set()); // "pageId:idx"
 
   const sig = JSON.stringify({ title, blocks });
@@ -271,6 +321,11 @@ export default function Planner({ initialView = "sayfalar" }) {
         if ((d.pages || []).length && !isMob) openPage(d.pages[0], false);
       })
       .catch((e) => { setState("error"); setMsg(e?.message || "Yüklenemedi"); });
+
+    fetch("/api/rutinler", { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((d) => { if (d && d.ok !== false) setRoutines(d.routines || []); })
+      .catch(() => { /* rutinler okunamazsa sayfa yine çalışsın */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -298,7 +353,7 @@ export default function Planner({ initialView = "sayfalar" }) {
     }
     return out;
   }, [effPages]);
-  const itemsByDay = useMemo(() => {
+  const pageItemsByDay = useMemo(() => {
     const m = new Map();
     for (const it of items) {
       if (!m.has(it.d)) m.set(it.d, []);
@@ -306,6 +361,23 @@ export default function Planner({ initialView = "sayfalar" }) {
     }
     return m;
   }, [items]);
+
+  // Bir günün TÜM görevleri = sayfalardaki tarihli todolar + o gün düşen rutinler.
+  // Rutinler tarih tarih saklanmadığı için burada anlık üretilir.
+  const itemsFor = useMemo(() => {
+    return (k) => {
+      const out = (pageItemsByDay.get(k) || []).slice();
+      for (const r of routines) {
+        if (occursOn(r, k)) {
+          out.push({
+            kind: "rutin", rid: r.id, d: k, x: r.x, n: r.n || "",
+            c: (r.done || []).includes(k), pageTitle: "rutin", time: r.time || "",
+          });
+        }
+      }
+      return out;
+    };
+  }, [pageItemsByDay, routines]);
 
   function addPage() {
     const p = { id: newId(), title: "", blocks: [{ t: "p", x: "" }], updatedBy: "", updatedAt: "" };
@@ -351,15 +423,59 @@ export default function Planner({ initialView = "sayfalar" }) {
       setMsg((e?.message || "Kaydedilemedi") + " — sayfayı yenileyin");
     }
   }
-  const toggleItem = (it) => patchItem(it, (b) => ({ ...b, c: !b.c }));
+  // Rutin tanımını kaydet (iyimser güncelle, sonra sunucu cevabıyla değiştir).
+  async function postRoutine(r) {
+    setRoutines((xs) => (xs.some((y) => y.id === r.id) ? xs.map((y) => (y.id === r.id ? r : y)) : [...xs, r]));
+    try {
+      const res = await fetch("/api/rutinler", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ routine: r }),
+      });
+      const d = await res.json();
+      if (!res.ok || d.ok === false) throw new Error(d?.error || "Kaydedilemedi");
+      setRoutines((xs) => xs.map((y) => (y.id === d.routine.id ? d.routine : y)));
+      return d.routine;
+    } catch (e) {
+      setMsg(e?.message || "Rutin kaydedilemedi");
+    }
+  }
+
+  // Rutin görevin O GÜNE ait tamamlanma işareti — tanımdaki tarih listesine yazılır.
+  function toggleRoutineDay(it) {
+    const r = routines.find((y) => y.id === it.rid);
+    if (!r) return;
+    const done = (r.done || []).includes(it.d)
+      ? r.done.filter((x) => x !== it.d)
+      : [...(r.done || []), it.d];
+    postRoutine({ ...r, done });
+  }
+
+  const toggleItem = (it) =>
+    it.kind === "rutin" ? toggleRoutineDay(it) : patchItem(it, (b) => ({ ...b, c: !b.c }));
+
   function saveNote(it, val) {
     const v = (val || "").trim();
     if ((it.n || "") === v) return;
+    if (it.kind === "rutin") {
+      const r = routines.find((y) => y.id === it.rid);
+      if (r) postRoutine({ ...r, n: v });
+      return;
+    }
     patchItem(it, (b) => {
       const nb = { ...b };
       if (v) nb.n = v; else delete nb.n;
       return nb;
     });
+  }
+
+  async function deleteRoutine(id) {
+    if (!confirm("Bu rutin silinsin mi? (geçmiş işaretler de gider)")) return;
+    setRoutines((xs) => xs.filter((r) => r.id !== id));
+    setRForm(null);
+    try {
+      await fetch("/api/rutinler?id=" + encodeURIComponent(id), { method: "DELETE", credentials: "same-origin" });
+    } catch { /* zaten yereldenn silindi */ }
   }
   function toggleNote(k) {
     setOpenNotes((s) => {
@@ -433,6 +549,52 @@ export default function Planner({ initialView = "sayfalar" }) {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   });
+
+  // HATIRLATICI (uygulama açıkken): saati gelen ve o gün henüz işaretlenmemiş
+  // rutinler için tarayıcı bildirimi. Dakikada bir bakar; aynı rutin+gün için
+  // bir kez bildirir (localStorage'da işaretlenir, sekme yenilense de tekrarlamaz).
+  //
+  // SINIR: bu yalnız sayfa AÇIKKEN çalışır. Uygulama kapalıyken telefona/e-postaya
+  // bildirim için sunucu tarafında zamanlanmış iş (Vercel Cron) + bir gönderim
+  // kanalı gerekir; rutin tanımındaki "time" alanı o iş için hazır duruyor.
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) setNotifPerm(Notification.permission);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    const KEY = "planlar:hatirlatildi";
+    function seen() {
+      try { return new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch { return new Set(); }
+    }
+    function mark(k) {
+      try {
+        const s2 = seen(); s2.add(k);
+        localStorage.setItem(KEY, JSON.stringify([...s2].slice(-400)));
+      } catch { /* localStorage kapalıysa sorun değil */ }
+    }
+    function tick() {
+      if (Notification.permission !== "granted") return;
+      const now = new Date();
+      const k = ymd(now);
+      const hhmm = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+      const s2 = seen();
+      for (const r of routines) {
+        if (!r.time || r.time > hhmm) continue;          // saati gelmemiş
+        if (!occursOn(r, k)) continue;                    // bugün düşmüyor
+        if ((r.done || []).includes(k)) continue;         // zaten yapılmış
+        const id = r.id + ":" + k;
+        if (s2.has(id)) continue;                         // bildirildi
+        try {
+          new Notification("Rutin görev", { body: r.x + (r.n ? "\n" + r.n : ""), tag: id });
+          mark(id);
+        } catch { /* bildirim reddedildiyse geç */ }
+      }
+    }
+    tick();
+    const t = setInterval(tick, 60000);
+    return () => clearInterval(t);
+  }, [routines]);
 
   function NavBar({ label, onPrev, onNext, onToday }) {
     return (
@@ -536,7 +698,7 @@ export default function Planner({ initialView = "sayfalar" }) {
   // Gün gruplu YAPILACAK LİSTESİ (Haftalık ve Aylık bunun üstünde).
   function renderChecklist(days, opts = {}) {
     const shown = days
-      .map((d) => ({ d, k: ymd(d), list: itemsByDay.get(ymd(d)) || [] }))
+      .map((d) => ({ d, k: ymd(d), list: itemsFor(ymd(d)) }))
       .filter((g) => g.list.length > 0 || opts.showEmptyDays);
     if (!shown.some((g) => g.list.length)) {
       return (
@@ -560,12 +722,12 @@ export default function Planner({ initialView = "sayfalar" }) {
             <div style={S.card}>
               {g.list.map((it, i) => (
                 <TaskRow
-                  key={it.pageId + ":" + it.idx} it={it} last={i === g.list.length - 1}
-                  open={openNotes.has(it.pageId + ":" + it.idx)}
+                  key={itemKey(it)} it={it} last={i === g.list.length - 1}
+                  open={openNotes.has(itemKey(it))}
                   onToggle={() => toggleItem(it)}
-                  onToggleNote={() => toggleNote(it.pageId + ":" + it.idx)}
+                  onToggleNote={() => toggleNote(itemKey(it))}
                   onSaveNote={(v) => saveNote(it, v)}
-                  onOpenPage={it.pageId !== CAL_PAGE_ID ? () => { const p = pages.find((x) => x.id === it.pageId); if (p) openPage(p); } : null}
+                  onOpenPage={it.kind !== "rutin" && it.pageId !== CAL_PAGE_ID ? () => { const p = pages.find((x) => x.id === it.pageId); if (p) openPage(p); } : null}
                 />
               ))}
             </div>
@@ -577,7 +739,7 @@ export default function Planner({ initialView = "sayfalar" }) {
 
   function renderHafta() {
     const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-    const weekItems = days.flatMap((d) => itemsByDay.get(ymd(d)) || []);
+    const weekItems = days.flatMap((d) => itemsFor(ymd(d)));
     const end = addDays(weekStart, 6);
     const label =
       weekStart.getDate() + (weekStart.getMonth() === end.getMonth() ? "" : " " + AY_KISA[weekStart.getMonth()]) +
@@ -601,8 +763,7 @@ export default function Planner({ initialView = "sayfalar" }) {
   function renderAy() {
     const daysInMonth = new Date(calY, calM + 1, 0).getDate();
     const days = Array.from({ length: daysInMonth }, (_, i) => new Date(calY, calM, i + 1));
-    const pre = calY + "-" + String(calM + 1).padStart(2, "0");
-    const monthItems = items.filter((it) => it.d.startsWith(pre));
+    const monthItems = days.flatMap((d) => itemsFor(ymd(d)));
     return (
       <main style={S.main(mobile)}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
@@ -625,7 +786,7 @@ export default function Planner({ initialView = "sayfalar" }) {
     const daysInMonth = new Date(calY, calM + 1, 0).getDate();
     const weeks = Math.ceil((((first.getDay() + 6) % 7) + daysInMonth) / 7);
     const cells = Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i));
-    const selList = itemsByDay.get(selDay) || [];
+    const selList = itemsFor(selDay);
     const selD = fromYmd(selDay);
 
     return (
@@ -646,7 +807,7 @@ export default function Planner({ initialView = "sayfalar" }) {
             {cells.map((d) => {
               const k = ymd(d);
               const inMonth = d.getMonth() === calM;
-              const list = itemsByDay.get(k) || [];
+              const list = itemsFor(k);
               const done = list.filter((x) => x.c).length;
               const isToday = k === bugun;
               const isSel = k === selDay;
@@ -702,19 +863,158 @@ export default function Planner({ initialView = "sayfalar" }) {
               <div style={S.card}>
                 {selList.map((it, i) => (
                   <TaskRow
-                    key={it.pageId + ":" + it.idx} it={it} last={i === selList.length - 1}
-                    open={openNotes.has(it.pageId + ":" + it.idx)}
+                    key={itemKey(it)} it={it} last={i === selList.length - 1}
+                    open={openNotes.has(itemKey(it))}
                     onToggle={() => toggleItem(it)}
-                    onToggleNote={() => toggleNote(it.pageId + ":" + it.idx)}
+                    onToggleNote={() => toggleNote(itemKey(it))}
                     onSaveNote={(v) => saveNote(it, v)}
-                    onOpenPage={it.pageId !== CAL_PAGE_ID ? () => { const p = pages.find((x) => x.id === it.pageId); if (p) openPage(p); } : null}
+                    onOpenPage={it.kind !== "rutin" && it.pageId !== CAL_PAGE_ID ? () => { const p = pages.find((x) => x.id === it.pageId); if (p) openPage(p); } : null}
                   />
                 ))}
               </div>
             )}
           </div>
+
+          {renderRutinler()}
         </div>
       </main>
+    );
+  }
+
+  function renderRutinler() {
+    const blank = {
+      id: "r-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6),
+      x: "", n: "", freq: "hafta", every: 1, days: [(fromYmd(selDay).getDay() + 6) % 7],
+      dom: fromYmd(selDay).getDate(), start: selDay, end: "", time: "", active: true, done: [],
+    };
+    const f = rForm;
+    const inp = {
+      border: "1px solid #2a2a35", background: "#12121a", color: "#e4e4e7", colorScheme: "dark",
+      borderRadius: 7, padding: "7px 9px", fontSize: 13, outline: "none", minWidth: 0,
+    };
+    const lbl = { fontSize: 10.5, fontWeight: 800, color: "#52525b", textTransform: "uppercase", letterSpacing: ".4px", display: "block", marginBottom: 3 };
+
+    return (
+      <section style={{ marginTop: 26, borderTop: "1px solid #1f1f28", paddingTop: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: "#fafafa" }}>🔁 Rutin görevler</span>
+          <button onClick={() => setRForm(f ? null : blank)} style={{ ...S.smallBtn, marginLeft: "auto" }}>
+            {f ? "Kapat" : "+ Rutin ekle"}
+          </button>
+          {notifPerm && notifPerm !== "granted" && (
+            <button
+              onClick={() => Notification.requestPermission().then((p) => setNotifPerm(p))}
+              style={{ ...S.smallBtn, color: "#c4b5fd", borderColor: "#312a52" }}
+              title="Uygulama açıkken saatinde bildirim gönderilir"
+            >
+              Bildirimlere izin ver
+            </button>
+          )}
+        </div>
+
+        {f && (
+          <div style={{ ...S.card, padding: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 10 }}>
+              <div style={{ gridColumn: mobile ? "auto" : "1 / -1" }}>
+                <label style={lbl}>Görev</label>
+                <input value={f.x} onChange={(e) => setRForm({ ...f, x: e.target.value })}
+                  placeholder="Ör. Haftalık yenileme raporunu gönder" style={{ ...inp, width: "100%" }} />
+              </div>
+              <div>
+                <label style={lbl}>Tekrar</label>
+                <select value={f.freq} onChange={(e) => setRForm({ ...f, freq: e.target.value })} style={{ ...inp, width: "100%" }}>
+                  <option value="gun">Günlük</option>
+                  <option value="hafta">Haftalık</option>
+                  <option value="ay">Aylık</option>
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Aralık (her N {f.freq === "gun" ? "günde" : f.freq === "hafta" ? "haftada" : "ayda"} bir)</label>
+                <input type="number" min={1} max={60} value={f.every}
+                  onChange={(e) => setRForm({ ...f, every: Math.max(1, Math.min(60, parseInt(e.target.value, 10) || 1)) })}
+                  style={{ ...inp, width: "100%" }} />
+              </div>
+
+              {f.freq === "hafta" && (
+                <div style={{ gridColumn: mobile ? "auto" : "1 / -1" }}>
+                  <label style={lbl}>Günler</label>
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                    {GUN_KISA.map((g, i) => {
+                      const on = (f.days || []).includes(i);
+                      return (
+                        <button key={g} onClick={() => setRForm({ ...f, days: on ? f.days.filter((x) => x !== i) : [...(f.days || []), i] })}
+                          style={{
+                            border: "1px solid " + (on ? "#7c3aed" : "#2a2a35"), background: on ? "#1e1b2e" : "transparent",
+                            color: on ? "#c4b5fd" : "#71717a", borderRadius: 7, padding: "6px 11px",
+                            fontSize: 12, fontWeight: 700, cursor: "pointer",
+                          }}>{g}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {f.freq === "ay" && (
+                <div>
+                  <label style={lbl}>Ayın günü</label>
+                  <input type="number" min={1} max={31} value={f.dom}
+                    onChange={(e) => setRForm({ ...f, dom: Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)) })}
+                    style={{ ...inp, width: "100%" }} />
+                </div>
+              )}
+
+              <div>
+                <label style={lbl}>Başlangıç</label>
+                <input type="date" value={f.start} onChange={(e) => setRForm({ ...f, start: e.target.value })} style={{ ...inp, width: "100%" }} />
+              </div>
+              <div>
+                <label style={lbl}>Bitiş (boş = süresiz)</label>
+                <input type="date" value={f.end} onChange={(e) => setRForm({ ...f, end: e.target.value })} style={{ ...inp, width: "100%" }} />
+              </div>
+              <div>
+                <label style={lbl}>Hatırlatma saati</label>
+                <input type="time" value={f.time} onChange={(e) => setRForm({ ...f, time: e.target.value })} style={{ ...inp, width: "100%" }} />
+              </div>
+              <div style={{ gridColumn: mobile ? "auto" : "1 / -1" }}>
+                <label style={lbl}>Not (opsiyonel)</label>
+                <input value={f.n} onChange={(e) => setRForm({ ...f, n: e.target.value })} style={{ ...inp, width: "100%" }} />
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 12, flexWrap: "wrap" }}>
+              <button
+                onClick={() => { if (!f.x.trim()) return; postRoutine({ ...f, x: f.x.trim() }); setRForm(null); }}
+                disabled={!f.x.trim()}
+                style={{ ...S.smallBtn, background: f.x.trim() ? "#7c3aed" : "#15151d", color: f.x.trim() ? "#fff" : "#52525b", border: "1px solid " + (f.x.trim() ? "#7c3aed" : "#2a2a35"), padding: "8px 16px" }}
+              >
+                Kaydet
+              </button>
+              {routines.some((r) => r.id === f.id) && (
+                <button onClick={() => deleteRoutine(f.id)} style={{ ...S.smallBtn, color: "#f87171", borderColor: "#3b1d1d" }}>Sil</button>
+              )}
+              <span style={{ fontSize: 11.5, color: "#52525b" }}>{rutinOzet(f)}</span>
+            </div>
+          </div>
+        )}
+
+        {routines.length === 0 ? (
+          <div style={S.empty}>Henüz rutin yok. "+ Rutin ekle" ile kur — takvime, haftalığa ve aylığa otomatik düşer.</div>
+        ) : (
+          <div style={S.card}>
+            {routines.map((r, i) => (
+              <div key={r.id} style={{ ...S.taskRow, borderBottom: i === routines.length - 1 ? "none" : S.taskRow.borderBottom, display: "flex", alignItems: "center", gap: 9, opacity: r.active ? 1 : 0.5 }}>
+                <span style={{ fontSize: 12 }}>🔁</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, lineHeight: "19px" }}>{r.x}</div>
+                  <div style={{ fontSize: 11, color: "#71717a", marginTop: 1 }}>{rutinOzet(r)}{r.active ? "" : " · pasif"}</div>
+                </div>
+                <button onClick={() => postRoutine({ ...r, active: !r.active })} style={{ ...S.smallBtn, padding: "4px 9px", fontSize: 11 }}>
+                  {r.active ? "Duraklat" : "Sürdür"}
+                </button>
+                <button onClick={() => setRForm({ ...r })} style={{ ...S.smallBtn, padding: "4px 9px", fontSize: 11 }}>Düzenle</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     );
   }
 
