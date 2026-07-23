@@ -120,6 +120,7 @@ const S = {
   tabs: {
     display: "flex", gap: 4, padding: "8px 12px", borderBottom: "1px solid var(--line)",
     background: "var(--surface)", overflowX: "auto", flexShrink: 0, WebkitOverflowScrolling: "touch",
+    position: "sticky", top: 0, zIndex: 5,
   },
   tab: (on) => ({
     border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700,

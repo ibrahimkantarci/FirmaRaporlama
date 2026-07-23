@@ -657,6 +657,19 @@ textarea.input { height: auto; padding: var(--s-2) var(--s-3); line-height: var(
 .theme-dark .side-item[aria-current="true"] { background: var(--brand-050); color: #fff; }
 .theme-dark .skel { background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%); background-size: 400% 100%; }
 
+/* Koyu kabukta yüzey hiyerarşisi — üstten alta hafifçe koyulaşır, böylece
+   appbar içerikten ayrılır ama ondan KOPMAZ:
+     appbar (surface-2) → sekme çubuğu (surface) → içerik (bg)               */
+.theme-dark .appbar { background: var(--surface-2); border-bottom-color: var(--line); }
+.theme-dark .gbtn { background: var(--surface-3); border-color: var(--line-strong); color: var(--ink-2); }
+.theme-dark .gbtn:hover { background: var(--line); border-color: var(--faint); color: var(--ink); }
+.theme-dark .appbar-sep { background: var(--line-strong); }
+.theme-dark .appbar-mail { color: var(--muted); }
+.theme-dark .brand-sub { color: var(--faint); }
+
+/* Sayfa zemininin html'e kadar inmesi: koyu sayfada üstte/altta açık şerit kalmasın */
+html:has(.theme-dark) { background: #131316; }
+
 /* ── 7. RESPONSIVE ──────────────────────────────────────────────────────── */
 /* Kırılımlar: 1200 (yoğunluk), 900 (yan menü daralır), 720 (tek kolon/drawer) */
 @media (max-width: 1200px) {

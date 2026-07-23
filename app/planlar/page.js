@@ -10,7 +10,9 @@ export default async function PlanlarPage() {
   const session = await requireToolAccess("notlar");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    // theme-dark SAYFANIN TAMAMINA veriliyor (yalnız panele değil): AppHeader da
+    // aynı token'ları çözsün, açık header koyu içeriğin üstünde asılı kalmasın.
+    <div className="theme-dark" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <AppHeader back={{ href: "/", label: "Hub" }} subtitle="Planlar" email={session.user.email} />
       <Planner email={session.user.email} />
     </div>
