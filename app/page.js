@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Brand } from "./brand";
 import { AppHeader } from "./app-header";
 import { TOOLS } from "../lib/registry";
+import NotePad from "./notepad";
 import { allowedToolKeys, canAccessHome } from "../lib/access";
 import { signOutAction } from "./actions";
 import RevokedSignOut from "./revoked-signout";
@@ -100,14 +101,28 @@ export default async function Home({ searchParams }) {
 
   // YETKİLENDİRME: kullanıcı yalnızca erişebildiği araçları görür.
   const allowed = await allowedToolKeys(session.user.email);
-  const visibleTools = TOOLS.filter((t) => allowed.has(t.key));
+  // hidden: erişim anahtarı olarak var ama hub'da kart olarak gösterilmez (ör. notlar).
+  const visibleTools = TOOLS.filter((t) => allowed.has(t.key) && !t.hidden);
+  const canSeeNote = allowed.has("notlar");
   const denied = searchParams?.denied;
 
   return (
     <>
       <AppHeader email={session.user.email} />
 
-      <main style={{ maxWidth: 880, margin: "0 auto", padding: "40px 22px 64px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "center",
+          gap: 30,
+          flexWrap: "wrap",
+          maxWidth: 1240,
+          margin: "0 auto",
+          padding: "40px 22px 64px",
+        }}
+      >
+      <main style={{ flex: "1 1 560px", maxWidth: 880, minWidth: 0 }}>
         <p className="eyebrow">Performans Yönetimi</p>
         <h1 className="title" style={{ fontSize: 30 }}>Bir araç seç</h1>
         <p className="lede" style={{ marginBottom: 0 }}>
@@ -147,6 +162,9 @@ export default async function Home({ searchParams }) {
           </div>
         )}
       </main>
+
+      {canSeeNote && <NotePad />}
+      </div>
     </>
   );
 }
