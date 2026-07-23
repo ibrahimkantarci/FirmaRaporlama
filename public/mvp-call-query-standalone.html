@@ -70,11 +70,6 @@ select{padding:5px 10px;border:1px solid #e4e4e7;border-radius:6px;font-size:12p
   </div>
 
   <div class="card">
-    <div class="card-head"><span class="ct">🏷️ Tutar Sınıfı Dağılımı</span><span class="note">provider sayısı ve toplam sözleşme tutarı</span></div>
-    <div id="b-tier"><div class="empty">Yükleniyor…</div></div>
-  </div>
-
-  <div class="card">
     <div class="card-head">
       <span class="ct">👑 En Çok Ödeyen 20 Müşteri</span>
       <span class="note">satıra tıkla → firmalar (provider) açılır</span>
@@ -215,30 +210,6 @@ function renderOzet() {
   document.getElementById('ozet-note').textContent = MVP.ay ? ('bitiş ayı ' + MVP.ay) : 'tüm aylar';
 }
 
-function renderTier() {
-  var rows = MVP.rows.filter(function (r) { return !MVP.ay || r.ay === MVP.ay; });
-  var el = document.getElementById('b-tier');
-  if (!rows.length) { el.innerHTML = '<div class="empty">Kayıt yok</div>'; return; }
-  var agg = {};
-  TIERS.forEach(function (t) { agg[t.k] = { n: 0, tutar: 0, anl: 0 }; });
-  rows.forEach(function (r) { var a = agg[r.tier]; if (a) { a.n++; a.tutar += r.tutar; a.anl += r.anlasma; } });
-  var maxN = 1;
-  TIERS.forEach(function (t) { if (agg[t.k].n > maxN) maxN = agg[t.k].n; });
-  var h = '<table><thead><tr><th>Sınıf</th><th class="num">Provider</th><th></th><th class="num">Toplam Tutar</th><th class="num">Anlaşma</th><th class="num">Pay</th></tr></thead><tbody>';
-  var tot = rows.reduce(function (s, r) { return s + r.tutar; }, 0) || 1;
-  TIERS.forEach(function (t) {
-    var a = agg[t.k];
-    h += '<tr><td><span class="tierbadge t-' + t.k + '">' + esc(t.label) + '</span></td>' +
-      '<td class="num">' + fmtInt(a.n) + '</td>' +
-      '<td style="width:130px"><span class="bar" style="width:' + Math.round((a.n / maxN) * 120) + 'px"></span></td>' +
-      '<td class="num">' + fmtTL(a.tutar) + '</td>' +
-      '<td class="num">' + fmtInt(a.anl) + '</td>' +
-      '<td class="num">%' + (a.tutar / tot * 100).toFixed(1) + '</td></tr>';
-  });
-  h += '</tbody></table>';
-  el.innerHTML = h;
-}
-
 function renderTop() {
   var rows = filtered();
   var el = document.getElementById('b-top');
@@ -296,7 +267,7 @@ function renderTop() {
   el.innerHTML = h;
 }
 
-function renderAll() { renderFilters(); renderOzet(); renderTier(); renderTop(); }
+function renderAll() { renderFilters(); renderOzet(); renderTop(); }
 
 MVP.setAy = function (v) { MVP.ay = v || ''; MVP.open = {}; renderAll(); };
 MVP.setTier = function (v) { MVP.tier = v || ''; MVP.open = {}; renderAll(); };
@@ -315,7 +286,7 @@ MVP.toggle = function (k) { MVP.open[k] = !MVP.open[k]; renderTop(); };
     })
     .catch(function (e) {
       document.getElementById('freshness').textContent = 'Hata: ' + (e && e.message ? e.message : e);
-      ['b-ozet', 'b-tier', 'b-top'].forEach(function (id) {
+      ['b-ozet', 'b-top'].forEach(function (id) {
         document.getElementById(id).innerHTML = '<div class="empty">Veri yüklenemedi</div>';
       });
     });
