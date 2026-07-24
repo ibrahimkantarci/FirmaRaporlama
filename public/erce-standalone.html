@@ -888,6 +888,31 @@ function primOdeme(skor, cfg){
   return d>0 ? Math.min(100, 100*(skor-cfg.baraj)/d) : 100;
 }
 
+// Odeme egrisinin capa noktalari: baraj→0 ... tam→100 (aradaki her puan dogrusal).
+// %100 performans BILEREK 100 birimin altindadir; 100 birim yalnizca tam skorda odenir.
+function primEgriCapalar(cfg){
+  var out = [], d = cfg.tam - cfg.baraj;
+  if(d <= 0) return out;
+  for(var i=0;i<=4;i++){
+    var sk = cfg.baraj + d*i/4;
+    out.push({ skor:sk, birim:primOdeme(sk,cfg) });
+  }
+  // 100 puan capalar arasinda degilse ayrica ekle (en kritik referans nokta)
+  if(cfg.baraj < 100 && cfg.tam > 100 && !out.some(function(x){ return Math.abs(x.skor-100)<0.5; }))
+    out.push({ skor:100, birim:primOdeme(100,cfg), vurgu:true });
+  return out.sort(function(a,b){ return a.skor-b.skor; });
+}
+function primEgriSerit(cfg){
+  return '<div style="display:flex;flex-wrap:wrap;gap:0;margin-top:10px;border:1px solid #e4e4e7;border-radius:7px;overflow:hidden">'+
+    primEgriCapalar(cfg).map(function(a){
+      return '<div style="flex:1;min-width:74px;padding:7px 6px;text-align:center;'+
+        (a.vurgu?'background:#fffbeb;':'background:#fff;')+'border-right:1px solid #f4f4f5">'+
+        '<div style="font-size:11px;color:#a1a1aa;font-weight:600">'+a.skor.toFixed(0)+' puan</div>'+
+        '<div style="font-size:15px;font-weight:700;color:'+(a.vurgu?'#ca8a04':'#18181b')+'">'+a.birim.toFixed(0)+' birim</div>'+
+        '</div>';
+    }).join('')+'</div>';
+}
+
 function primSkorRenk(s){ return s==null?'#71717a' : s>=100?'#16a34a' : s>=80?'#ca8a04' : s>=60?'#ea580c' : '#dc2626'; }
 
 function renderPrim(){
@@ -970,8 +995,11 @@ function renderPrim(){
   out += '<table><thead><tr><th>PY</th>'+
     PRIM_METRICS.map(function(M){ return '<th style="text-align:right">'+esc(M.ad.split(' ')[0])+'</th>'; }).join('')+
     '<th style="text-align:right">Skor</th><th style="text-align:right">Kapsam</th><th style="text-align:right">Prim</th></tr></thead><tbody>';
+  var selKey = (py!=='Tümü') ? pyFirstKey(py) : null;
   satir.forEach(function(r){
-    out += '<tr><td style="font-weight:600">'+esc(r.py.split(' ')[0])+'</td>'+
+    var isSel = selKey && pyFirstKey(r.py)===selKey;
+    out += '<tr'+(isSel?' style="background:#fffbeb"':'')+'>'+
+      '<td style="font-weight:'+(isSel?'800':'600')+'">'+(isSel?'▸ ':'')+esc(r.py.split(' ')[0])+'</td>'+
       r.t.parts.map(function(pt){
         if(pt.x==null) return '<td style="text-align:right;color:#d4d4d8">—</td>';
         return '<td style="text-align:right">'+primFmt(pt.x)+
@@ -987,13 +1015,45 @@ function renderPrim(){
     '<b>Kapsam</b> %100’ün altındaysa o PY için bazı metriklerde veri yok; kalan ağırlıklar yeniden dağıtılmıştır — '+
     'düşük kapsamlı satırları ödeme kararına esas almadan önce eksik kaynağı doldurun.</div>';
 
+  // ── Seçili PY × seçili ay → net ödeme kartı (sayfanın en üstünde) ────────
   if(py!=='Tümü'){
     var sel = satir.find(function(r){ return pyFirstKey(r.py)===pyFirstKey(py); });
-    if(sel) out = '<div style="padding:10px 12px;margin-bottom:12px;border:1px solid #e4e4e7;border-radius:8px;background:#fafafa">'+
-      '<div style="font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:.5px;font-weight:600">Seçili PY</div>'+
-      '<div style="font-size:20px;font-weight:700;margin-top:2px">'+esc(sel.py)+' · '+
-      '<span style="color:'+primSkorRenk(sel.t.skor)+'">'+primFmt(sel.t.skor,0)+' puan</span> → '+
-      '<span>'+(sel.o==null?'—':sel.o.toFixed(0))+' birim</span></div></div>' + out;
+    if(sel){
+      var oran = (sel.t.skor==null) ? 0 :
+        Math.max(0, Math.min(100, (sel.t.skor-cfg.baraj)/(cfg.tam-cfg.baraj)*100));
+      var kart =
+        '<div style="border:2px solid #18181b;border-radius:10px;padding:16px 18px;margin-bottom:16px;background:#fff">'+
+          '<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;justify-content:space-between">'+
+            '<div>'+
+              '<div style="font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:.6px;font-weight:700">Ödenecek prim</div>'+
+              '<div style="font-size:17px;font-weight:700;margin-top:3px">'+esc(sel.py)+' · '+esc(ay)+'</div>'+
+            '</div>'+
+            '<div style="text-align:right">'+
+              '<div style="font-size:40px;font-weight:800;line-height:1;color:'+(sel.o?'#18181b':'#dc2626')+'">'+
+                (sel.o==null?'—':sel.o.toFixed(1))+
+                '<span style="font-size:15px;font-weight:600;color:#71717a"> / 100 birim</span></div>'+
+              '<div style="font-size:12px;color:#71717a;margin-top:4px">Ağırlıklı skor '+
+                '<b style="color:'+primSkorRenk(sel.t.skor)+'">'+primFmt(sel.t.skor,1)+'</b> puan'+
+                (sel.t.kapsam<100?' · <span style="color:#ea580c">kapsam %'+sel.t.kapsam.toFixed(0)+'</span>':'')+'</div>'+
+            '</div>'+
+          '</div>'+
+          '<div style="margin-top:12px;height:9px;background:#f4f4f5;border-radius:5px;overflow:hidden">'+
+            '<div style="height:100%;width:'+oran.toFixed(1)+'%;background:'+(sel.o?'#18181b':'#dc2626')+'"></div>'+
+          '</div>'+
+          '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:#a1a1aa;margin-top:4px;font-weight:600">'+
+            '<span>'+cfg.baraj+' puan — prim yok</span><span>'+cfg.tam+' puan — 100 birim</span></div>'+
+          (sel.o===0 ? '<div style="margin-top:10px;padding:8px 10px;background:#fef2f2;border-radius:6px;font-size:12px;color:#991b1b">'+
+            'Skor barajın (<b>'+cfg.baraj+'</b>) altında → bu ay için prim <b>ödenmez</b>.</div>' : '')+
+          primEgriSerit(cfg)+
+          '<div style="font-size:11px;color:#a1a1aa;margin-top:7px">100 puan (tüm hedefler tam tutturulmuş) '+
+          '<b>'+primOdeme(100,cfg).toFixed(1)+' birim</b> öder — 100 birimin tamamı yalnızca '+cfg.tam+' puanda ödenir.</div>'+
+        '</div>';
+      out = kart + out;
+    }
+  } else {
+    out = '<div style="padding:9px 12px;margin-bottom:14px;border:1px dashed #e4e4e7;border-radius:8px;'+
+      'font-size:12.5px;color:#71717a;background:#fafafa">Net ödeme tutarı için yukarıdan bir <b>PY</b> seçin. '+
+      'Aşağıdaki tablo tüm PY’lerin '+esc(ay)+' primini gösteriyor.</div>' + out;
   }
   el.innerHTML = out;
 }
