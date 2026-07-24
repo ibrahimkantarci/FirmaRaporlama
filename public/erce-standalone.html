@@ -72,7 +72,17 @@ td{padding:7px 8px;border-bottom:1px solid #f4f4f5;font-size:12.5px}
 
   <div class="tabpane on" id="pane-prim">
     <div class="card">
-      <div class="card-head"><span class="ct">💰 Prim Hesaplama</span><span class="note">seçili PY + ay için</span></div>
+      <div class="card-head"><span class="ct">💰 Prim Hesaplama</span><span class="note">ağırlıklar ve ödeme eğrisi aşağıdan ayarlanır</span></div>
+      <div id="prim-cfg" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:4px 2px 14px;border-bottom:1px solid #f4f4f5;margin-bottom:14px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:10px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Ağırlıklar (%)</span>
+          <div style="display:flex;gap:10px;flex-wrap:wrap"><label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:#71717a;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Verimlilik<input id="pc-wVerim" type="number" min="0" step="1" value="15" onchange="primCfgChanged()" style="width:64px;padding:5px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-weight:600;color:#18181b;background:#fff"></label><label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:#71717a;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Yenileme<input id="pc-wYen" type="number" min="0" step="1" value="35" onchange="primCfgChanged()" style="width:64px;padding:5px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-weight:600;color:#18181b;background:#fff"></label><label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:#71717a;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Dokunma<input id="pc-wDok" type="number" min="0" step="1" value="20" onchange="primCfgChanged()" style="width:64px;padding:5px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-weight:600;color:#18181b;background:#fff"></label><label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:#71717a;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Yeşil-Sarı<input id="pc-wFlag" type="number" min="0" step="1" value="20" onchange="primCfgChanged()" style="width:64px;padding:5px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-weight:600;color:#18181b;background:#fff"></label><label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:#71717a;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Decay<input id="pc-wDecay" type="number" min="0" step="1" value="10" onchange="primCfgChanged()" style="width:64px;padding:5px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-weight:600;color:#18181b;background:#fff"></label></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding-left:14px;border-left:1px solid #e4e4e7">
+          <span style="font-size:10px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Ödeme eğrisi (skor)</span>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:#71717a;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Prim sıfır<input id="pc-baraj" type="number" min="0" step="1" value="60" onchange="primCfgChanged()" style="width:64px;padding:5px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-weight:600;color:#18181b;background:#fff"></label><label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:#71717a;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Tam ödeme<input id="pc-tam" type="number" min="0" step="1" value="120" onchange="primCfgChanged()" style="width:64px;padding:5px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-weight:600;color:#18181b;background:#fff"></label><button onclick="primCfgReset()" style="padding:6px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;font-size:12px;color:#71717a;cursor:pointer;font-weight:600">Varsayılana dön</button></div>
+        </div>
+      </div>
       <div id="b-prim" class="empty">Veri bekleniyor</div>
     </div>
   </div>
@@ -380,7 +390,11 @@ function renderYenilemeYuzdesi(){
   const hCust = findH([/musteri|customer/, /(^|[^a-z])firma/, /rci|rçi/]);
   const hPy   = findH([/(^|[^a-z])py($|[^a-z])|portfoy|account.?manager/]);
   const hYen  = findH([/yeniley|yenilenen.?(provider|firma|adet|sayi)|renewed/]);
-  const hTop  = findH([/toplam.?(provider|firma|adet|sayi)|provider.?(sayi|adet|count)|total.?provider/]);
+  // DIKKAT: "Yenileyen Provider Sayisi" basligi /provider.?sayi/ ile de eslesiyordu →
+  // payda pay ile ayni kolona dusup yenileme orani her zaman %100 cikiyordu. Cozum:
+  // hYen kolonu haric tutulur ve "toplam" kalibi oncelikli denenir.
+  const findHx = (res, skip) => { for(const re of res){ const h=heads.find(h=>h!==skip&&re.test(fold(h))); if(h) return h; } return null; };
+  const hTop  = findHx([/toplam.?(provider|firma|adet|sayi)/, /total.?provider/, /provider.?(sayi|adet|count)/], hYen);
   // Value kolonları — kullanıcı tam adları verdi; önce birebir (folded) eşle, sonra bulanık yedek.
   const exactH=(name)=>{const t=fold(name);return heads.find(h=>fold(h)===t)||null;};
   const hEski = exactH('Yenilemeye Gelen Toplam Fiyat') || findH([/eski.*(value|tutar|deger)|onceki.*(value|tutar)|old.?value|yenileme.?oncesi|yenilemeye.?gelen.*(fiyat|tutar)/]);
@@ -616,28 +630,379 @@ function setErceTab(name){
   for(var j=0;j<keys.length;j++){ var p=document.getElementById('pane-'+keys[j]); if(p) p.classList.toggle('on', keys[j]===name); }
 }
 
-// ── 0) PRİM HESAPLAMA — seçili PY + ay bağlamı; formül sonradan bağlanacak ────
+// ── 0) PRİM HESAPLAMA ───────────────────────────────────────────────────────
+// Beş metrik (verimlilik / yenileme / dokunma / yeşil-sarı / decay) ağırlıklı
+// skora çevrilir. Referans değerler (Baraj–Hedef–Tavan) YÜKLÜ VERİNİN kendi
+// dağılımından persentil ile hesaplanır → elle eşik girmeye gerek yok, veri
+// büyüdükçe kendini kalibre eder. Skor → prim: baraj altı 0, tam skorda 100 birim.
+// ÖNEMLİ: metrik çıkarımı ilgili board'ların mantığıyla AYNIdır (tek doğruluk kaynağı).
+
+var PRIM_DEF = { wVerim:15, wYen:35, wDok:20, wFlag:20, wDecay:10, baraj:60, tam:120 };
+
+var PRIM_METRICS = [
+  { key:'verim', ad:'Verimlilik',          w:'wVerim', yon: 1, ipucu:'Konuşma / mesai süresi' },
+  { key:'yen',   ad:'Yenileme oranı',      w:'wYen',   yon: 1, ipucu:'Yenileyen / toplam provider' },
+  { key:'dok',   ad:'Dokunma başarısı',    w:'wDok',   yon: 1, ipucu:'Touch alınan / bakılan customer' },
+  { key:'flag',  ad:'Yeşil / Yeşil+Sarı ⌀',w:'wFlag',  yon: 1, ipucu:'Ay sonu portföy sağlığı' },
+  { key:'decay', ad:'Decay oranı',         w:'wDecay', yon:-1, ipucu:'Decay olan / kohort (düşük iyi)' }
+];
+
+function primCfg(){
+  var c = {};
+  Object.keys(PRIM_DEF).forEach(function(k){
+    var el = document.getElementById('pc-'+k);
+    var v  = el ? parseFloat(String(el.value).replace(',','.')) : NaN;
+    c[k] = isNaN(v) ? PRIM_DEF[k] : v;
+  });
+  return c;
+}
+function primCfgChanged(){
+  try{ localStorage.setItem('erce_prim_cfg', JSON.stringify(primCfg())); }catch(e){}
+  renderPrim();
+}
+function primCfgReset(){
+  Object.keys(PRIM_DEF).forEach(function(k){
+    var el = document.getElementById('pc-'+k); if(el) el.value = PRIM_DEF[k];
+  });
+  primCfgChanged();
+}
+function primCfgLoad(){
+  var s = null;
+  try{ s = JSON.parse(localStorage.getItem('erce_prim_cfg')||'null'); }catch(e){}
+  Object.keys(PRIM_DEF).forEach(function(k){
+    var el = document.getElementById('pc-'+k); if(!el) return;
+    el.value = (s && s[k]!=null && !isNaN(s[k])) ? s[k] : PRIM_DEF[k];
+  });
+}
+
+function primNum(v){
+  if(typeof v==='number') return isNaN(v)?null:v;
+  var n = parseFloat(String(v==null?'':v).replace(/[^0-9.,-]/g,'').replace(',','.'));
+  return isNaN(n) ? null : n;
+}
+function primFmt(n,d){ return n==null ? '—' : n.toFixed(d==null?1:d); }
+
+// Çağrı logları büyük olabilir → PY|ay indeksini bir kez kur, her hesapta yeniden tarama.
+var _primIdx = null;
+function primCagriIdx(){
+  if(_primIdx) return _primIdx;
+  var idx = {};
+  (S.cagrilar||[]).forEach(function(c){
+    var a = ayOf(c.tarih); if(!a) return;
+    var k = pyFirstKey(c.py_adi||''); if(!k) return;
+    var cu = String(c.musteri_id || c.firma_id || '').trim(); if(!cu) return;
+    var kk = k+'|'+a;
+    if(!idx[kk]) idx[kk] = { all:new Set(), tou:new Set() };
+    idx[kk].all.add(cu);
+    if(c.durum==='Touch') idx[kk].tou.add(cu);
+  });
+  _primIdx = idx; return idx;
+}
+
+// custYenileme başlıkları — renderYenilemeYuzdesi ile aynı esnek eşleme.
+var _primCyH;
+function primCustYenH(){
+  if(_primCyH!==undefined) return _primCyH;
+  var rows = S.custYenileme||[];
+  if(!rows.length){ _primCyH=null; return null; }
+  var heads = Object.keys(rows[0]||{});
+  var findH = function(res){
+    for(var i=0;i<res.length;i++){
+      var h = heads.find(function(x){ return res[i].test(foldTr(x)); });
+      if(h) return h;
+    }
+    return null;
+  };
+  var findHx = function(res, skip){
+    for(var i=0;i<res.length;i++){
+      var h = heads.find(function(x){ return x!==skip && res[i].test(foldTr(x)); });
+      if(h) return h;
+    }
+    return null;
+  };
+  var _yen = findH([/yeniley|yenilenen.?(provider|firma|adet|sayi)|renewed/]);
+  _primCyH = {
+    ay:  findH([/yil.?ay|yılay|year.?month|donem/, /(^|[^a-z])ay($|[^a-z])/, /month/, /tarih|date/]),
+    py:  findH([/(^|[^a-z])py($|[^a-z])|portfoy|account.?manager/]),
+    yen: _yen,
+    // payda: hYen haric, "toplam" oncelikli (bkz. renderYenilemeYuzdesi'ndeki ayni duzeltme)
+    top: findHx([/toplam.?(provider|firma|adet|sayi)/, /total.?provider/, /provider.?(sayi|adet|count)/], _yen)
+  };
+  return _primCyH;
+}
+
+function primAllPys(){
+  var s = new Set();
+  var add = function(p){ if(p && p!=='-' && pyAllowed(p)) s.add(p); };
+  (S.verimlilik||[]).forEach(function(r){ add(r.py_adi); });
+  (S.phFlagAy||[]).forEach(function(r){ add(r.py_adi); });
+  (S.cagrilar||[]).forEach(function(r){ add(r.py_adi); });
+  return [].concat.apply([], [Array.from(s)]).sort();
+}
+function primAllAys(){
+  var s = new Set();
+  (S.verimlilik||[]).forEach(function(r){ if(r.ay) s.add(r.ay); });
+  (S.phFlagAy||[]).forEach(function(r){ if(r.ay) s.add(r.ay); });
+  (S.cagrilar||[]).forEach(function(c){ var a=ayOf(c.tarih); if(a) s.add(a); });
+  var H = decayHeaders();
+  if(H && H.bas) (S.decayTakip||[]).forEach(function(r){ var a=decayEvalAy(r[H.bas]); if(a) s.add(a); });
+  return Array.from(s).sort();
+}
+
+// Bir PY'nin bir aydaki beş ham metriği. Veri yoksa null (skorda ağırlık yeniden dağıtılır).
+function primMetrics(py, ay){
+  var k = pyFirstKey(py);
+  var m = { verim:null, yen:null, dok:null, flag:null, decay:null, d:{} };
+
+  // 1) Verimlilik — Dashboard_Verimlilik (PY × Yıl Ay)
+  var vr = (S.verimlilik||[]).find(function(r){ return r.ay===ay && pyFirstKey(r.py_adi||'')===k; });
+  if(vr) m.verim = primNum(vr.verimlilik);
+
+  // 2) Yenileme oranı — Customer Bazında Yenileme Tablosu
+  var H = primCustYenH();
+  if(H && H.ay && H.yen && H.top && H.py){
+    var ty=0, tt=0, hit=false;
+    (S.custYenileme||[]).forEach(function(r){
+      if(normSheetAy(r[H.ay])!==ay) return;
+      if(pyFirstKey(String(r[H.py]||''))!==k) return;
+      ty += primNum(r[H.yen])||0; tt += primNum(r[H.top])||0; hit=true;
+    });
+    if(hit && tt>0){ m.yen = ty/tt*100; m.d.yen = Math.round(ty)+'/'+Math.round(tt); }
+  }
+
+  // 3) Dokunma başarısı — çağrı logları (bir customer ayda bir kez sayılır)
+  var ix = primCagriIdx()[k+'|'+ay];
+  if(ix && ix.all.size){ m.dok = ix.tou.size/ix.all.size*100; m.d.dok = ix.tou.size+'/'+ix.all.size; }
+
+  // 4) Yeşil / Yeşil+Sarı ortalaması — Dashboard_PH_Flag_Ay (ay sonu snapshot)
+  var tot=0, ye=0, sa=0;
+  (S.phFlagAy||[]).forEach(function(r){
+    if(r.ay!==ay || pyFirstKey(r.py_adi||'')!==k) return;
+    var a = primNum(r.adet)||0; tot += a;
+    if(r.flag==='Yeşil') ye += a;
+    if(r.flag==='Sarı')  sa += a;
+  });
+  if(tot>0){
+    var pYe = ye/tot*100, pYeSa = (ye+sa)/tot*100;
+    m.flag = (pYe+pYeSa)/2;
+    m.d.flag = ye+'+'+sa+'/'+tot;
+  }
+
+  // 5) Decay oranı — kohort = Başlama Tarihi bir yıl önceki aynı ay
+  var DH = decayHeaders();
+  if(DH && DH.bas && DH.durum && DH.py){
+    var dl = (S.decayTakip||[]).filter(function(r){
+      return decayEvalAy(r[DH.bas])===ay && pyAllowed(r[DH.py]) && pyFirstKey(String(r[DH.py]||''))===k;
+    });
+    if(dl.length){
+      var dc = dl.filter(function(r){ return /decay/.test(foldTr(r[DH.durum])); }).length;
+      m.decay = dc/dl.length*100; m.d.decay = dc+'/'+dl.length;
+    }
+  }
+  return m;
+}
+
+function primPct(arr, p){
+  var a = arr.filter(function(x){ return x!=null && !isNaN(x); }).sort(function(x,y){ return x-y; });
+  if(!a.length) return null;
+  var i = (a.length-1)*p/100, lo = Math.floor(i), hi = Math.ceil(i);
+  return lo===hi ? a[lo] : a[lo] + (a[hi]-a[lo])*(i-lo);
+}
+
+// Referans değerler: TÜM PY × TÜM ay dağılımından persentil.
+// Yükseği iyi olan metrik → Baraj p20, Hedef p50, Tavan p90.  Decay (düşüğü iyi) → ters.
+var _primRefs = null;
+function primRefs(){
+  if(_primRefs) return _primRefs;
+  var pys = primAllPys(), ays = primAllAys(), pool = {};
+  PRIM_METRICS.forEach(function(M){ pool[M.key] = []; });
+  ays.forEach(function(a){
+    pys.forEach(function(p){
+      var m = primMetrics(p, a);
+      PRIM_METRICS.forEach(function(M){ if(m[M.key]!=null) pool[M.key].push(m[M.key]); });
+    });
+  });
+  var refs = {};
+  PRIM_METRICS.forEach(function(M){
+    var arr = pool[M.key];
+    refs[M.key] = (M.yon>0)
+      ? { B:primPct(arr,20), H:primPct(arr,50), T:primPct(arr,90), n:arr.length }
+      : { B:primPct(arr,80), H:primPct(arr,50), T:primPct(arr,10), n:arr.length };
+  });
+  // Elle girilen esikler persentil onerisini EZER. Kucuk ekipte persentil, en zayif
+  // PY'yi otomatik olarak barajin altina dusurur (goreceli notlandirma) — mutlak hedef
+  // istendigi icin esikler duzenlenebilir olmali.
+  var ov = primRefOv();
+  PRIM_METRICS.forEach(function(M){
+    var o = ov[M.key]; if(!o) return;
+    ['B','H','T'].forEach(function(f){ if(o[f]!=null && !isNaN(o[f])){ refs[M.key][f]=o[f]; refs[M.key].ov=true; } });
+  });
+  _primRefs = refs; return refs;
+}
+
+function primRefOv(){ try{ return JSON.parse(localStorage.getItem('erce_prim_refs')||'{}')||{}; }catch(e){ return {}; } }
+function primRefSet(key, f, val){
+  var o = primRefOv(); if(!o[key]) o[key] = {};
+  var n = parseFloat(String(val).replace(',','.'));
+  if(isNaN(n)) delete o[key][f]; else o[key][f] = n;
+  if(!Object.keys(o[key]).length) delete o[key];
+  try{ localStorage.setItem('erce_prim_refs', JSON.stringify(o)); }catch(e){}
+  _primRefs = null; renderPrim();
+}
+function primRefReset(){
+  try{ localStorage.removeItem('erce_prim_refs'); }catch(e){}
+  _primRefs = null; renderPrim();
+}
+function primRefInput(k, f, v){
+  return '<input type="number" step="0.1" value="'+(v==null?'':v.toFixed(1))+'" '+
+    'onchange="primRefSet(\''+k+'\',\''+f+'\',this.value)" '+
+    'style="width:66px;padding:3px 6px;border:1px solid #e4e4e7;border-radius:5px;font-size:12px;'+
+    'text-align:right;background:#fff;color:#18181b">';
+}
+
+// Baraj→0, Hedef→100, Tavan→120 (doğrusal, 120'de tavanlı)
+function primScore(x, r, yon){
+  if(x==null || !r || r.B==null || r.H==null || r.T==null) return null;
+  var B=r.B, H=r.H, T=r.T;
+  if(yon<0){ x=-x; B=-B; H=-H; T=-T; }
+  if(x<=B) return 0;
+  if(x>=H){ var d=T-H; return d>0 ? Math.min(120, 100+20*Math.min(1,(x-H)/d)) : 100; }
+  return (H-B)>0 ? 100*(x-B)/(H-B) : 100;
+}
+
+// Eksik metrik varsa kalan ağırlıklar yeniden normalize edilir; kapsam ayrıca gösterilir.
+function primTotal(m, refs, cfg){
+  var acc=0, wsum=0, wall=0, parts=[];
+  PRIM_METRICS.forEach(function(M){
+    var w = cfg[M.w]||0, s = primScore(m[M.key], refs[M.key], M.yon);
+    wall += w;
+    parts.push({ M:M, w:w, x:m[M.key], s:s, d:m.d[M.key] });
+    if(s!=null && w>0){ acc += w*s; wsum += w; }
+  });
+  return { skor: wsum>0 ? acc/wsum : null, parts:parts, kapsam: wall>0 ? wsum/wall*100 : 0 };
+}
+function primOdeme(skor, cfg){
+  if(skor==null) return null;
+  if(skor < cfg.baraj) return 0;
+  var d = cfg.tam - cfg.baraj;
+  return d>0 ? Math.min(100, 100*(skor-cfg.baraj)/d) : 100;
+}
+
+function primSkorRenk(s){ return s==null?'#71717a' : s>=100?'#16a34a' : s>=80?'#ca8a04' : s>=60?'#ea580c' : '#dc2626'; }
+
 function renderPrim(){
-  var el=document.getElementById('b-prim'); if(!el) return;
-  var py=S._ercePY||'Tümü';
-  var ay=S._erceAy||'';
-  var ayLbl=ay?ay:'Tüm aylar';
-  if(py==='Tümü'){
+  var el = document.getElementById('b-prim'); if(!el) return;
+  _primRefs = null;                       // ağırlık/eşik değişince yeniden hesapla
+  var cfg  = primCfg();
+  var ay   = S._erceAy || '';
+  var py   = S._ercePY || 'Tümü';
+  var pys  = primAllPys();
+  var ays  = primAllAys();
+
+  if(!pys.length || !ays.length){
     el.className='empty';
-    el.innerHTML='Prim hesabı PY bazlıdır. Yukarıdan bir <b>PY</b> ve <b>ay</b> seçin.';
+    el.innerHTML='Prim hesabı için veri yok. Üstten “Qlik’ten yenile” ile çekin.';
     return;
   }
   el.className='';
-  el.innerHTML=
-    '<div class="stat-grid">'+
-      '<div class="stat"><div class="v" style="font-size:15px">'+esc(py)+'</div><div class="l">Seçili PY</div></div>'+
-      '<div class="stat"><div class="v" style="font-size:15px">'+esc(ayLbl)+'</div><div class="l">Dönem</div></div>'+
-    '</div>'+
-    '<div class="empty" style="text-align:left;padding:12px 2px">Prim formülü henüz tanımlı değil. Verimlilik / yenileme / dokunma / flag / decay metriklerini bir prim katsayısına bağlayan formülü verdiğinde bu bölüm seçili PY + ay için otomatik hesaplayacak.</div>';
+  var refs = primRefs();
+
+  // ── Referans değer tablosu (her zaman görünür) ───────────────────────────
+  var refTbl = '<table style="margin-bottom:14px"><thead><tr><th>Metrik</th><th style="text-align:right">Ağırlık</th>'+
+    '<th style="text-align:right">Baraj (0 p)</th><th style="text-align:right">Hedef (100 p)</th>'+
+    '<th style="text-align:right">Tavan (120 p)</th><th style="text-align:right">Gözlem</th></tr></thead><tbody>'+
+    PRIM_METRICS.map(function(M){
+      var r = refs[M.key];
+      return '<tr><td style="font-weight:600">'+esc(M.ad)+'<div style="font-size:10px;color:#a1a1aa;font-weight:400">'+esc(M.ipucu)+'</div></td>'+
+        '<td style="text-align:right;font-weight:700">%'+(cfg[M.w]||0)+'</td>'+
+        '<td style="text-align:right">'+primRefInput(M.key,'B',r.B)+'</td>'+
+        '<td style="text-align:right">'+primRefInput(M.key,'H',r.H)+'</td>'+
+        '<td style="text-align:right">'+primRefInput(M.key,'T',r.T)+'</td>'+
+        '<td style="text-align:right;color:'+(r.n<8?'#dc2626':'#a1a1aa')+'">'+r.n+'</td></tr>';
+    }).join('')+'</tbody></table>'+
+    '<div class="empty" style="text-align:left;padding:0 2px 14px">Eşikler başlangıçta yüklü PY × ay dağılımından önerilir '+
+    '(yükseği iyi: Baraj p20 · Hedef p50 · Tavan p90 — decay’de ters) ama <b>elle değiştirilebilir</b> ve tarayicıda saklanır. '+
+    '<b>Kk ekipte persentil göreceli notlandırmaya döner</b>: en zayıf PY her ay otomatik olarak barajın altında kalır. '+
+    'Mutlak hedef istiyorsan Baraj/Hedef değerlerini iş hedefine göre elle gir. '+
+    'Gözlem sayısı 8’in altındaysa öneri kırılgandır, kırmızı gösterilir. '+
+    '<button onclick="primRefReset()" style="margin-left:6px;padding:3px 9px;border:1px solid #e4e4e7;border-radius:5px;background:#fff;font-size:11px;color:#71717a;cursor:pointer;font-weight:600">Persentilden yeniden doldur</button></div>';
+
+  // ── Ay seçilmemiş → PY × ay prim matrisi ─────────────────────────────────
+  if(!ay){
+    var cell = {};
+    ays.forEach(function(a){ pys.forEach(function(p){
+      var t = primTotal(primMetrics(p,a), refs, cfg);
+      cell[p+'|'+a] = { s:t.skor, o:primOdeme(t.skor,cfg) };
+    }); });
+    el.innerHTML = refTbl +
+      '<div style="overflow:auto"><table><thead><tr><th>PY</th>'+
+      ays.map(function(a){ return '<th style="text-align:right">'+esc(a)+'</th>'; }).join('')+
+      '</tr></thead><tbody>'+
+      pys.map(function(p){
+        return '<tr><td style="font-weight:600">'+esc(p.split(' ')[0])+'</td>'+
+          ays.map(function(a){
+            var c = cell[p+'|'+a];
+            if(!c || c.s==null) return '<td style="text-align:right;color:#d4d4d8">—</td>';
+            return '<td style="text-align:right"><span style="font-weight:700;color:'+primSkorRenk(c.s)+'">'+
+              c.o.toFixed(0)+'</span><span style="font-size:10px;color:#a1a1aa"> ('+c.s.toFixed(0)+'p)</span></td>';
+          }).join('')+'</tr>';
+      }).join('')+'</tbody></table></div>'+
+      '<div class="empty" style="text-align:left;padding:8px 2px">Hücreler: <b>prim birimi</b> (100 üzerinden) ve parantezde ağırlıklı skor. '+
+      'Üstten bir ay seçersen o ayın metrik kırılımı gelir.</div>';
+    return;
+  }
+
+  // ── Ay seçili → o ayın tüm PY sıralaması ─────────────────────────────────
+  var satir = pys.map(function(p){
+    var m = primMetrics(p, ay);
+    var t = primTotal(m, refs, cfg);
+    return { py:p, m:m, t:t, o:primOdeme(t.skor,cfg) };
+  }).sort(function(a,b){ return (b.t.skor==null?-1:b.t.skor) - (a.t.skor==null?-1:a.t.skor); });
+
+  var toplam = satir.reduce(function(a,r){ return a + (r.o||0); }, 0);
+  var out = '<div class="stat-grid">'+
+    '<div class="stat"><div class="v" style="font-size:15px">'+esc(ay)+'</div><div class="l">Dönem</div></div>'+
+    '<div class="stat"><div class="v">'+satir.filter(function(r){return r.t.skor!=null;}).length+'</div><div class="l">Hesaplanan PY</div></div>'+
+    '<div class="stat"><div class="v">'+toplam.toFixed(0)+'</div><div class="l">Toplam dağıtılan birim</div></div>'+
+    '<div class="stat"><div class="v" style="font-size:14px">'+cfg.baraj+' → '+cfg.tam+'</div><div class="l">Sıfır → tam ödeme skoru</div></div>'+
+  '</div>' + refTbl;
+
+  out += '<table><thead><tr><th>PY</th>'+
+    PRIM_METRICS.map(function(M){ return '<th style="text-align:right">'+esc(M.ad.split(' ')[0])+'</th>'; }).join('')+
+    '<th style="text-align:right">Skor</th><th style="text-align:right">Kapsam</th><th style="text-align:right">Prim</th></tr></thead><tbody>';
+  satir.forEach(function(r){
+    out += '<tr><td style="font-weight:600">'+esc(r.py.split(' ')[0])+'</td>'+
+      r.t.parts.map(function(pt){
+        if(pt.x==null) return '<td style="text-align:right;color:#d4d4d8">—</td>';
+        return '<td style="text-align:right">'+primFmt(pt.x)+
+          '<div style="font-size:10px;color:'+primSkorRenk(pt.s)+';font-weight:600">'+primFmt(pt.s,0)+'p</div>'+
+          (pt.d?'<div style="font-size:9px;color:#a1a1aa">'+esc(pt.d)+'</div>':'')+'</td>';
+      }).join('')+
+      '<td style="text-align:right;font-weight:700;color:'+primSkorRenk(r.t.skor)+'">'+primFmt(r.t.skor,0)+'</td>'+
+      '<td style="text-align:right;color:'+(r.t.kapsam<100?'#ea580c':'#a1a1aa')+'">%'+r.t.kapsam.toFixed(0)+'</td>'+
+      '<td style="text-align:right;font-weight:700;font-size:15px">'+(r.o==null?'—':r.o.toFixed(0))+'</td></tr>';
+  });
+  out += '</tbody></table>'+
+    '<div class="empty" style="text-align:left;padding:8px 2px">Her hücrede: ham değer · altında o metriğin puanı (0–120) · altında pay/payda. '+
+    '<b>Kapsam</b> %100’ün altındaysa o PY için bazı metriklerde veri yok; kalan ağırlıklar yeniden dağıtılmıştır — '+
+    'düşük kapsamlı satırları ödeme kararına esas almadan önce eksik kaynağı doldurun.</div>';
+
+  if(py!=='Tümü'){
+    var sel = satir.find(function(r){ return pyFirstKey(r.py)===pyFirstKey(py); });
+    if(sel) out = '<div style="padding:10px 12px;margin-bottom:12px;border:1px solid #e4e4e7;border-radius:8px;background:#fafafa">'+
+      '<div style="font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:.5px;font-weight:600">Seçili PY</div>'+
+      '<div style="font-size:20px;font-weight:700;margin-top:2px">'+esc(sel.py)+' · '+
+      '<span style="color:'+primSkorRenk(sel.t.skor)+'">'+primFmt(sel.t.skor,0)+' puan</span> → '+
+      '<span>'+(sel.o==null?'—':sel.o.toFixed(0))+' birim</span></div></div>' + out;
+  }
+  el.innerHTML = out;
 }
 
 // ── PIPELINE GİRİŞ NOKTASI ──────────────────────────────────────────────────
 function renderAll(){
+  // Veri yenilendi → prim önbelleklerini düşür (çağrı indeksi, başlık tespiti, referanslar)
+  _primIdx=null; _primCyH=undefined; _primRefs=null;
+  if(!window._primCfgLoaded){ try{primCfgLoad();}catch(e){} window._primCfgLoaded=1; }
   try{buildErceFilters();}catch(e){console.warn('filters:',e);}
   try{renderPrim();}catch(e){console.warn('prim:',e);}
   try{renderVerimlilik();}catch(e){console.warn('verimlilik:',e);}
