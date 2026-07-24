@@ -83,8 +83,17 @@ td{padding:7px 8px;border-bottom:1px solid #f4f4f5;font-size:12.5px}
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:#71717a;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Prim sıfır<input id="pc-baraj" type="number" min="0" step="1" value="60" onchange="primCfgChanged()" style="width:64px;padding:5px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-weight:600;color:#18181b;background:#fff"></label><label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:#71717a;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Tam ödeme<input id="pc-tam" type="number" min="0" step="1" value="120" onchange="primCfgChanged()" style="width:64px;padding:5px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-weight:600;color:#18181b;background:#fff"></label><label style="display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:#71717a;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Min kapsam %<input id="pc-minKapsam" type="number" min="0" max="100" step="5" value="60" onchange="primCfgChanged()" style="width:64px;padding:5px 8px;border:1px solid #e4e4e7;border-radius:6px;font-size:13px;font-weight:600;color:#18181b;background:#fff"></label><button onclick="primCfgReset()" style="padding:6px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;font-size:12px;color:#71717a;cursor:pointer;font-weight:600">Varsayılana dön</button></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;padding-left:14px;border-left:1px solid #e4e4e7">
+          <span style="font-size:10px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Ortak ayar</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button onclick="primSabitle()" style="padding:6px 12px;border:1px solid #18181b;border-radius:6px;background:#18181b;color:#fff;font-size:12px;cursor:pointer;font-weight:700">Eşikleri sabitle</button>
+            <button onclick="primSunucuyaKaydet()" style="padding:6px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;font-size:12px;color:#3f3f46;cursor:pointer;font-weight:600">Sunucuya kaydet</button>
+            <button onclick="primSunucudanYukle()" style="padding:6px 12px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;font-size:12px;color:#71717a;cursor:pointer;font-weight:600">Sunucudan yükle</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding-left:14px;border-left:1px solid #e4e4e7">
           <span style="font-size:10px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Eşik modu</span>
           <select id="pc-mod" onchange="primModChanged()" style="padding:6px 9px;border:1px solid #e4e4e7;border-radius:6px;font-size:12.5px;font-weight:600;color:#18181b;background:#fff;cursor:pointer">
+            <option value="sabit">Sabit — elle belirlenen değerler</option>
             <option value="oransal">Oransal — Hedef=medyan, Baraj=%60</option>
             <option value="dagilim">Dağılım — p20 / p50 / p90</option>
           </select>
@@ -693,6 +702,94 @@ function primCfgLoad(){
   });
 }
 
+// ── ORTAK AYAR (sunucu) ────────────────────────────────────────
+// Prim ayarları yalnız tarayıcıda (localStorage) durursa aynı sayfayı açan iki kişi
+// FARKLI prim görür ve bir ödemenin hangi eşiklerle hesaplandığı kayıt altına alınamaz.
+// Bu yüzden ayar Sheet'teki "Prim_Ayar" sekmesinde ortak tutulur.
+var _primSrv = { updatedBy:'', updatedAt:'', durum:'', yuklendi:false };
+
+function primAyarTopla(){
+  var c = primCfg(), refs = primRefs(), r = {};
+  PRIM_METRICS.forEach(function(M){
+    var x = refs[M.key] || {};
+    r[M.key] = { B:x.B, H:x.H, T:x.T };
+  });
+  return {
+    w: { wVerim:c.wVerim, wYen:c.wYen, wDok:c.wDok, wFlag:c.wFlag, wDecay:c.wDecay },
+    baraj:c.baraj, tam:c.tam, minKapsam:c.minKapsam, mod:c.mod, refs:r
+  };
+}
+function primAyarUygula(a){
+  if(!a) return;
+  if(a.w) Object.keys(a.w).forEach(function(k){
+    var el = document.getElementById('pc-'+k); if(el && a.w[k]!=null) el.value = a.w[k];
+  });
+  ['baraj','tam','minKapsam'].forEach(function(k){
+    var el = document.getElementById('pc-'+k); if(el && a[k]!=null) el.value = a[k];
+  });
+  var mel = document.getElementById('pc-mod'); if(mel && a.mod) mel.value = a.mod;
+  if(a.refs){ try{ localStorage.setItem('erce_prim_refs', JSON.stringify(a.refs)); }catch(e){} }
+  _primRefs = null; _primAyOk = null;
+}
+
+function primSunucudanYukle(sessiz){
+  return fetch('/api/prim-ayar', { credentials:'same-origin' })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var d = (j && (j.data || j)) || {};
+      _primSrv.updatedBy = d.updatedBy || '';
+      _primSrv.updatedAt = d.updatedAt || '';
+      _primSrv.yuklendi = true;
+      if(d.ayar){ primAyarUygula(d.ayar); _primSrv.durum = ''; }
+      else _primSrv.durum = 'Sunucuda kayıtlı ayar yok — varsayılanlar kullanılıyor.';
+      renderPrim();
+    })
+    .catch(function(e){
+      _primSrv.yuklendi = true;
+      _primSrv.durum = 'Sunucudan okunamadı: ' + (e && e.message ? e.message : e);
+      if(!sessiz) renderPrim();
+    });
+}
+function primSunucuyaKaydet(){
+  _primSrv.durum = 'Kaydediliyor…'; renderPrim();
+  return fetch('/api/prim-ayar', {
+    method:'POST', credentials:'same-origin',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ ayar: primAyarTopla() })
+  })
+    .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, j:j }; }); })
+    .then(function(x){
+      var d = (x.j && (x.j.data || x.j)) || {};
+      if(!x.ok){ _primSrv.durum = 'Kaydedilemedi: ' + (d.error || d.message || 'bilinmeyen hata'); }
+      else {
+        _primSrv.updatedBy = d.updatedBy || '';
+        _primSrv.updatedAt = d.updatedAt || '';
+        _primSrv.durum = 'Kaydedildi — artık paneli açan herkes aynı rakamları görür.';
+      }
+      renderPrim();
+    })
+    .catch(function(e){
+      _primSrv.durum = 'Kaydedilemedi: ' + (e && e.message ? e.message : e);
+      renderPrim();
+    });
+}
+
+// Ekranda görünen eşikleri olduğu gibi dondurup "Sabit" moda geçer.
+// Sabit modda eşikler bir daha veriyle birlikte oynamaz: bir PY'nin primi
+// meslektaşının performansı değiştiğinde değişmez, geçmiş aylar yeniden yazılmaz.
+function primSabitle(){
+  var refs = primRefs(), ov = {};
+  PRIM_METRICS.forEach(function(M){
+    var x = refs[M.key] || {};
+    if(x.B!=null && x.H!=null && x.T!=null) ov[M.key] = { B:x.B, H:x.H, T:x.T };
+  });
+  try{ localStorage.setItem('erce_prim_refs', JSON.stringify(ov)); }catch(e){}
+  var mel = document.getElementById('pc-mod'); if(mel) mel.value = 'sabit';
+  try{ localStorage.setItem('erce_prim_mod', 'sabit'); }catch(e){}
+  _primRefs = null; _primAyOk = null;
+  renderPrim();
+}
+
 function primNum(v){
   if(typeof v==='number') return isNaN(v)?null:v;
   var n = parseFloat(String(v==null?'':v).replace(/[^0-9.,-]/g,'').replace(',','.'));
@@ -911,7 +1008,7 @@ function primRefs(){
   PRIM_METRICS.forEach(function(M){
     var arr = pool[M.key];
     var med = primPct(arr, 50);
-    if(mod==='oransal' && med!=null && med!==0){
+    if((mod==='oransal' || mod==='sabit') && med!=null && med!==0){
       // ORANSAL: Hedef = takim medyani; Baraj/Tavan hedefin sabit orani.
       // Persentil modunda Baraj p20'ydi — yani "ekibin en zayıf beşte biri" → o
       // bölgedeki herkes metrikte 0 alıyor ve bileşik skor çöküyordu. Oransal modda
@@ -1090,7 +1187,21 @@ function renderPrim(){
   var refs = primRefs();
 
   // ── Referans değer tablosu (her zaman görünür) ───────────────────────────
-  var refTbl = primKalibrasyonSerit(refs, cfg) +
+  var srvBar = '';
+  if(cfg.mod==='sabit' || _primSrv.updatedAt || _primSrv.durum){
+    var eksik = PRIM_METRICS.filter(function(M){ return !(refs[M.key]||{}).ov; });
+    srvBar = '<div style="border:1px solid #e4e4e7;background:#fafafa;border-radius:8px;padding:9px 12px;margin-bottom:14px;font-size:12px;color:#3f3f46">'+
+      '<b>'+(cfg.mod==='sabit'?'Sabit eşik modu':'Eşikler veriden türetiliyor')+'</b>'+
+      (_primSrv.updatedAt ? ' · son kayıt <b>'+esc(_primSrv.updatedAt.slice(0,16).replace('T',' '))+'</b>'+
+        (_primSrv.updatedBy?' · '+esc(_primSrv.updatedBy):'') : ' · henüz sunucuya kaydedilmedi')+
+      (cfg.mod==='sabit' && eksik.length
+        ? '<div style="color:#ea580c;margin-top:5px">'+eksik.length+' metriğin eşiği henüz sabitlenmemiş ('+
+          eksik.map(function(M){ return esc(M.ad); }).join(', ')+') — bunlar hâlâ veriden türetiliyor. '+
+          '“Eşikleri sabitle” ile hepsini dondurabilirsin.</div>' : '')+
+      (_primSrv.durum ? '<div style="color:#71717a;margin-top:5px">'+esc(_primSrv.durum)+'</div>' : '')+
+    '</div>';
+  }
+  var refTbl = srvBar + primKalibrasyonSerit(refs, cfg) +
     '<table style="margin-bottom:14px"><thead><tr><th>Metrik</th><th style="text-align:right">Ağırlık</th>'+
     '<th style="text-align:right">Baraj (0 p)</th><th style="text-align:right">Hedef (100 p)</th>'+
     '<th style="text-align:right">Tavan (120 p)</th><th style="text-align:right">Gözlem</th></tr></thead><tbody>'+
@@ -1098,7 +1209,8 @@ function renderPrim(){
       var r = refs[M.key];
       return '<tr><td style="font-weight:600">'+esc(M.ad)+'<div style="font-size:10px;color:#a1a1aa;font-weight:400">'+esc(M.ipucu)+'</div></td>'+
         '<td style="text-align:right;font-weight:700">%'+(cfg[M.w]||0)+'</td>'+
-        '<td style="text-align:right">'+primRefInput(M.key,'B',r.B)+'</td>'+
+        '<td style="text-align:right">'+primRefInput(M.key,'B',r.B)+
+          (r.ov?'<div style="font-size:9px;color:#16a34a;font-weight:700">SABİT</div>':'<div style="font-size:9px;color:#a1a1aa">otomatik</div>')+'</td>'+
         '<td style="text-align:right">'+primRefInput(M.key,'H',r.H)+'</td>'+
         '<td style="text-align:right">'+primRefInput(M.key,'T',r.T)+'</td>'+
         '<td style="text-align:right;color:'+(r.n<8?'#dc2626':'#a1a1aa')+'">'+r.n+'</td></tr>';
@@ -1224,7 +1336,12 @@ function renderPrim(){
 function renderAll(){
   // Veri yenilendi → prim önbelleklerini düşür (çağrı indeksi, başlık tespiti, referanslar)
   _primIdx=null; _primCyH=undefined; _primRefs=null; _primMc={}; _primAyOk=null;
-  if(!window._primCfgLoaded){ try{primCfgLoad();}catch(e){} window._primCfgLoaded=1; }
+  if(!window._primCfgLoaded){
+    try{primCfgLoad();}catch(e){}
+    window._primCfgLoaded=1;
+    // Ortak ayarı sunucudan çek (varsa yereli ezer) — herkes aynı rakamı görsün.
+    try{ primSunucudanYukle(true); }catch(e){}
+  }
   try{buildErceFilters();}catch(e){console.warn('filters:',e);}
   try{renderPrim();}catch(e){console.warn('prim:',e);}
   try{renderVerimlilik();}catch(e){console.warn('verimlilik:',e);}
